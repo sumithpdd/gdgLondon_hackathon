@@ -5,20 +5,16 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
-  FolderKanban,
   Users,
   BookOpen,
   Scale,
-  Grid3X3,
 } from "lucide-react";
 
 const TABS = [
   { href: "/hackathon", label: "Overview", icon: LayoutDashboard },
-  { href: "/hackathon/my-projects", label: "My Projects", icon: FolderKanban },
   { href: "/hackathon/participants", label: "Participants", icon: Users },
   { href: "/hackathon/resources", label: "Resources", icon: BookOpen },
   { href: "/hackathon/rules", label: "Rules", icon: Scale },
-  { href: "/hackathon/gallery", label: "Project Gallery", icon: Grid3X3 },
 ];
 
 export function HackathonNav() {

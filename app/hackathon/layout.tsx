@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { HackathonNav } from "@/components/HackathonNav";
 
 export default function HackathonLayout({
   children,
@@ -29,6 +30,8 @@ export default function HackathonLayout({
           </Link>
         </div>
       </header>
+
+      <HackathonNav />
 
       <main className="w-full max-w-5xl mx-auto px-4 py-8">{children}</main>
 
