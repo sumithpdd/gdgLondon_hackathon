@@ -36,7 +36,7 @@ export default function NotFound() {
                 Gallery
               </Link>
               <span className="text-slate-600">•</span>
-              <Link href="/admin/login" className="text-sm text-blue-400 hover:underline">
+              <Link href="/admin" className="text-sm text-blue-400 hover:underline">
                 Admin
               </Link>
             </div>

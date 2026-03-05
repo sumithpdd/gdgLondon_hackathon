@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * Firebase Authentication modal — Sign In and Sign Up
+ * Uses Firebase Auth: email/password + Google OAuth
+ */
 import { useState } from "react";
 import { 
   signInWithEmailAndPassword, 

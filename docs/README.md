@@ -10,9 +10,10 @@ Build with AI Hackathon — IWD London 2026. Documentation for the GDG London ha
 
 Start here if you're new to the project:
 
-1. **[START_HERE.md](./START_HERE.md)** - Complete beginner's guide
-2. **[FEATURES_SIMPLE.md](./FEATURES_SIMPLE.md)** - What the app does
-3. **Admin setup** - See [DEPLOYMENT.md](./DEPLOYMENT.md) Step 4 (Firestore `users` → set `role: "admin"`)
+1. **[USER_FLOW.md](./USER_FLOW.md)** - User journey (Overview → Login → Join/Create/Adventure)
+2. **[START_HERE.md](./START_HERE.md)** - Complete beginner's guide
+3. **[FEATURES_SIMPLE.md](./FEATURES_SIMPLE.md)** - What the app does
+4. **Admin setup** - See [DEPLOYMENT.md](./DEPLOYMENT.md) Step 4 (Firestore `users` → set `role: "admin"`)
 
 ### For Deployment
 
@@ -68,6 +69,7 @@ Having issues? Check here:
 
 | Document | Purpose | Audience |
 |----------|---------|----------|
+| **USER_FLOW.md** | User journey (Overview → Login → Join/Create/Adventure) | Everyone |
 | **FEATURES.md** | Complete feature list (technical) | Developers |
 | **FEATURES_SIMPLE.md** | Simple feature explanations | Everyone |
 
@@ -94,6 +96,9 @@ Having issues? Check here:
 
 #### ...deploy the app
 → [DEPLOYMENT.md](./DEPLOYMENT.md)
+
+#### ...understand the user flow
+→ [USER_FLOW.md](./USER_FLOW.md)
 
 #### ...understand how it works
 → [START_HERE.md](./START_HERE.md) → [FEATURES_SIMPLE.md](./FEATURES_SIMPLE.md)

@@ -66,7 +66,8 @@
 - [DEPLOYMENT.md](./DEPLOYMENT.md) - Deployment guide
 - [CHECKLIST.md](./CHECKLIST.md) - Pre-deployment checklist
 
-### Features
+### Features & Flow
+- [USER_FLOW.md](./USER_FLOW.md) - User journey (Overview → Login → Join/Create/Adventure) ⭐
 - [FEATURES.md](./FEATURES.md) - Complete feature list (technical)
 - [FEATURES_SIMPLE.md](./FEATURES_SIMPLE.md) - Simple explanations
 
@@ -130,8 +131,12 @@ vercel --prod
 | Route | Access | Purpose |
 |-------|--------|---------|
 | `/` | Public | Landing page |
-| `/submit` | Protected | Submit projects |
-| `/gallery` | Public | View submissions |
+| `/hackathon` | Public | Overview (hero, intro, CTAs) |
+| `/hackathon/participants` | Public | Participant count, join projects |
+| `/hackathon/gallery` | Public | Browse all projects |
+| `/hackathon/rules` | Public | Teams, submission rules, judging |
+| `/hackathon/resources` | Public | Links (Gemini, AI Studio, Adventure) |
+| `/submit` | Protected | Create/submit project |
 | `/admin` | Admin | Admin panel |
 | `/admin/users` | Admin | User management |
 

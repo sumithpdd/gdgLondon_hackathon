@@ -12,16 +12,14 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
   const { user, userProfile, loading } = useAuthContext();
   const router = useRouter();
-  const [showAuthModal, setShowAuthModal] = useState(false);
-
   useEffect(() => {
     if (!loading) {
       if (!user) {
-        // User not authenticated, redirect to home
-        router.push("/");
+        // User not authenticated, redirect to hackathon (Firebase login available there)
+        router.push("/hackathon");
       } else if (requireAdmin && userProfile?.role !== "admin") {
-        // User is not admin, redirect to home
-        router.push("/");
+        // User is not admin, redirect to hackathon
+        router.push("/hackathon");
       }
     }
   }, [user, userProfile, loading, requireAdmin, router]);
