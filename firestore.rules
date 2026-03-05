@@ -1,0 +1,79 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function getUserRole(userId) {
+      return get(/databases/$(database)/documents/hackatonUsers/$(userId)).data.role;
+    }
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && getUserRole(request.auth.uid) == "admin";
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isOwnerOrAdmin(userId) {
+      return isOwner(userId) || isAdmin();
+    }
+    
+    match /hackatonUsers/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isOwnerOrAdmin(userId);
+      allow delete: if isAdmin();
+    }
+    
+    match /hackatonProjects/{projectId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated() && 
+        (resource.data.userId == request.auth.uid || isAdmin());
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isAuthenticated();
+        allow delete: if isAuthenticated() && 
+          (resource.data.userId == request.auth.uid || isAdmin());
+      }
+    }
+
+    match /hackatonUsers/{userId}/bookmarks/{projectId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    match /hackatonDiscussions/{docId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && 
+        (resource.data.authorId == request.auth.uid || isAdmin());
+    }
+
+    match /hackatonUpdates/{docId} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update, delete: if isAdmin();
+    }
+    
+    match /Interests/{tagId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+    match /Expertise/{tagId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+    match /TechStack/{tagId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+  }
+}

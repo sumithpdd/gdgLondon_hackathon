@@ -1,0 +1,112 @@
+# Firebase Security Rules
+
+Build with AI Hackathon — IWD London 2026
+
+Copy these rules in Firebase Console
+
+## Firestore Rules
+Go to: Firestore Database → Rules tab
+Paste this and click Publish:
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Get user role from hackatonUsers collection
+    function getUserRole(userId) {
+      return get(/databases/$(database)/documents/hackatonUsers/$(userId)).data.role;
+    }
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && getUserRole(request.auth.uid) == "admin";
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isOwnerOrAdmin(userId) {
+      return isOwner(userId) || isAdmin();
+    }
+    
+    // hackatonUsers - profiles and roles
+    match /hackatonUsers/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isOwnerOrAdmin(userId);
+      allow delete: if isAdmin();
+    }
+    
+    // hackatonProjects - hackathon submissions
+    match /hackatonProjects/{projectId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      // Owner/admin: full update. Others: can update for likes (engagement)
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated() && 
+        (resource.data.userId == request.auth.uid || isAdmin());
+      // Comments subcollection
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isAuthenticated();
+        allow delete: if isAuthenticated() && 
+          (resource.data.userId == request.auth.uid || isAdmin());
+      }
+    }
+
+    // User bookmarks subcollection
+    match /hackatonUsers/{userId}/bookmarks/{projectId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // hackatonDiscussions - community discussions
+    match /hackatonDiscussions/{docId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && 
+        (resource.data.authorId == request.auth.uid || isAdmin());
+    }
+
+    // hackatonUpdates - hackathon announcements (admin creates)
+    match /hackatonUpdates/{docId} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update, delete: if isAdmin();
+    }
+    
+    // Tags collections (Interests, Expertise, TechStack)
+    match /Interests/{tagId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+    match /Expertise/{tagId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+    match /TechStack/{tagId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+  }
+}
+
+## Storage Rules
+Go to: Storage → Rules tab
+Paste this and click Publish:
+
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /hackathon_uploads/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.resource.size < 10 * 1024 * 1024;
+    }
+  }
+}
