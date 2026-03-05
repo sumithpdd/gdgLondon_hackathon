@@ -1,78 +1,126 @@
 "use client";
 
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Users, Clock, Rocket, ExternalLink, Sparkles } from "lucide-react";
-import { useAuthContext } from "@/lib/AuthContext";
+import { useEffect, useState } from "react";
+import { Rocket, Sparkles } from "lucide-react";
 
-export default function HackathonOverviewPage() {
-  const { isAuthenticated } = useAuthContext();
+interface TimeLeft {
+  days: number;
+  hours: number;
+  minutes: number;
+  seconds: number;
+}
 
+const TARGET_DATE = new Date("2026-03-11T09:00:00Z");
+
+function getTimeLeft(): TimeLeft {
+  const now = new Date();
+  const diff = Math.max(0, TARGET_DATE.getTime() - now.getTime());
+
+  return {
+    days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+    hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
+    minutes: Math.floor((diff / (1000 * 60)) % 60),
+    seconds: Math.floor((diff / 1000) % 60),
+  };
+}
+
+function CountdownUnit({ value, label }: { value: number; label: string }) {
   return (
-    <div className="space-y-12 max-w-3xl mx-auto">
-      {/* Hero */}
-      <div className="text-center">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-500/20 border border-violet-400/30 text-white text-sm font-semibold mb-6">
-          <Rocket className="w-4 h-4" />
-          HACKATHON 2026
-        </div>
-        <h1 className="text-3xl sm:text-5xl font-bold tracking-tight mb-6">
-          <span className="text-white">Build with AI • IWD </span>
-          <span className="text-gradient">2026</span>
-          <br />
-          <span className="text-gradient">GDG London</span>
-        </h1>
-        <p className="text-gray-300 text-lg leading-relaxed max-w-2xl mx-auto">
-          Community-led workshops and hackathons to build with the latest Google AI — Gemini, Vertex AI, AI Studio & more.{" "}
-          <span className="text-gradient font-semibold">#BuildwithAI</span>
-        </p>
-
-        {/* Info cards */}
-        <div className="flex flex-wrap justify-center gap-6 my-12">
-          <div className="flex-1 min-w-[140px] max-w-[200px] p-6 rounded-2xl bg-[#1e1b2e] border border-violet-500/20 text-center">
-            <p className="text-2xl sm:text-3xl font-bold text-violet-400">100+</p>
-            <p className="text-sm text-white mt-1">participants</p>
-          </div>
-          <div className="flex-1 min-w-[140px] max-w-[200px] p-6 rounded-2xl bg-[#1e1b2e] border border-violet-500/20 text-center flex flex-col items-center justify-center">
-            <Clock className="w-6 h-6 text-violet-400 mb-2" />
-            <p className="text-2xl sm:text-3xl font-bold text-violet-400">Mar 13</p>
-            <p className="text-sm text-white mt-1">deadline</p>
-          </div>
-        </div>
-
-        {/* CTA buttons */}
-        <div className="flex flex-wrap justify-center gap-4">
-          {isAuthenticated ? (
-            <>
-              <Link href="/submit">
-                <Button size="lg" className="bg-gradient-accent hover:opacity-90 text-white border-0 shadow-lg shadow-violet-500/25">
-                  <Rocket className="w-4 h-4 mr-2" />
-                  Submit Project
-                  <ExternalLink className="w-4 h-4 ml-2" />
-                </Button>
-              </Link>
-              <Link href="/hackathon/participants">
-                <Button size="lg" variant="outline" className="bg-[#1e1b2e]/80 border-violet-500/30 text-white hover:bg-violet-500/20">
-                  <Users className="w-4 h-4 mr-2" />
-                  Find a Team
-                </Button>
-              </Link>
-              <Link href="/hackathon/gallery">
-                <Button size="lg" variant="outline" className="bg-[#1e1b2e]/80 border-violet-500/30 text-white hover:bg-violet-500/20">
-                  Project Gallery
-                </Button>
-              </Link>
-            </>
-          ) : (
-            <Button size="lg" className="bg-gradient-accent hover:opacity-90 text-white border-0" disabled>
-              Sign in to submit
-            </Button>
-          )}
+    <div className="flex flex-col items-center">
+      <div className="relative group">
+        <div className="absolute -inset-1 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 rounded-2xl blur-sm opacity-60 group-hover:opacity-100 transition-opacity animate-pulse" />
+        <div className="relative bg-[#1a1528] border border-violet-500/30 rounded-2xl px-4 py-5 sm:px-8 sm:py-8 min-w-[80px] sm:min-w-[120px]">
+          <span
+            className="text-4xl sm:text-7xl font-bold tabular-nums bg-clip-text text-transparent bg-gradient-to-b from-white to-violet-200 transition-all duration-300"
+          >
+            {String(value).padStart(2, "0")}
+          </span>
         </div>
       </div>
+      <span className="text-xs sm:text-sm font-medium text-gray-400 mt-3 uppercase tracking-widest">
+        {label}
+      </span>
+    </div>
+  );
+}
 
-      {/* What is a Hackathon - fun, reworked */}
-      <section className="p-8 rounded-3xl bg-[#2c244c] border border-violet-500/20 text-left">
+export default function HackathonOverviewPage() {
+  const [timeLeft, setTimeLeft] = useState<TimeLeft>(getTimeLeft);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const interval = setInterval(() => {
+      setTimeLeft(getTimeLeft());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (!mounted) {
+    return null;
+  }
+
+  const isOpen =
+    timeLeft.days === 0 &&
+    timeLeft.hours === 0 &&
+    timeLeft.minutes === 0 &&
+    timeLeft.seconds === 0;
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[70vh] space-y-12 max-w-4xl mx-auto text-center">
+      {/* Badge */}
+      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-500/20 border border-violet-400/30 text-white text-sm font-semibold animate-bounce">
+        <Rocket className="w-4 h-4" />
+        HACKATHON 2026
+      </div>
+
+      {/* Heading */}
+      <div>
+        <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-4">
+          <span className="text-white">Get Ready to Join the</span>
+          <br />
+          <span className="bg-clip-text text-transparent bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400">
+            Hackathon
+          </span>
+        </h1>
+        <p className="text-gray-400 text-lg sm:text-xl max-w-2xl mx-auto">
+          Build with AI × IWD 2026 — GDG London
+        </p>
+      </div>
+
+      {/* Countdown or Open message */}
+      {isOpen ? (
+        <div className="space-y-6">
+          <div className="inline-flex items-center gap-3 px-6 py-4 rounded-2xl bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 text-white text-2xl sm:text-4xl font-bold shadow-lg shadow-violet-500/30">
+            <Sparkles className="w-8 h-8" />
+            The Hackathon is Open!
+            <Sparkles className="w-8 h-8" />
+          </div>
+        </div>
+      ) : (
+        <>
+          <div>
+            <p className="text-gray-300 text-base sm:text-lg mb-2">
+              Opens on <span className="text-violet-400 font-semibold">11th March 2026</span> at{" "}
+              <span className="text-violet-400 font-semibold">9:00 AM GMT</span>
+            </p>
+          </div>
+
+          {/* Countdown Timer */}
+          <div className="flex items-center justify-center gap-3 sm:gap-6">
+            <CountdownUnit value={timeLeft.days} label="Days" />
+            <span className="text-3xl sm:text-5xl font-bold text-violet-400 animate-pulse mt-[-1.5rem]">:</span>
+            <CountdownUnit value={timeLeft.hours} label="Hours" />
+            <span className="text-3xl sm:text-5xl font-bold text-violet-400 animate-pulse mt-[-1.5rem]">:</span>
+            <CountdownUnit value={timeLeft.minutes} label="Minutes" />
+            <span className="text-3xl sm:text-5xl font-bold text-violet-400 animate-pulse mt-[-1.5rem]">:</span>
+            <CountdownUnit value={timeLeft.seconds} label="Seconds" />
+          </div>
+        </>
+      )}
+
+      {/* What is a Hackathon */}
+      <section className="p-8 rounded-3xl bg-[#2c244c] border border-violet-500/20 text-left w-full mt-8">
         <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
           <Sparkles className="w-6 h-6 text-violet-400" />
           What is a Hackathon?
@@ -81,21 +129,9 @@ export default function HackathonOverviewPage() {
           Hackathons are events where people come together for a short, intensive period to solve a specific problem or build a functioning prototype—a &quot;<span className="text-violet-400 font-medium">minimum viable product</span>&quot; (MVP)—from scratch.
         </p>
         <p className="text-gray-300 leading-relaxed mt-4 text-lg">
-          <span className="text-gradient font-semibold">Build with AI</span> are community-led technical workshops and hackathons hosted by GDGs and GDG on Campus, designed to introduce the latest Google AI technologies—<span className="text-violet-400">Gemini</span>, <span className="text-violet-400">Vertex AI</span>, <span className="text-violet-400">AI Studio</span>, and <span className="text-violet-400">Antigravity</span>—and empower you to create something real. 🚀
+          <span className="bg-clip-text text-transparent bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400 font-semibold">Build with AI</span> are community-led technical workshops and hackathons hosted by GDGs and GDG on Campus, designed to introduce the latest Google AI technologies—<span className="text-violet-400">Gemini</span>, <span className="text-violet-400">Vertex AI</span>, <span className="text-violet-400">AI Studio</span>, and <span className="text-violet-400">Antigravity</span>—and empower you to create something real.
         </p>
       </section>
-
-      {/* CTA */}
-      <div className="text-center py-8">
-        <p className="text-gray-400 mb-6">Ready to build? Check the <Link href="/hackathon/rules" className="text-violet-400 hover:text-violet-300 font-medium underline">Rules</Link> for full details.</p>
-        {isAuthenticated && (
-          <Link href="/submit">
-            <Button size="lg" className="bg-gradient-accent hover:opacity-90 text-white border-0">
-              Submit Your Project
-            </Button>
-          </Link>
-        )}
-      </div>
     </div>
   );
 }
