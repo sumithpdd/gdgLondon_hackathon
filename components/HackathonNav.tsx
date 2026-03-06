@@ -8,10 +8,12 @@ import {
   Users,
   BookOpen,
   Scale,
+  Gift,
 } from "lucide-react";
 
 const TABS = [
   { href: "/hackathon", label: "Overview", icon: LayoutDashboard },
+  { href: "/hackathon/prizes", label: "Prizes", icon: Gift },
   { href: "/hackathon/participants", label: "Participants", icon: Users },
   { href: "/hackathon/resources", label: "Resources", icon: BookOpen },
   { href: "/hackathon/rules", label: "Rules", icon: Scale },

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Rocket, Sparkles } from "lucide-react";
+import { Rocket, Sparkles, Ticket, GitBranch } from "lucide-react";
+import { PrizeCarousel } from "@/components/PrizeCarousel";
 
 interface TimeLeft {
   days: number;
@@ -86,6 +87,12 @@ export default function HackathonOverviewPage() {
         <p className="text-gray-400 text-lg sm:text-xl max-w-2xl mx-auto">
           Build with AI × IWD 2026 — GDG London
         </p>
+        <div className="mt-6 px-6 py-4 rounded-2xl bg-amber-500/15 border-2 border-amber-400/40 text-center">
+          <p className="text-amber-100 font-bold text-base sm:text-lg">
+            🎉 Prizes are handed out live on event day — be there in person to claim your glory.
+          </p>
+          <p className="text-amber-200/90 text-sm mt-1 font-medium">Show up, win big! No mail, no exceptions.</p>
+        </div>
       </div>
 
       {/* Countdown or Open message */}
@@ -119,6 +126,58 @@ export default function HackathonOverviewPage() {
         </>
       )}
 
+      {/* Prizes carousel - compact */}
+      <div className="w-full mt-8">
+        <PrizeCarousel variant="compact" />
+      </div>
+
+      {/* 2 Ways to Participate */}
+      <section className="p-8 rounded-3xl bg-[#2c244c] border border-violet-500/20 text-left w-full mt-8">
+        <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+          <GitBranch className="w-6 h-6 text-violet-400" />
+          2 Ways to Participate
+        </h2>
+        <div className="grid sm:grid-cols-2 gap-6">
+          <div className="p-6 rounded-2xl bg-[#1e1b2e] border border-violet-500/10">
+            <h3 className="font-bold text-white mb-2">Create or Join a Project Idea</h3>
+            <p className="text-gray-400 text-sm">
+              Submit your hackathon project, join a team, or browse the Idea Gallery.
+            </p>
+            <p className="mt-3 text-gray-500 text-sm">
+              Opens 11th March 2026 at 9:00 AM GMT
+            </p>
+          </div>
+          <div className="p-6 rounded-2xl bg-[#1e1b2e] border border-violet-500/10">
+            <h3 className="font-bold text-white mb-2">Garden of Forgotten Prompt</h3>
+            <p className="text-gray-400 text-sm">
+              Join the leaderboard for this adventure. We&apos;ll provide cloud credits and open it on the 11th. Create a project so we can send you credits.
+            </p>
+            <p className="mt-3 text-gray-500 text-sm">
+              Opens 11th March 2026 at 9:00 AM GMT
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Ticket requirement */}
+      <section className="p-8 rounded-3xl bg-violet-600/20 border border-violet-500/30 text-left w-full mt-8">
+        <h2 className="text-xl font-bold text-white mb-3 flex items-center gap-2">
+          <Ticket className="w-6 h-6 text-violet-400" />
+          Event Ticket Required
+        </h2>
+        <p className="text-gray-300 leading-relaxed">
+          You need a valid ticket for the event to participate in this hackathon.{" "}
+          <a
+            href="https://buildwithai.gdg.london/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-violet-400 hover:text-violet-300 font-semibold underline"
+          >
+            Get your ticket at buildwithai.gdg.london →
+          </a>
+        </p>
+      </section>
+
       {/* What is a Hackathon */}
       <section className="p-8 rounded-3xl bg-[#2c244c] border border-violet-500/20 text-left w-full mt-8">
         <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
@@ -129,7 +188,7 @@ export default function HackathonOverviewPage() {
           Hackathons are events where people come together for a short, intensive period to solve a specific problem or build a functioning prototype—a &quot;<span className="text-violet-400 font-medium">minimum viable product</span>&quot; (MVP)—from scratch.
         </p>
         <p className="text-gray-300 leading-relaxed mt-4 text-lg">
-          <span className="bg-clip-text text-transparent bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400 font-semibold">Build with AI</span> are community-led technical workshops and hackathons hosted by GDGs and GDG on Campus, designed to introduce the latest Google AI technologies—<span className="text-violet-400">Gemini</span>, <span className="text-violet-400">Vertex AI</span>, <span className="text-violet-400">AI Studio</span>, and <span className="text-violet-400">Antigravity</span>—and empower you to create something real.
+          <span className="bg-clip-text text-transparent bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400 font-semibold">Build with AI</span> are community-led technical workshops and hackathons hosted by GDGs and GDG on Campus. Use any AI technology—from open models to cloud APIs—to build something real. Google tools like Gemini and AI Studio are optional.
         </p>
       </section>
     </div>

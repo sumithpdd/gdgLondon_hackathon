@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, Lightbulb, Award, Clock, Users } from "lucide-react";
+import { Upload, Lightbulb, Award, Clock, Users, Ticket, Gift, Shield } from "lucide-react";
 
 export default function RulesPage() {
   const submissionItems = [
@@ -22,6 +22,40 @@ export default function RulesPage() {
   return (
     <div className="space-y-8 max-w-3xl mx-auto">
       <h1 className="text-3xl font-bold text-white text-center">Rules</h1>
+
+      {/* Event Ticket Required */}
+      <Card className="bg-violet-600/20 border-violet-500/30 text-left">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <Ticket className="w-5 h-5 text-violet-400" />
+            Event Ticket Required
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-gray-300">
+          <p>You need a valid ticket for the event to participate in this hackathon.</p>
+          <a
+            href="https://buildwithai.gdg.london/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-violet-400 hover:text-violet-300 font-semibold underline"
+          >
+            Get your ticket at buildwithai.gdg.london →
+          </a>
+        </CardContent>
+      </Card>
+
+      {/* Eligibility - Organisers, Speakers, Volunteers */}
+      <Card className="bg-[#2c244c] border-violet-500/20 text-left">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <Shield className="w-5 h-5 text-violet-400" />
+            Eligibility
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-gray-400">
+          <p>Event organisers, speakers, and volunteers cannot and will not participate in the hackathon.</p>
+        </CardContent>
+      </Card>
 
       {/* Teams */}
       <Card className="bg-[#2c244c] border-violet-500/20 text-left">
@@ -55,6 +89,11 @@ export default function RulesPage() {
             <li>LinkedIn profile</li>
           </ul>
           <p className="mt-3">You can also browse the Idea Gallery and join an existing project.</p>
+          <div className="mt-4 p-4 rounded-xl bg-violet-600/10 border border-violet-500/20">
+            <p className="font-medium text-violet-300 mb-1">Or join the adventure &quot;Garden of Forgotten Prompt&quot;</p>
+            <p className="text-sm">We will provide you cloud credits and will open it on the 11th. You will need to create a project so that we can send you credits.</p>
+            <p className="text-sm text-gray-500 mt-2">Opens 11th March 2026 at 9:00 AM GMT</p>
+          </div>
         </CardContent>
       </Card>
 
@@ -108,6 +147,22 @@ export default function RulesPage() {
           <li><strong className="text-gray-200">Impact</strong> — Does the project solve a real problem or improve user workflows in a meaningful way?</li>
         </ul>
       </section>
+
+      {/* Winning Prizes - In Person */}
+      <Card className="bg-amber-500/15 border-2 border-amber-400/50 text-left shadow-[0_0_30px_-8px_rgba(251,191,36,0.3)]">
+        <CardHeader>
+          <CardTitle className="text-amber-100 flex items-center gap-2 text-xl">
+            <Gift className="w-6 h-6 text-amber-400" />
+            Winning Prizes — Important
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-amber-100 font-bold text-lg leading-relaxed">
+            🎉 Prizes are handed out live on event day — be there in person to claim your glory.
+          </p>
+          <p className="text-amber-200/90 font-medium mt-2">Show up, win big! No mail, no exceptions. Your moment in the spotlight awaits.</p>
+        </CardContent>
+      </Card>
 
       {/* Submission Deadline */}
       <Card className="bg-violet-600/20 border-violet-500/30 text-left">

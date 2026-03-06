@@ -22,7 +22,7 @@ export const FIREBASE_COLLECTION = PROJECTS_COLLECTION
 // Build with AI Hackathon - IWD London 2026
 export const HACKATHON_START_DATE = new Date('2025-12-09') // Dec 9, 2025
 export const HACKATHON_SUBMISSION_DEADLINE = new Date('2026-03-13T23:59:00')
-export const BUILT_WITH_OPTIONS = ['Gemini', 'Firebase', 'Flutter', 'Vertex AI', 'Cloud Run'] as const
+export const BUILT_WITH_OPTIONS = ['OpenAI', 'Claude', 'Gemini', 'Hugging Face', 'Firebase', 'Flutter', 'Vertex AI', 'Cloud Run'] as const
 export const AI_CATEGORIES = ['agents', 'ai-apps', 'devtools', 'ai-for-good', 'other'] as const
 
 // File upload limits

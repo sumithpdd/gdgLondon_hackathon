@@ -12,7 +12,7 @@ const poppins = Poppins({
 
 export const metadata: Metadata = {
   title: "Build with AI Hackathon — IWD London 2026 | GDG London",
-  description: "Build with AI × International Women's Day London 2026. Create, ship, and showcase your AI project.",
+  description: "AI Hackathon — IWD London 2026. Create, ship, and showcase your AI project. Use any AI technology.",
 };
 
 export default function RootLayout({

@@ -411,7 +411,7 @@ export default function SubmitPage() {
             <Link href="/hackathon" className="inline-block">
               <Image 
                 src="/gdg-london-logo.png" 
-                alt="GDG London - Build with AI" 
+                alt="GDG London" 
                 width={180}
                 height={60}
                 className="h-12 w-auto"
@@ -440,7 +440,7 @@ export default function SubmitPage() {
           <CardHeader>
             <CardTitle className="text-3xl text-gray-900">Submit Your Project</CardTitle>
             <CardDescription className="text-gray-600">
-              Build with AI Hackathon — IWD London 2026. Working project, demo video (max 3 min), and code repo required.
+              AI Hackathon — IWD London 2026. Working project, demo video (max 3 min), and code repo required. Use any AI technology.
             </CardDescription>
           </CardHeader>
           <CardContent>

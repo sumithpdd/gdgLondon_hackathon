@@ -33,7 +33,7 @@ export interface Submission {
   // AI tools/category
   aiCategory?: AICategory;
   aiToolsUsed?: string[];
-  builtWith?: string[]; // Gemini, Firebase, Flutter, Vertex AI, Cloud Run
+  builtWith?: string[]; // OpenAI, Claude, Gemini, Hugging Face, Firebase, etc.
   // Hackathon filters
   projectStartDate?: Date; // Did they begin after hackathon start?
   pitchFinalist?: boolean; // Event day: teams presenting on stage

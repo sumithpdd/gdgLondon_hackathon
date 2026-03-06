@@ -4,8 +4,10 @@ import { FileText, Square } from "lucide-react";
 
 export default function ResourcesPage() {
   const links = [
+    { href: "https://huggingface.co/docs", label: "Hugging Face Docs" },
+    { href: "https://platform.openai.com/docs", label: "OpenAI API Docs" },
     { href: "https://ai.google.dev/docs", label: "Gemini API Docs" },
-    { href: "https://aistudio.google.com/", label: "Google AI Studio" },
+    { href: "https://aistudio.google.com/", label: "AI Studio" },
     { href: "https://adventure.wietsevenema.eu/", label: "Adventure Leaderboard — Test your skills" },
   ];
 
@@ -22,7 +24,7 @@ export default function ResourcesPage() {
             Resources
           </h1>
           <p className="text-gray-400 text-center mb-10">
-            Explore tools and workshops to help you build with AI
+            Explore tools and APIs to help you build with AI — use any AI technology you prefer
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             {links.map((link) => (
