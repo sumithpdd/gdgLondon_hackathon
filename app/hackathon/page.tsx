@@ -23,7 +23,7 @@ interface TimeLeft {
   seconds: number;
 }
 
-const TARGET_DATE = new Date("2026-03-01T09:00:00Z");
+const TARGET_DATE = new Date("2026-03-11T09:00:00Z");
 
 function getTimeLeft(): TimeLeft {
   const now = new Date();
@@ -230,11 +230,11 @@ export default function HackathonOverviewPage() {
               <p className="text-gray-400 text-sm mt-3 line-clamp-2">{userProject.appPurpose}</p>
             )}
             <div className="flex gap-3 mt-4">
-              {userProjectRole === "owner" && (
+              {userProjectRole === "owner" && userProject.status === "draft" && (
                 <Link href={`/submit?edit=${userProject.id}`}>
                   <Button size="sm" variant="outline" className="border-violet-500/30 text-violet-300 hover:bg-violet-500/10">
                     <Pencil className="h-4 w-4 mr-2" />
-                    Edit Project
+                    Edit Draft
                   </Button>
                 </Link>
               )}
