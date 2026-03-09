@@ -1,44 +1,56 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     function getUserRole(userId) {
       return get(/databases/$(database)/documents/hackatonUsers/$(userId)).data.role;
     }
-    
+
     function isAuthenticated() {
       return request.auth != null;
     }
-    
+
     function isAdmin() {
       return isAuthenticated() && getUserRole(request.auth.uid) == "admin";
     }
-    
+
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
-    
+
     function isOwnerOrAdmin(userId) {
       return isOwner(userId) || isAdmin();
     }
-    
+
     match /hackatonUsers/{userId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isOwnerOrAdmin(userId);
+      // Users can update their own doc but NOT the role field
+      allow update: if isOwner(userId)
+        && !("role" in request.resource.data && request.resource.data.role != resource.data.role)
+        || isAdmin();
       allow delete: if isAdmin();
     }
-    
+
     match /hackatonProjects/{projectId} {
       allow read: if true;
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
-      allow delete: if isAuthenticated() && 
+      // Project creation goes through Cloud Function (createProject)
+      // but we still allow direct create for backwards compat (place is stripped)
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        && !("place" in request.resource.data && request.resource.data.place != null);
+      // Only the project owner can update, and place cannot be set by clients
+      allow update: if isAuthenticated()
+        && resource.data.userId == request.auth.uid
+        && !("place" in request.resource.data && request.resource.data.place != resource.data.place)
+        // Prevent hijacking ownership
+        && request.resource.data.userId == resource.data.userId;
+      allow delete: if isAuthenticated() &&
         (resource.data.userId == request.auth.uid || isAdmin());
       match /comments/{commentId} {
         allow read: if true;
         allow create: if isAuthenticated();
-        allow delete: if isAuthenticated() && 
+        allow delete: if isAuthenticated() &&
           (resource.data.userId == request.auth.uid || isAdmin());
       }
     }
@@ -50,7 +62,7 @@ service cloud.firestore {
     match /hackatonDiscussions/{docId} {
       allow read: if true;
       allow create: if isAuthenticated();
-      allow update, delete: if isAuthenticated() && 
+      allow update, delete: if isAuthenticated() &&
         (resource.data.authorId == request.auth.uid || isAdmin());
     }
 
@@ -59,7 +71,28 @@ service cloud.firestore {
       allow create: if isAdmin();
       allow update, delete: if isAdmin();
     }
-    
+
+    match /hackatonConfig/{docId} {
+      allow read: if true;
+      // Write only through Cloud Functions (admin SDK bypasses rules)
+      allow write: if false;
+    }
+
+    match /hackatonJoinRequests/{requestId} {
+      // Anyone authenticated can read (needed to check own requests + project owner sees requests)
+      allow read: if isAuthenticated();
+      // Creation goes through Cloud Function, but allow direct create as fallback
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == "pending";
+      // No client-side status updates — only Cloud Function can approve/reject
+      // Only allow withdrawal (delete) by the request creator while pending
+      allow update: if false;
+      allow delete: if isAuthenticated()
+        && resource.data.userId == request.auth.uid
+        && resource.data.status == "pending";
+    }
+
     match /Interests/{tagId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();

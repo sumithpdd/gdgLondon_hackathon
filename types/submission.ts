@@ -37,6 +37,7 @@ export interface Submission {
   // Hackathon filters
   projectStartDate?: Date; // Did they begin after hackathon start?
   pitchFinalist?: boolean; // Event day: teams presenting on stage
+  lookingForMembers?: boolean; // Show in Idea Gallery for team recruitment
   // Labels (applied after judging)
   label?: LabelType;
   place?: "first" | "second" | "third" | null;

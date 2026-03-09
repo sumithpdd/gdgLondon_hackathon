@@ -1,32 +1,59 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useAuthContext } from "@/lib/AuthContext";
+import { getHackathonConfig } from "@/lib/hackathon-config";
 import {
   LayoutDashboard,
   Users,
   BookOpen,
   Scale,
   Gift,
+  GalleryHorizontalEnd,
+  Lightbulb,
+  FolderKanban,
 } from "lucide-react";
 
-const TABS = [
+const STATIC_TABS = [
   { href: "/hackathon", label: "Overview", icon: LayoutDashboard },
   { href: "/hackathon/prizes", label: "Prizes", icon: Gift },
+  { href: "/hackathon/ideas", label: "Idea Gallery", icon: Lightbulb },
   { href: "/hackathon/participants", label: "Participants", icon: Users },
   { href: "/hackathon/resources", label: "Resources", icon: BookOpen },
   { href: "/hackathon/rules", label: "Rules", icon: Scale },
 ];
 
+const AUTH_TABS = [
+  { href: "/hackathon/my-projects", label: "My Project", icon: FolderKanban },
+];
+
+const GALLERY_TAB = { href: "/hackathon/gallery", label: "Project Gallery", icon: GalleryHorizontalEnd };
+
 export function HackathonNav() {
   const pathname = usePathname();
+  const { isAuthenticated, userProfile } = useAuthContext();
+  const [winnersAnnounced, setWinnersAnnounced] = useState(false);
+
+  useEffect(() => {
+    getHackathonConfig().then((config) => setWinnersAnnounced(config.winnersAnnounced));
+  }, []);
+
+  const isAdmin = userProfile?.role === "admin";
+  const showGallery = isAdmin || winnersAnnounced;
+  const tabs = [
+    ...STATIC_TABS,
+    ...(showGallery ? [GALLERY_TAB] : []),
+    ...(isAuthenticated ? AUTH_TABS : []),
+  ];
 
   return (
     <nav className="border-b border-white/10 bg-[#0d0d14]/80">
       <div className="container mx-auto px-4 max-w-6xl">
         <div className="flex justify-center gap-2 overflow-x-auto scrollbar-hide py-2">
-          {TABS.map((tab) => {
+          {tabs.map((tab) => {
             const isActive =
               pathname === tab.href ||
               (tab.href !== "/hackathon" && pathname.startsWith(tab.href));

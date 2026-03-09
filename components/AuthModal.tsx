@@ -23,9 +23,10 @@ import { useToast } from "@/hooks/use-toast";
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
-export function AuthModal({ isOpen, onClose }: AuthModalProps) {
+export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -42,6 +43,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         title: "Success!",
         description: "Signed in successfully",
       });
+      onSuccess?.();
       onClose();
       setEmail("");
       setPassword("");
@@ -74,6 +76,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         title: "Success!",
         description: "Account created successfully",
       });
+      onSuccess?.();
       onClose();
       setEmail("");
       setPassword("");
@@ -115,6 +118,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
         title: "Success!",
         description: "Signed in with Google successfully",
       });
+      onSuccess?.();
       onClose();
     } catch (error: any) {
       let errorMessage = error.message || "Failed to sign in with Google";
