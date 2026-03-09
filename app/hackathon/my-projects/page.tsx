@@ -151,11 +151,11 @@ export default function MyProjectPage() {
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-white">My Project</h1>
-        {isOwner && isDraft && (
+        {isOwner && displayProject.id && (
           <Link href={`/submit?edit=${displayProject.id}`}>
             <Button variant="outline" className="border-white/20 text-gray-300 hover:bg-white/10">
               <Pencil className="h-4 w-4 mr-2" />
-              Edit Draft
+              {isDraft ? "Edit draft" : "Edit project"}
             </Button>
           </Link>
         )}

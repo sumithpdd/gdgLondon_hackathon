@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, Lightbulb, Award, Clock, Users, Ticket, Gift, Shield } from "lucide-react";
+import { Upload, Lightbulb, Award, Clock, Users, Ticket, Gift, Shield, Database } from "lucide-react";
 
 export default function RulesPage() {
   const submissionItems = [
@@ -156,11 +156,31 @@ export default function RulesPage() {
             Winning Prizes — Important
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <p className="text-amber-100 font-bold text-lg leading-relaxed">
             🎉 Prizes are handed out live on event day — be there in person to claim your glory.
           </p>
-          <p className="text-amber-200/90 font-medium mt-2">Show up, win big! No mail, no exceptions. Your moment in the spotlight awaits.</p>
+          <p className="text-amber-200/90 font-medium">Show up, win big! No mail, no exceptions. Your moment in the spotlight awaits.</p>
+          <div className="pt-3 border-t border-amber-400/30">
+            <p className="text-amber-100 font-semibold">Team projects — prize goes to the project leader</p>
+            <p className="text-amber-200/90 text-sm mt-1">
+              The prize is awarded to the project leader only. How you share it with your team is entirely up to you — organisers do not decide, influence, or get involved in prize splitting. Your team, your call.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Data & Privacy */}
+      <Card className="bg-[#2c244c] border-emerald-500/30 text-left">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <Database className="w-5 h-5 text-emerald-400" />
+            Your Data
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-gray-400">
+          <p>Your submission data is stored for <strong className="text-emerald-300">30 days</strong> after the event and is <strong className="text-emerald-300">not shared</strong> outside the competition.</p>
+          <p className="text-sm text-gray-500">We keep it simple: your info stays in-house for judging and event purposes only.</p>
         </CardContent>
       </Card>
 
