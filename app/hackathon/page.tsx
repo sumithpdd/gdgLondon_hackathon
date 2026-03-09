@@ -1,8 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Rocket, Sparkles, Ticket, GitBranch } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Rocket, Sparkles, Ticket, GitBranch, ArrowRight, Pencil, Eye, Trophy, Award } from "lucide-react";
 import { PrizeCarousel } from "@/components/PrizeCarousel";
+import { useAuthContext } from "@/lib/AuthContext";
+import { AuthModal } from "@/components/AuthModal";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { getUserProject } from "@/lib/join-requests";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { PROJECTS_COLLECTION } from "@/lib/constants";
+import { Submission } from "@/types/submission";
+import { getHackathonConfig } from "@/lib/hackathon-config";
+import confetti from "canvas-confetti";
 
 interface TimeLeft {
   days: number;
@@ -48,6 +60,14 @@ function CountdownUnit({ value, label }: { value: number; label: string }) {
 export default function HackathonOverviewPage() {
   const [timeLeft, setTimeLeft] = useState<TimeLeft>(getTimeLeft);
   const [mounted, setMounted] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
+  const [authRedirect, setAuthRedirect] = useState<string | null>(null);
+  const [userProject, setUserProject] = useState<Submission | null>(null);
+  const [userProjectRole, setUserProjectRole] = useState<"owner" | "member" | null>(null);
+  const [winnersAnnounced, setWinnersAnnounced] = useState(false);
+  const [confettiFired, setConfettiFired] = useState(false);
+  const { user, isAuthenticated } = useAuthContext();
+  const router = useRouter();
 
   useEffect(() => {
     setMounted(true);
@@ -56,6 +76,44 @@ export default function HackathonOverviewPage() {
     }, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const fetchUserProject = async () => {
+      if (!user) {
+        setUserProject(null);
+        setUserProjectRole(null);
+        return;
+      }
+      const existing = await getUserProject(user.uid);
+      if (existing) {
+        setUserProjectRole(existing.role);
+        const projectDoc = await getDoc(doc(db, PROJECTS_COLLECTION, existing.projectId));
+        if (projectDoc.exists()) {
+          setUserProject({ id: projectDoc.id, ...projectDoc.data() } as Submission);
+        }
+      }
+    };
+    fetchUserProject();
+  }, [user]);
+
+  useEffect(() => {
+    getHackathonConfig().then((config) => setWinnersAnnounced(config.winnersAnnounced));
+  }, []);
+
+  // Fire confetti when a winner visits
+  useEffect(() => {
+    if (winnersAnnounced && userProject?.place && !confettiFired) {
+      setConfettiFired(true);
+      const duration = 3000;
+      const end = Date.now() + duration;
+      const frame = () => {
+        confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 } });
+        confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 } });
+        if (Date.now() < end) requestAnimationFrame(frame);
+      };
+      frame();
+    }
+  }, [winnersAnnounced, userProject, confettiFired]);
 
   if (!mounted) {
     return null;
@@ -131,33 +189,152 @@ export default function HackathonOverviewPage() {
         <PrizeCarousel variant="compact" />
       </div>
 
-      {/* 2 Ways to Participate */}
-      <section className="p-8 rounded-3xl bg-[#2c244c] border border-violet-500/20 text-left w-full mt-8">
-        <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-          <GitBranch className="w-6 h-6 text-violet-400" />
-          2 Ways to Participate
-        </h2>
-        <div className="grid sm:grid-cols-2 gap-6">
+      {/* Your Project (if user has one) or 2 Ways to Participate */}
+      {isAuthenticated && userProject ? (
+        <section className="p-8 rounded-3xl bg-[#2c244c] border border-violet-500/20 text-left w-full mt-8">
+          {/* Winner banner */}
+          {winnersAnnounced && userProject.place && (
+            <div className="mb-6 p-5 rounded-2xl bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-500/20 border-2 border-amber-400/40 text-center">
+              <Trophy className="w-10 h-10 text-amber-400 mx-auto mb-2" />
+              <p className="text-amber-100 font-bold text-xl">
+                Congratulations! You won {userProject.place === "first" ? "1st" : userProject.place === "second" ? "2nd" : "3rd"} Place!
+              </p>
+              {userProject.projectType === "team" && (
+                <p className="text-amber-200/70 text-sm mt-2">
+                  If your team has multiple members, it&apos;s up to you to decide how to share the prize among yourselves. The organizers are not involved in prize splitting.
+                </p>
+              )}
+            </div>
+          )}
+          <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+            <Award className="w-6 h-6 text-violet-400" />
+            Your Project
+          </h2>
           <div className="p-6 rounded-2xl bg-[#1e1b2e] border border-violet-500/10">
-            <h3 className="font-bold text-white mb-2">Create or Join a Project Idea</h3>
-            <p className="text-gray-400 text-sm">
-              Submit your hackathon project, join a team, or browse the Idea Gallery.
-            </p>
-            <p className="mt-3 text-gray-500 text-sm">
-              Opens 11th March 2026 at 9:00 AM GMT
-            </p>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="font-bold text-white text-lg">{userProject.projectTitle || userProject.teamName}</h3>
+                <p className="text-sm text-gray-400 mt-1">
+                  {userProjectRole === "owner" ? "Project Owner" : "Team Member"} · {userProject.teamName}
+                </p>
+              </div>
+              <span className={`px-3 py-1 text-xs font-bold rounded-full ${
+                userProject.status === "submitted"
+                  ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                  : "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+              }`}>
+                {userProject.status === "submitted" ? "Submitted" : "Draft"}
+              </span>
+            </div>
+            {userProject.appPurpose && (
+              <p className="text-gray-400 text-sm mt-3 line-clamp-2">{userProject.appPurpose}</p>
+            )}
+            <div className="flex gap-3 mt-4">
+              {userProjectRole === "owner" && userProject.status === "draft" && (
+                <Link href={`/submit?edit=${userProject.id}`}>
+                  <Button size="sm" variant="outline" className="border-violet-500/30 text-violet-300 hover:bg-violet-500/10">
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Edit Draft
+                  </Button>
+                </Link>
+              )}
+              {userProject.status === "submitted" && (
+                <Link href={`/hackathon/project/${userProject.id}`}>
+                  <Button size="sm" variant="outline" className="border-violet-500/30 text-violet-300 hover:bg-violet-500/10">
+                    <Eye className="h-4 w-4 mr-2" />
+                    View Project
+                  </Button>
+                </Link>
+              )}
+            </div>
           </div>
-          <div className="p-6 rounded-2xl bg-[#1e1b2e] border border-violet-500/10">
-            <h3 className="font-bold text-white mb-2">Garden of Forgotten Prompt</h3>
-            <p className="text-gray-400 text-sm">
-              Join the leaderboard for this adventure. We&apos;ll provide cloud credits and open it on the 11th. Create a project so we can send you credits.
-            </p>
-            <p className="mt-3 text-gray-500 text-sm">
-              Opens 11th March 2026 at 9:00 AM GMT
-            </p>
+        </section>
+      ) : (
+        <section className="p-8 rounded-3xl bg-[#2c244c] border border-violet-500/20 text-left w-full mt-8">
+          <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+            <GitBranch className="w-6 h-6 text-violet-400" />
+            2 Ways to Participate
+          </h2>
+          <div className="grid sm:grid-cols-2 gap-6">
+            <div className="p-6 rounded-2xl bg-[#1e1b2e] border border-violet-500/10 flex flex-col">
+              <h3 className="font-bold text-white mb-2">Create a Project</h3>
+              <p className="text-gray-400 text-sm flex-1">
+                Submit your hackathon project idea and build something amazing with AI.
+              </p>
+              {isOpen ? (
+                isAuthenticated ? (
+                  <Link href="/submit" className="mt-4">
+                    <Button className="w-full bg-violet-600 hover:bg-violet-500">
+                      Create Project
+                      <ArrowRight className="h-4 w-4 ml-2" />
+                    </Button>
+                  </Link>
+                ) : (
+                  <Button
+                    className="w-full mt-4 bg-violet-600 hover:bg-violet-500"
+                    onClick={() => {
+                      setAuthRedirect("/submit");
+                      setShowAuth(true);
+                    }}
+                  >
+                    Sign Up to Create
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                )
+              ) : (
+                <p className="mt-3 text-gray-500 text-sm">
+                  Opens 11th March 2026 at 9:00 AM GMT
+                </p>
+              )}
+            </div>
+            <div className="p-6 rounded-2xl bg-[#1e1b2e] border border-violet-500/10 flex flex-col">
+              <h3 className="font-bold text-white mb-2">Browse Ideas &amp; Join a Team</h3>
+              <p className="text-gray-400 text-sm flex-1">
+                Explore the Idea Gallery and request to join a project that interests you.
+              </p>
+              {isOpen ? (
+                isAuthenticated ? (
+                  <Link href="/hackathon/ideas" className="mt-4">
+                    <Button variant="outline" className="w-full border-violet-500/30 text-violet-300 hover:bg-violet-500/10">
+                      Browse Ideas
+                      <ArrowRight className="h-4 w-4 ml-2" />
+                    </Button>
+                  </Link>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="w-full mt-4 border-violet-500/30 text-violet-300 hover:bg-violet-500/10"
+                    onClick={() => {
+                      setAuthRedirect("/hackathon/ideas");
+                      setShowAuth(true);
+                    }}
+                  >
+                    Sign Up to Browse
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                )
+              ) : (
+                <p className="mt-3 text-gray-500 text-sm">
+                  Opens 11th March 2026 at 9:00 AM GMT
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
+
+      <AuthModal
+        isOpen={showAuth}
+        onClose={() => {
+          setShowAuth(false);
+          setAuthRedirect(null);
+        }}
+        onSuccess={() => {
+          if (authRedirect) {
+            router.push(authRedirect);
+          }
+        }}
+      />
 
       {/* Ticket requirement */}
       <section className="p-8 rounded-3xl bg-violet-600/20 border border-violet-500/30 text-left w-full mt-8">

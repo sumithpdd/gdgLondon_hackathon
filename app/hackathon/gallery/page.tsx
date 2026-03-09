@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { collection, getDocs, query, orderBy } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { httpsCallable } from "firebase/functions";
+import { db, functions } from "@/lib/firebase";
 import { Submission } from "@/types/submission";
 import { getProjectTitle, getTeamName, getShortDescription } from "@/lib/submission-utils";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,14 +16,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Star, Search, Heart, MessageCircle, Eye } from "lucide-react";
+import { Star, Search, Heart, MessageCircle, Eye, Trophy, AlertTriangle, Trash2, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { HACKATHON_START_DATE, PROJECTS_COLLECTION } from "@/lib/constants";
+import { useAuthContext } from "@/lib/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { getHackathonConfig } from "@/lib/hackathon-config";
 
 type SortOption = "recent" | "liked" | "viewed" | "trending";
 
 export default function ProjectGalleryPage() {
+  const { user, userProfile } = useAuthContext();
+  const { toast } = useToast();
+  const isAdmin = userProfile?.role === "admin";
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -30,19 +37,83 @@ export default function ProjectGalleryPage() {
   const [filterStartDate, setFilterStartDate] = useState<"all" | "yes" | "no">("all");
   const [filterPitchFinalist, setFilterPitchFinalist] = useState(false);
   const [filterProjectType, setFilterProjectType] = useState<"all" | "solo" | "team">("all");
+  const [winnersAnnounced, setWinnersAnnounced] = useState(false);
+  const [announcing, setAnnouncing] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  const handleResetHackathon = async () => {
+    if (!user || !isAdmin) return;
+    setResetting(true);
+    try {
+      const resetFn = httpsCallable(functions, "resetHackathon");
+      await resetFn({});
+      setWinnersAnnounced(false);
+      setSubmissions([]);
+      setShowResetConfirm(false);
+      toast({ title: "Hackathon reset", description: "All projects cleared. Ready for a new hackathon!" });
+    } catch (error: any) {
+      console.error("Error resetting hackathon:", error);
+      toast({ title: "Error", description: error?.message || "Failed to reset.", variant: "destructive" });
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  const handleDeleteProject = async (submissionId: string, title: string) => {
+    if (!user || !isAdmin) return;
+    if (!window.confirm(`Delete "${title}"? This cannot be undone.`)) return;
+    setDeletingId(submissionId);
+    try {
+      const deleteProjectFn = httpsCallable(functions, "deleteProject");
+      await deleteProjectFn({ projectId: submissionId });
+      setSubmissions((prev) => prev.filter((s) => s.id !== submissionId));
+      toast({ title: "Project deleted", description: `"${title}" has been removed.` });
+    } catch (error: any) {
+      console.error("Error deleting project:", error);
+      toast({ title: "Error", description: error?.message || "Failed to delete project.", variant: "destructive" });
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handlePlaceChange = async (submissionId: string, place: string) => {
+    if (!user || !isAdmin || winnersAnnounced) return;
+    try {
+      const setWinnerPlace = httpsCallable(functions, "setWinnerPlace");
+      await setWinnerPlace({ projectId: submissionId, place: place || null });
+      setSubmissions((prev) =>
+        prev.map((s) =>
+          s.id === submissionId ? { ...s, place: (place || null) as Submission["place"] } : s
+        )
+      );
+      toast({
+        title: place ? `Winner set: ${place} place` : "Winner removed",
+        description: `Updated successfully.`,
+      });
+    } catch (error: any) {
+      console.error("Error updating place:", error);
+      toast({ title: "Error", description: error?.message || "Failed to update winner.", variant: "destructive" });
+    }
+  };
 
   useEffect(() => {
-    const fetchSubmissions = async () => {
+    const fetchData = async () => {
       try {
+        const [config] = await Promise.all([getHackathonConfig()]);
+        setWinnersAnnounced(config.winnersAnnounced);
+
         const q = query(
           collection(db, PROJECTS_COLLECTION),
           orderBy("createdAt", "desc")
         );
         const querySnapshot = await getDocs(q);
-        const data = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate?.(),
+        const data = querySnapshot.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+          createdAt: d.data().createdAt?.toDate?.(),
         })) as Submission[];
         const submittedOnly = data.filter((s) => s.status === "submitted");
         setSubmissions(submittedOnly);
@@ -52,13 +123,46 @@ export default function ProjectGalleryPage() {
         setLoading(false);
       }
     };
-    fetchSubmissions();
+    fetchData();
   }, []);
 
-  const filteredAndSorted = useMemo(() => {
+  // If not admin and winners not announced, don't show the page
+  if (!loading && !winnersAnnounced && !isAdmin) {
+    return (
+      <div className="text-center py-20 text-gray-400">
+        <p>The Project Gallery will be available once winners are announced.</p>
+      </div>
+    );
+  }
+
+  const winners = {
+    first: submissions.find((s) => s.place === "first"),
+    second: submissions.find((s) => s.place === "second"),
+    third: submissions.find((s) => s.place === "third"),
+  };
+
+  const canAnnounce = winners.first && winners.second && winners.third;
+
+  const handleAnnounceWinners = async () => {
+    if (!user || !canAnnounce) return;
+    setAnnouncing(true);
+    try {
+      const announceWinnersFn = httpsCallable(functions, "announceWinners");
+      await announceWinnersFn({});
+      setWinnersAnnounced(true);
+      setShowConfirmDialog(false);
+      toast({ title: "Winners announced!", description: "The Project Gallery is now public and winners are visible to everyone." });
+    } catch (error: any) {
+      console.error("Error announcing winners:", error);
+      toast({ title: "Error", description: error?.message || "Failed to announce winners.", variant: "destructive" });
+    } finally {
+      setAnnouncing(false);
+    }
+  };
+
+  const filteredAndSorted = (() => {
     let result = [...submissions];
 
-    // Search
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
@@ -71,7 +175,6 @@ export default function ProjectGalleryPage() {
       );
     }
 
-    // Filter: project start date
     if (filterStartDate !== "all") {
       result = result.filter((s) => {
         const startDate = s.projectStartDate
@@ -85,17 +188,15 @@ export default function ProjectGalleryPage() {
       });
     }
 
-    // Filter: pitch finalists
     if (filterPitchFinalist) {
       result = result.filter((s) => s.pitchFinalist === true);
     }
 
-    // Filter: solo/team
     if (filterProjectType !== "all") {
       result = result.filter((s) => s.projectType === filterProjectType);
     }
 
-    // Sort
+    // Sort: winners first, then by selected sort
     switch (sortBy) {
       case "liked":
         result.sort((a, b) => (b.likes ?? 0) - (a.likes ?? 0));
@@ -119,21 +220,23 @@ export default function ProjectGalleryPage() {
         );
     }
 
+    // If winners announced, sort winners to the top
+    if (winnersAnnounced) {
+      const placeOrder: Record<string, number> = { first: 0, second: 1, third: 2 };
+      result.sort((a, b) => {
+        const aPlace = a.place ? placeOrder[a.place] ?? 99 : 99;
+        const bPlace = b.place ? placeOrder[b.place] ?? 99 : 99;
+        return aPlace - bPlace;
+      });
+    }
+
     return result;
-  }, [
-    submissions,
-    searchQuery,
-    sortBy,
-    filterStartDate,
-    filterPitchFinalist,
-    filterProjectType,
-  ]);
+  })();
 
   const getLabelRibbon = (s: Submission) => {
-    if (s.place === "first") return { text: "WINNER", className: "bg-amber-500 text-white" };
-    if (s.place === "second" || s.place === "third")
-      return { text: "WINNER", className: "bg-amber-500 text-white" };
-    if (s.label === "winner") return { text: "WINNER", className: "bg-amber-500 text-white" };
+    if (s.place === "first") return { text: "1ST PLACE", className: "bg-amber-500 text-white" };
+    if (s.place === "second") return { text: "2ND PLACE", className: "bg-gray-400 text-white" };
+    if (s.place === "third") return { text: "3RD PLACE", className: "bg-amber-700 text-white" };
     if (s.label === "finalist") return { text: "FINALIST", className: "bg-slate-600 text-white" };
     if (s.label === "featured") return { text: "FEATURED", className: "bg-violet-600 text-white" };
     return null;
@@ -141,11 +244,96 @@ export default function ProjectGalleryPage() {
 
   return (
     <div className="space-y-6 w-full max-w-6xl mx-auto">
+      {/* Admin: Announce Winners bar */}
+      {isAdmin && !winnersAnnounced && (
+        <div className="p-4 bg-amber-500/10 border border-amber-400/30 rounded-2xl">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <Trophy className="h-6 w-6 text-amber-400 shrink-0" />
+              <div>
+                <p className="text-white font-semibold">Select Winners</p>
+                <p className="text-sm text-gray-400">
+                  {canAnnounce
+                    ? "All 3 places selected. Ready to announce!"
+                    : `Select 1st, 2nd, and 3rd place before announcing. (${[winners.first && "1st", winners.second && "2nd", winners.third && "3rd"].filter(Boolean).join(", ") || "none"} selected)`}
+                </p>
+              </div>
+            </div>
+            {!showConfirmDialog ? (
+              <Button
+                className="bg-amber-500 hover:bg-amber-400 text-black font-bold"
+                disabled={!canAnnounce}
+                onClick={() => setShowConfirmDialog(true)}
+              >
+                <Trophy className="h-4 w-4 mr-2" />
+                Announce Winners
+              </Button>
+            ) : (
+              <div className="flex items-center gap-3 p-3 bg-red-500/10 border border-red-500/30 rounded-xl">
+                <AlertTriangle className="h-5 w-5 text-red-400 shrink-0" />
+                <p className="text-sm text-red-300">This will end the hackathon and make results public. Are you sure?</p>
+                <Button
+                  className="bg-red-600 hover:bg-red-500 text-white font-bold"
+                  disabled={announcing}
+                  onClick={handleAnnounceWinners}
+                >
+                  {announcing ? "Announcing..." : "Confirm"}
+                </Button>
+                <Button variant="outline" className="border-white/20 text-gray-300" onClick={() => setShowConfirmDialog(false)}>
+                  Cancel
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Admin: Start New Hackathon — after winners announced */}
+      {isAdmin && winnersAnnounced && (
+        <div className="p-4 bg-violet-500/10 border border-violet-400/30 rounded-2xl">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <RotateCcw className="h-6 w-6 text-violet-400 shrink-0" />
+              <div>
+                <p className="text-white font-semibold">Hackathon Complete</p>
+                <p className="text-sm text-gray-400">Winners have been announced. Ready to start a new hackathon?</p>
+              </div>
+            </div>
+            {!showResetConfirm ? (
+              <Button
+                className="bg-violet-600 hover:bg-violet-500 text-white font-bold"
+                onClick={() => setShowResetConfirm(true)}
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Start New Hackathon
+              </Button>
+            ) : (
+              <div className="flex items-center gap-3 p-3 bg-red-500/10 border border-red-500/30 rounded-xl">
+                <AlertTriangle className="h-5 w-5 text-red-400 shrink-0" />
+                <p className="text-sm text-red-300">This will delete ALL projects and reset everything. Are you sure?</p>
+                <Button
+                  className="bg-red-600 hover:bg-red-500 text-white font-bold"
+                  disabled={resetting}
+                  onClick={handleResetHackathon}
+                >
+                  {resetting ? "Resetting..." : "Yes, Reset"}
+                </Button>
+                <Button variant="outline" className="border-white/20 text-gray-300" onClick={() => setShowResetConfirm(false)}>
+                  Cancel
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Header message */}
       <div className="flex items-center gap-3 p-4 bg-[#2c244c] border border-violet-500/20 rounded-2xl">
         <Star className="h-6 w-6 text-violet-400 shrink-0" />
         <p className="text-gray-300">
-          Connect with participants — support your favourite projects by liking, sharing, and commenting.
+          {winnersAnnounced
+            ? "The hackathon has ended! Congratulations to all winners and participants."
+            : "Admin view — review submissions and select winners."}
         </p>
       </div>
 
@@ -272,8 +460,8 @@ export default function ProjectGalleryPage() {
                   submission.screenshots?.[0] || "/AI_Innovation_Hub.png";
 
                 return (
-                  <Link key={submission.id} href={`/hackathon/project/${submission.id}`}>
-                    <Card className="overflow-hidden hover:shadow-lg transition-shadow h-full flex flex-col">
+                  <Card key={submission.id} className="overflow-hidden hover:shadow-lg transition-shadow h-full flex flex-col">
+                    <Link href={`/hackathon/project/${submission.id}`}>
                       <div className="relative aspect-video bg-gray-100">
                         <Image
                           src={imageUrl}
@@ -290,52 +478,88 @@ export default function ProjectGalleryPage() {
                           </div>
                         )}
                       </div>
-                      <CardContent className="p-4 flex flex-col flex-1">
+                    </Link>
+                    <CardContent className="p-4 flex flex-col flex-1">
+                      <Link href={`/hackathon/project/${submission.id}`}>
                         <h3 className="font-bold text-gray-900 line-clamp-1">
                           {getProjectTitle(submission)}
                         </h3>
                         <p className="text-sm text-gray-600 mt-1 line-clamp-2 flex-1">
                           {getShortDescription(submission)}
                         </p>
-                        <div className="flex items-center justify-between mt-4 pt-3 border-t">
-                          <div className="flex items-center gap-1">
-                            <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-xs font-medium text-gray-600">
-                              {(submission.fullName || "?")[0]}
-                            </div>
-                            <span className="text-xs text-gray-500 truncate max-w-[80px]">
-                              {getTeamName(submission)}
-                            </span>
+                      </Link>
+                      <div className="flex items-center justify-between mt-4 pt-3 border-t">
+                        <div className="flex items-center gap-1">
+                          <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-xs font-medium text-gray-600">
+                            {(submission.fullName || "?")[0]}
                           </div>
-                          <div className="flex items-center gap-3 text-gray-500 text-sm">
-                            <span className="flex items-center gap-1">
-                              <Heart className="h-4 w-4" />
-                              {submission.likes ?? 0}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <MessageCircle className="h-4 w-4" />
-                              {submission.commentCount ?? 0}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Eye className="h-4 w-4" />
-                              {submission.views ?? 0}
-                            </span>
-                          </div>
+                          <span className="text-xs text-gray-500 truncate max-w-[80px]">
+                            {getTeamName(submission)}
+                          </span>
                         </div>
-                        {submission.builtWith && submission.builtWith.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {submission.builtWith.slice(0, 3).map((b) => (
-                              <span
-                                key={b}
-                                className="text-xs px-1.5 py-0.5 bg-violet-600/20 text-violet-300 rounded"
-                              >
-                                {b}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </Link>
+                        <div className="flex items-center gap-3 text-gray-500 text-sm">
+                          <span className="flex items-center gap-1">
+                            <Heart className="h-4 w-4" />
+                            {submission.likes ?? 0}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <MessageCircle className="h-4 w-4" />
+                            {submission.commentCount ?? 0}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Eye className="h-4 w-4" />
+                            {submission.views ?? 0}
+                          </span>
+                        </div>
+                      </div>
+                      {submission.builtWith && submission.builtWith.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {submission.builtWith.slice(0, 3).map((b) => (
+                            <span
+                              key={b}
+                              className="text-xs px-1.5 py-0.5 bg-violet-600/20 text-violet-300 rounded"
+                            >
+                              {b}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {/* Admin controls */}
+                      {isAdmin && !winnersAnnounced && (
+                        <div className="mt-3 pt-3 border-t flex gap-2" onClick={(e) => e.stopPropagation()}>
+                          <Select
+                            value={submission.place || "none"}
+                            onValueChange={(v) => handlePlaceChange(submission.id!, v === "none" ? "" : v)}
+                          >
+                            <SelectTrigger className="flex-1 text-xs h-8">
+                              <SelectValue placeholder="Select winner" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">No Place</SelectItem>
+                              <SelectItem value="first">1st Place</SelectItem>
+                              <SelectItem value="second">2nd Place</SelectItem>
+                              <SelectItem value="third">3rd Place</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-500/10 shrink-0"
+                            disabled={deletingId === submission.id}
+                            onClick={() => handleDeleteProject(submission.id!, getProjectTitle(submission))}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                      {/* Prize disclaimer for winning team projects */}
+                      {winnersAnnounced && submission.place && submission.projectType === "team" && (
+                        <p className="mt-2 text-xs text-gray-400 italic">
+                          Team prize — members decide how to share among themselves.
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
                 );
               })}
             </div>

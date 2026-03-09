@@ -9,9 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { collection, addDoc, updateDoc, doc, query, where, getDocs, getDoc } from "firebase/firestore";
+import { collection, updateDoc, doc, query, where, getDocs, getDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "@/lib/firebase";
+import { httpsCallable } from "firebase/functions";
+import { db, storage, functions } from "@/lib/firebase";
 import { Upload, X, Loader2, Save, Plus, Twitter, Facebook, Instagram, Globe, Linkedin } from "lucide-react";
 import { TagSelector } from "@/components/TagSelector";
 import Link from "next/link";
@@ -20,7 +21,9 @@ import { Badge } from "@/components/ui/badge";
 import { UserNav } from "@/components/UserNav";
 import { UserButton } from "@/components/UserButton";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { BUILT_WITH_OPTIONS, PROJECTS_COLLECTION, FIREBASE_STORAGE_FOLDER } from "@/lib/constants";
+import { BUILT_WITH_OPTIONS, PROJECTS_COLLECTION, FIREBASE_STORAGE_FOLDER, HACKATHON_SUBMISSION_DEADLINE } from "@/lib/constants";
+import { isAfterDeadline } from "@/lib/deadline";
+import { AlertTriangle } from "lucide-react";
 
 export default function SubmitPage() {
   const { user, isAuthenticated } = useAuthContext();
@@ -34,6 +37,9 @@ export default function SubmitPage() {
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [existingSubmissionId, setExistingSubmissionId] = useState<string | null>(null);
   const [existingScreenshots, setExistingScreenshots] = useState<string[]>([]);
+  const [pastDeadline, setPastDeadline] = useState(false);
+  const [lookingForMembers, setLookingForMembers] = useState(false);
+  const [existingStatus, setExistingStatus] = useState<"draft" | "submitted" | null>(null);
 
   const [formData, setFormData] = useState({
     projectTitle: "",
@@ -56,6 +62,11 @@ export default function SubmitPage() {
   const [interests, setInterests] = useState<string[]>([]);
   const [expertise, setExpertise] = useState<string[]>([]);
   const [techStack, setTechStack] = useState<string[]>([]);
+
+  // Check deadline on mount
+  useEffect(() => {
+    setPastDeadline(isAfterDeadline());
+  }, []);
 
   // Load existing submission - by edit ID or first draft
   useEffect(() => {
@@ -108,6 +119,9 @@ export default function SubmitPage() {
           if (data.teamMembers && data.teamMembers.length > 0) {
             setTeamMembers(data.teamMembers.map((m: any) => ({ name: m.name || "", linkedinUrl: m.linkedinUrl || "" })));
           }
+          if (data.lookingForMembers !== undefined) {
+            setLookingForMembers(data.lookingForMembers);
+          }
           if (data.builtWith && data.builtWith.length > 0) {
             setBuiltWith(data.builtWith);
           }
@@ -123,6 +137,9 @@ export default function SubmitPage() {
           
           if (data.screenshots && data.screenshots.length > 0) {
             setExistingScreenshots(data.screenshots);
+          }
+          if (data.status) {
+            setExistingStatus(data.status);
           }
           
           toast({
@@ -208,6 +225,15 @@ export default function SubmitPage() {
       return;
     }
 
+    if (isAfterDeadline() && !existingSubmissionId) {
+      toast({
+        title: "Submissions closed",
+        description: "The submission deadline has passed. You cannot create new drafts.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSavingDraft(true);
 
     try {
@@ -219,10 +245,13 @@ export default function SubmitPage() {
       }
 
       const now = new Date();
-      const submissionData = {
+      // Preserve "submitted" status when editing an already-submitted project
+      const newStatus = existingStatus === "submitted" ? "submitted" : "draft";
+      const baseData = {
         ...formData,
         teamMembers: formData.projectType === "team" ? teamMembers : [],
         builtWith,
+        lookingForMembers,
         screenshots: screenshotUrls,
         interests: interests,
         expertise: expertise,
@@ -230,31 +259,27 @@ export default function SubmitPage() {
         userId: user.uid,
         userEmail: user.email,
         updatedAt: now,
-        status: "draft",
-        place: null,
-        likes: 0,
-        views: 0,
+        status: newStatus,
         updatedBy: user.uid,
         updatedDate: now,
       };
+      const submissionData = existingSubmissionId
+        ? baseData
+        : { ...baseData, place: null, likes: 0, views: 0 };
 
       if (existingSubmissionId) {
-        // Update existing draft
+        // Update existing project — don't overwrite place, likes, views (preserve winner data)
         await updateDoc(doc(db, PROJECTS_COLLECTION, existingSubmissionId), submissionData);
       } else {
-        // Create new draft
-        const docRef = await addDoc(collection(db, PROJECTS_COLLECTION), {
-          ...submissionData,
-          createdAt: now,
-          createdBy: user.uid,
-          createdDate: now,
-        });
-        setExistingSubmissionId(docRef.id);
+        // Create new project via Cloud Function (enforces one-project-per-user)
+        const createProjectFn = httpsCallable<Record<string, unknown>, { projectId: string }>(functions, "createProject");
+        const result = await createProjectFn(submissionData);
+        setExistingSubmissionId(result.data.projectId);
       }
 
       toast({
-        title: "Draft Saved",
-        description: "Your progress has been saved. You can continue later.",
+        title: "Saved",
+        description: newStatus === "submitted" ? "Your project has been updated." : "Your progress has been saved. You can continue later.",
       });
 
       // Update existing screenshots
@@ -288,10 +313,29 @@ export default function SubmitPage() {
       return;
     }
 
+    if (isAfterDeadline()) {
+      toast({
+        title: "Submissions closed",
+        description: "The submission deadline has passed.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Final submission requires demo video and GitHub
     if (!formData.demoVideoUrl?.trim()) {
       toast({
-        title: "Demo video required",
-        description: "Please add a YouTube demo video link (max 3 minutes)",
+        title: "Demo video required for final submission",
+        description: "Add a YouTube demo video link (max 3 min) before locking in.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.githubUrl?.trim()) {
+      toast({
+        title: "GitHub repo required for final submission",
+        description: "Add your code repository link before locking in.",
         variant: "destructive",
       });
       return;
@@ -321,6 +365,7 @@ export default function SubmitPage() {
         ...formData,
         teamMembers: formData.projectType === "team" ? teamMembers : [],
         builtWith,
+        lookingForMembers,
         screenshots: screenshotUrls,
         interests: interests,
         expertise: expertise,
@@ -340,13 +385,9 @@ export default function SubmitPage() {
         // Update existing submission
         await updateDoc(doc(db, PROJECTS_COLLECTION, existingSubmissionId), submissionData);
       } else {
-        // Create new submission
-        await addDoc(collection(db, PROJECTS_COLLECTION), {
-          ...submissionData,
-          createdAt: now,
-          createdBy: user.uid,
-          createdDate: now,
-        });
+        // Create new project via Cloud Function (enforces one-project-per-user)
+        const createProjectFn = httpsCallable<Record<string, unknown>, { projectId: string }>(functions, "createProject");
+        await createProjectFn(submissionData);
       }
 
       toast({
@@ -357,7 +398,7 @@ export default function SubmitPage() {
       // Clean up preview URLs
       previewUrls.forEach(url => URL.revokeObjectURL(url));
 
-      router.push("/hackathon/gallery");
+      router.push("/hackathon/my-projects");
     } catch (error: any) {
       console.error("❌ Error submitting form:", {
         message: error?.message,
@@ -440,10 +481,22 @@ export default function SubmitPage() {
           <CardHeader>
             <CardTitle className="text-3xl text-gray-900">Submit Your Project</CardTitle>
             <CardDescription className="text-gray-600">
-              AI Hackathon — IWD London 2026. Working project, demo video (max 3 min), and code repo required. Use any AI technology.
+              AI Hackathon — IWD London 2026. Edit your project anytime. YouTube &amp; GitHub links are optional until you lock in your final submission.
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {pastDeadline && (
+              <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-semibold text-red-800">Submissions Closed</p>
+                  <p className="text-sm text-red-600">
+                    The submission deadline was {HACKATHON_SUBMISSION_DEADLINE.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}.
+                    {existingSubmissionId ? " You can still edit your existing draft." : " New submissions are no longer accepted."}
+                  </p>
+                </div>
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="projectTitle" className="text-gray-900">Project Title *</Label>
@@ -544,17 +597,31 @@ export default function SubmitPage() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="demoVideoUrl" className="text-gray-900">Demo Video URL * (max 3 min)</Label>
+                <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={lookingForMembers}
+                    onChange={(e) => setLookingForMembers(e.target.checked)}
+                    className="rounded border-gray-300 h-4 w-4"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-gray-900">Open to new team members</span>
+                    <p className="text-xs text-gray-500">Your project will be visible in the Idea Gallery for others to request to join</p>
+                  </div>
+                </label>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="demoVideoUrl" className="text-gray-900">Demo Video URL (max 3 min)</Label>
                 <Input
                   id="demoVideoUrl"
                   type="url"
                   placeholder="https://youtube.com/watch?v=..."
                   value={formData.demoVideoUrl}
                   onChange={(e) => setFormData({ ...formData, demoVideoUrl: e.target.value })}
-                  required
                   className="bg-white border-gray-300 text-gray-900"
                 />
-                <p className="text-xs text-gray-500">Show your app in action. YouTube link required.</p>
+                <p className="text-xs text-gray-500">Show your app in action. Required for final submission.</p>
               </div>
 
               <div className="space-y-2">
@@ -603,16 +670,16 @@ export default function SubmitPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="githubUrl" className="text-gray-900">GitHub URL *</Label>
+                <Label htmlFor="githubUrl" className="text-gray-900">GitHub URL</Label>
                 <Input
                   id="githubUrl"
                   type="url"
                   placeholder="https://github.com/username/repo"
                   value={formData.githubUrl}
                   onChange={(e) => setFormData({ ...formData, githubUrl: e.target.value })}
-                  required
                   className="bg-white border-gray-300 text-gray-900"
                 />
+                <p className="text-xs text-gray-500">Required for final submission.</p>
               </div>
 
               <div className="space-y-2">
@@ -822,7 +889,7 @@ export default function SubmitPage() {
                 </div>
               </div>
 
-              <div className="flex gap-4">
+              <div className="flex flex-col sm:flex-row gap-4">
                 <Button
                   type="button"
                   onClick={saveDraft}
@@ -839,24 +906,26 @@ export default function SubmitPage() {
                   ) : (
                     <>
                       <Save className="mr-2 h-4 w-4" />
-                      Save Draft
+                      Save progress
                     </>
                   )}
                 </Button>
                 
                 <Button
                   type="submit"
-                  disabled={loading || savingDraft}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-md"
+                  disabled={loading || savingDraft || pastDeadline}
+                  className="flex-1 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white shadow-lg font-semibold"
                   size="lg"
                 >
                   {loading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Submitting...
+                      Locking in...
                     </>
+                  ) : pastDeadline ? (
+                    "Submissions Closed"
                   ) : (
-                    "Submit Project"
+                    "Ship it! — Final submission"
                   )}
                 </Button>
               </div>
