@@ -392,8 +392,14 @@ export default function HackathonOverviewPage() {
             <Cloud className="w-6 h-6 text-blue-400" />
             Google Cloud Credits
           </h2>
-          <p className="text-gray-300 leading-relaxed mb-5">
-            As a hackathon participant, you can claim free Google Cloud credits to build and deploy your project.
+          <p className="text-gray-300 leading-relaxed mb-3">
+            Join the adventure <span className="text-blue-400 font-semibold">&quot;Garden of Forgotten Prompts&quot;</span> — to play, you&apos;ll need Google Cloud credits. Use the link below to claim yours.
+          </p>
+          <p className="text-gray-300 leading-relaxed mb-3">
+            We will provide you cloud credits and will open it on the 11th. You will need to create a project so that we can send you credits.
+          </p>
+          <p className="text-blue-300 text-sm font-medium mb-5">
+            Opens 11th March 2026 at 9:00 AM GMT
           </p>
           {creditClaimed ? (
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500/20 border border-green-500/30 text-green-400 text-sm font-semibold">
