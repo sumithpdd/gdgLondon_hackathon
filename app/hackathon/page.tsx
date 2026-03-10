@@ -23,7 +23,7 @@ interface TimeLeft {
   seconds: number;
 }
 
-const TARGET_DATE = new Date("2026-03-11T09:00:00Z");
+const TARGET_DATE = new Date("2026-03-10T09:00:00Z");
 
 function getTimeLeft(): TimeLeft {
   const now = new Date();
