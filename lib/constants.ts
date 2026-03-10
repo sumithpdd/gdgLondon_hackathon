@@ -15,6 +15,7 @@ export const BOOKMARKS_SUBCOLLECTION = 'bookmarks'
 export const DISCUSSIONS_COLLECTION = 'hackatonDiscussions'
 export const UPDATES_COLLECTION = 'hackatonUpdates'
 export const JOIN_REQUESTS_COLLECTION = 'hackatonJoinRequests'
+export const CREDIT_CLAIMS_COLLECTION = 'hackatonCreditClaims'
 
 // Legacy (for migration reference only - do not use)
 /** @deprecated Use PROJECTS_COLLECTION */

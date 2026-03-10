@@ -2,16 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Rocket, Sparkles, Ticket, GitBranch, ArrowRight, Pencil, Eye, Trophy, Award } from "lucide-react";
+import { Rocket, Sparkles, Ticket, GitBranch, ArrowRight, Pencil, Eye, Trophy, Award, Cloud, ExternalLink, Check } from "lucide-react";
 import { PrizeCarousel } from "@/components/PrizeCarousel";
 import { useAuthContext } from "@/lib/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { getUserProject } from "@/lib/join-requests";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { PROJECTS_COLLECTION } from "@/lib/constants";
+import { PROJECTS_COLLECTION, CREDIT_CLAIMS_COLLECTION } from "@/lib/constants";
 import { Submission } from "@/types/submission";
 import { getHackathonConfig } from "@/lib/hackathon-config";
 import confetti from "canvas-confetti";
@@ -66,6 +66,8 @@ export default function HackathonOverviewPage() {
   const [userProjectRole, setUserProjectRole] = useState<"owner" | "member" | null>(null);
   const [winnersAnnounced, setWinnersAnnounced] = useState(false);
   const [confettiFired, setConfettiFired] = useState(false);
+  const [creditClaimed, setCreditClaimed] = useState(false);
+  const [claimingCredit, setClaimingCredit] = useState(false);
   const { user, isAuthenticated } = useAuthContext();
   const router = useRouter();
 
@@ -114,6 +116,34 @@ export default function HackathonOverviewPage() {
       frame();
     }
   }, [winnersAnnounced, userProject, confettiFired]);
+
+  // Check if user already claimed GCP credit
+  useEffect(() => {
+    if (!user) {
+      setCreditClaimed(false);
+      return;
+    }
+    getDoc(doc(db, CREDIT_CLAIMS_COLLECTION, user.uid)).then((snap) => {
+      if (snap.exists()) setCreditClaimed(true);
+    });
+  }, [user]);
+
+  const handleClaimCredit = async () => {
+    if (!user || claimingCredit) return;
+    setClaimingCredit(true);
+    try {
+      await setDoc(doc(db, CREDIT_CLAIMS_COLLECTION, user.uid), {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        claimedAt: serverTimestamp(),
+      });
+      setCreditClaimed(true);
+      window.open("https://trygcp.dev/claim/deveco-gdg-80d68f774f1", "_blank");
+    } finally {
+      setClaimingCredit(false);
+    }
+  };
 
   if (!mounted) {
     return null;
@@ -354,6 +384,34 @@ export default function HackathonOverviewPage() {
           </a>
         </p>
       </section>
+
+      {/* GCP Credits - only for signed-in users */}
+      {isAuthenticated && (
+        <section className="p-8 rounded-3xl bg-gradient-to-br from-blue-600/20 via-[#1e1b2e] to-cyan-600/20 border border-blue-500/30 text-left w-full mt-8">
+          <h2 className="text-xl font-bold text-white mb-3 flex items-center gap-2">
+            <Cloud className="w-6 h-6 text-blue-400" />
+            Google Cloud Credits
+          </h2>
+          <p className="text-gray-300 leading-relaxed mb-5">
+            As a hackathon participant, you can claim free Google Cloud credits to build and deploy your project.
+          </p>
+          {creditClaimed ? (
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500/20 border border-green-500/30 text-green-400 text-sm font-semibold">
+              <Check className="w-4 h-4" />
+              Credit claimed
+            </div>
+          ) : (
+            <Button
+              onClick={handleClaimCredit}
+              disabled={claimingCredit}
+              className="bg-blue-600 hover:bg-blue-500 text-white"
+            >
+              {claimingCredit ? "Claiming..." : "Claim Your GCP Credit"}
+              <ExternalLink className="h-4 w-4 ml-2" />
+            </Button>
+          )}
+        </section>
+      )}
 
       {/* What is a Hackathon */}
       <section className="p-8 rounded-3xl bg-[#2c244c] border border-violet-500/20 text-left w-full mt-8">
