@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { getJoinRequestsForProject, approveJoinRequest, rejectJoinRequest } from "@/lib/join-requests";
 import type { JoinRequest } from "@/types/join-request";
-import { Check, X, Loader2, Mail } from "lucide-react";
+import { Check, X, Loader2, Mail, UserPlus, Inbox } from "lucide-react";
 
 interface JoinRequestsReceivedProps {
   projectId: string;
@@ -80,70 +81,110 @@ export function JoinRequestsReceived({ projectId }: JoinRequestsReceivedProps) {
     }
   };
 
-  if (loading) return null;
-  if (requests.length === 0) return null;
-
   return (
-    <div className="mt-3 space-y-2">
-      {pendingRequests.length > 0 && (
-        <p className="text-xs font-medium text-amber-400">
-          {pendingRequests.length} pending request{pendingRequests.length !== 1 ? "s" : ""}
-        </p>
-      )}
-      {requests.map((r) => (
-        <div
-          key={r.id}
-          className="flex items-center justify-between gap-2 p-2 rounded-lg bg-white/5 text-sm"
-        >
-          <div className="min-w-0">
-            <p className="text-white font-medium truncate">{r.userName}</p>
-            <p className="text-gray-500 text-xs flex items-center gap-1">
-              <Mail className="h-3 w-3" />
-              {r.userEmail}
-            </p>
-            {r.message && (
-              <p className="text-gray-400 text-xs mt-1 italic">&quot;{r.message}&quot;</p>
-            )}
+    <Card className="bg-white/5 border-white/10">
+      <CardContent className="p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <UserPlus className="h-5 w-5 text-violet-400" />
+            <h3 className="text-lg font-semibold text-white">Join Requests</h3>
           </div>
-          {r.status === "pending" ? (
-            <div className="flex gap-1 shrink-0">
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 w-7 p-0 text-green-400 hover:text-green-300 hover:bg-green-500/10"
-                onClick={() => handleApprove(r)}
-                disabled={processingId === r.id}
-              >
-                {processingId === r.id ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Check className="h-4 w-4" />
-                )}
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 w-7 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                onClick={() => handleReject(r)}
-                disabled={processingId === r.id}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          ) : (
-            <Badge
-              variant="outline"
-              className={
-                r.status === "approved"
-                  ? "border-green-500/30 text-green-400 text-xs"
-                  : "border-red-500/30 text-red-400 text-xs"
-              }
-            >
-              {r.status}
+          {pendingRequests.length > 0 && (
+            <Badge className="bg-amber-500 text-white">
+              {pendingRequests.length} pending
             </Badge>
           )}
         </div>
-      ))}
-    </div>
+
+        {loading ? (
+          <div className="flex justify-center py-6">
+            <Loader2 className="h-6 w-6 animate-spin text-violet-400" />
+          </div>
+        ) : requests.length === 0 ? (
+          <div className="text-center py-6">
+            <Inbox className="h-10 w-10 text-gray-600 mx-auto mb-2" />
+            <p className="text-gray-500 text-sm">No join requests yet.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/10 text-left">
+                  <th className="pb-2 text-gray-400 font-medium">Name</th>
+                  <th className="pb-2 text-gray-400 font-medium">Email</th>
+                  <th className="pb-2 text-gray-400 font-medium">Message</th>
+                  <th className="pb-2 text-gray-400 font-medium text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {requests.map((r) => (
+                  <tr key={r.id} className="group">
+                    <td className="py-3 pr-3">
+                      <p className="text-white font-medium">{r.userName}</p>
+                    </td>
+                    <td className="py-3 pr-3">
+                      <p className="text-gray-400 flex items-center gap-1">
+                        <Mail className="h-3 w-3 shrink-0" />
+                        <span className="truncate max-w-[180px]">{r.userEmail}</span>
+                      </p>
+                    </td>
+                    <td className="py-3 pr-3">
+                      {r.message ? (
+                        <p className="text-gray-400 italic truncate max-w-[200px]">&quot;{r.message}&quot;</p>
+                      ) : (
+                        <span className="text-gray-600">-</span>
+                      )}
+                    </td>
+                    <td className="py-3 text-right">
+                      {r.status === "pending" ? (
+                        <div className="flex gap-1 justify-end">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 px-3 border-green-500/30 text-green-400 hover:bg-green-500/10 hover:text-green-300"
+                            onClick={() => handleApprove(r)}
+                            disabled={processingId === r.id}
+                          >
+                            {processingId === r.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                <Check className="h-4 w-4 mr-1" />
+                                Approve
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 px-3 border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                            onClick={() => handleReject(r)}
+                            disabled={processingId === r.id}
+                          >
+                            <X className="h-4 w-4 mr-1" />
+                            Decline
+                          </Button>
+                        </div>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className={
+                            r.status === "approved"
+                              ? "border-green-500/30 text-green-400"
+                              : "border-red-500/30 text-red-400"
+                          }
+                        >
+                          {r.status === "approved" ? "Approved" : "Declined"}
+                        </Badge>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
