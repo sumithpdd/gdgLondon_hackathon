@@ -299,7 +299,7 @@ export default function MyProjectPage() {
       </Card>
 
       {/* Join requests for project owners */}
-      {isOwner && displayProject.lookingForMembers && displayProject.id && (
+      {isOwner && displayProject.id && (
         <JoinRequestsReceived projectId={displayProject.id} />
       )}
 
