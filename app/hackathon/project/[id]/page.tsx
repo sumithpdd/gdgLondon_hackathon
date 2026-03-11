@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { doc, getDoc, updateDoc, increment, arrayUnion } from "firebase/firestore";
+import { doc, getDoc, updateDoc, increment } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Submission } from "@/types/submission";
 import { getProjectTitle, getTeamName } from "@/lib/submission-utils";
@@ -17,8 +17,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   Github,
   Linkedin,
-  Heart,
-  MessageCircle,
   Eye,
   Share2,
   ExternalLink,
@@ -27,8 +25,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import { PROJECTS_COLLECTION } from "@/lib/constants";
-import { CommentSection } from "./CommentSection";
-import { useAuthContext } from "@/lib/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
 function getYouTubeEmbedUrl(url: string): string {
@@ -44,14 +40,9 @@ function getYouTubeEmbedUrl(url: string): string {
 export default function ProjectDetailPage() {
   const params = useParams();
   const id = params.id as string;
-  const { user } = useAuthContext();
   const { toast } = useToast();
   const [submission, setSubmission] = useState<Submission | null>(null);
   const [loading, setLoading] = useState(true);
-  const [liking, setLiking] = useState(false);
-  const [bookmarked, setBookmarked] = useState(false);
-  const [bookmarking, setBookmarking] = useState(false);
-  const [commentCount, setCommentCount] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchProject = async () => {
@@ -66,7 +57,6 @@ export default function ProjectDetailPage() {
             createdAt: docSnap.data().createdAt?.toDate?.(),
           } as Submission;
           setSubmission(data);
-          setCommentCount(data.commentCount ?? 0);
 
           // Increment view count
           await updateDoc(docRef, { views: increment(1) });
@@ -109,48 +99,11 @@ export default function ProjectDetailPage() {
     submission.label === "winner";
   const isFinalist = submission.label === "finalist";
   const isFeatured = submission.label === "featured";
-  const hasLiked = user && submission.likesBy?.includes(user.uid);
-
   const getLabelRibbon = () => {
     if (isWinner) return { text: "WINNER", className: "bg-amber-500 text-white" };
     if (isFinalist) return { text: "FINALIST", className: "bg-slate-600 text-white" };
     if (isFeatured) return { text: "FEATURED", className: "bg-blue-600 text-white" };
     return null;
-  };
-
-  const handleLike = async () => {
-    if (!user || !id || liking) return;
-    if (hasLiked) {
-      toast({ title: "Already liked", description: "You've already liked this project." });
-      return;
-    }
-    setLiking(true);
-    try {
-      const docRef = doc(db, PROJECTS_COLLECTION, id);
-      const now = new Date();
-      await updateDoc(docRef, {
-        likes: increment(1),
-        likesBy: arrayUnion(user.uid),
-        updatedBy: user.uid,
-        updatedDate: now,
-        updatedAt: now,
-      });
-      setSubmission((prev) =>
-        prev
-          ? {
-              ...prev,
-              likes: (prev.likes ?? 0) + 1,
-              likesBy: [...(prev.likesBy || []), user.uid],
-            }
-          : null
-      );
-      toast({ title: "Liked!", description: "Thanks for supporting this project." });
-    } catch (error) {
-      console.error("Error liking:", error);
-      toast({ title: "Error", description: "Could not like project.", variant: "destructive" });
-    } finally {
-      setLiking(false);
-    }
   };
 
   const handleShare = async () => {
@@ -219,29 +172,11 @@ export default function ProjectDetailPage() {
           </div>
           <div className="flex gap-4 mt-4 text-gray-400">
             <span className="flex items-center gap-1">
-              <Heart className="h-4 w-4" />
-              {submission.likes ?? 0} likes
-            </span>
-            <span className="flex items-center gap-1">
-              <MessageCircle className="h-4 w-4" />
-              {commentCount ?? submission.commentCount ?? 0} comments
-            </span>
-            <span className="flex items-center gap-1">
               <Eye className="h-4 w-4" />
               {submission.views ?? 0} views
             </span>
           </div>
           <div className="flex gap-2 mt-4">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleLike}
-              disabled={!user || liking || !!hasLiked}
-              className={hasLiked ? "border-red-500 text-red-400" : "border-white/30 text-gray-200 hover:bg-white/10"}
-            >
-              <Heart className={`h-4 w-4 mr-2 ${hasLiked ? "fill-red-500" : ""}`} />
-              {hasLiked ? "Liked" : "Like"}
-            </Button>
             <Button size="sm" variant="outline" onClick={handleShare} className="border-white/30 text-gray-200 hover:bg-white/10">
               <Share2 className="h-4 w-4 mr-2" />
               Share
@@ -331,19 +266,6 @@ export default function ProjectDetailPage() {
           </CardContent>
         </Card>
       )}
-
-      {/* Comments */}
-      <Card className="bg-white/5 border-white/10">
-        <CardHeader>
-          <CardTitle className="text-white">Comments</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <CommentSection
-            projectId={id}
-            onCountChange={(n) => setCommentCount(n)}
-          />
-        </CardContent>
-      </Card>
 
       {/* Additional screenshots */}
       {submission.screenshots && submission.screenshots.length > 1 && (
