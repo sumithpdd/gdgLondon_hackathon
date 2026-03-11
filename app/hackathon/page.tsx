@@ -412,6 +412,14 @@ export default function HackathonOverviewPage() {
           <span className="bg-clip-text text-transparent bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400 font-semibold">Build with AI</span> are community-led technical workshops and hackathons hosted by GDGs and GDG on Campus. Use any AI technology—from open models to cloud APIs—to build something real. Google tools like Gemini and AI Studio are optional.
         </p>
       </section>
+
+      {/* Contact */}
+      <p className="text-center text-gray-400 text-sm mt-8">
+        Having an issue? Let us know at{" "}
+        <a href="mailto:hello@gdglondon.dev" className="text-violet-400 hover:text-violet-300 underline">
+          hello@gdglondon.dev
+        </a>
+      </p>
     </div>
   );
 }
