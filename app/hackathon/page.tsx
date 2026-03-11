@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Rocket, Sparkles, Ticket, GitBranch, ArrowRight, Pencil, Eye, Trophy, Award, Cloud, ExternalLink, Check } from "lucide-react";
+import { Rocket, Sparkles, Ticket, GitBranch, ArrowRight, Pencil, Eye, Trophy, Award, Cloud, ExternalLink } from "lucide-react";
 import { PrizeCarousel } from "@/components/PrizeCarousel";
 import { useAuthContext } from "@/lib/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
@@ -66,7 +66,6 @@ export default function HackathonOverviewPage() {
   const [userProjectRole, setUserProjectRole] = useState<"owner" | "member" | null>(null);
   const [winnersAnnounced, setWinnersAnnounced] = useState(false);
   const [confettiFired, setConfettiFired] = useState(false);
-  const [creditClaimed, setCreditClaimed] = useState(false);
   const [claimingCredit, setClaimingCredit] = useState(false);
   const { user, isAuthenticated } = useAuthContext();
   const router = useRouter();
@@ -117,17 +116,6 @@ export default function HackathonOverviewPage() {
     }
   }, [winnersAnnounced, userProject, confettiFired]);
 
-  // Check if user already claimed GCP credit
-  useEffect(() => {
-    if (!user) {
-      setCreditClaimed(false);
-      return;
-    }
-    getDoc(doc(db, CREDIT_CLAIMS_COLLECTION, user.uid)).then((snap) => {
-      if (snap.exists()) setCreditClaimed(true);
-    });
-  }, [user]);
-
   const handleClaimCredit = async () => {
     if (!user || claimingCredit) return;
     setClaimingCredit(true);
@@ -138,7 +126,6 @@ export default function HackathonOverviewPage() {
         displayName: user.displayName,
         claimedAt: serverTimestamp(),
       });
-      setCreditClaimed(true);
       window.open("https://trygcp.dev/claim/deveco-gdg-80d68f774f1", "_blank");
     } finally {
       setClaimingCredit(false);
@@ -392,24 +379,23 @@ export default function HackathonOverviewPage() {
             <Cloud className="w-6 h-6 text-blue-400" />
             Google Cloud Credits
           </h2>
-          <p className="text-gray-300 leading-relaxed mb-5">
-            As a hackathon participant, you can claim free Google Cloud credits to build and deploy your project.
+          <p className="text-gray-300 leading-relaxed mb-3">
+            Join the adventure <span className="text-blue-400 font-semibold">&quot;Garden of Forgotten Prompts&quot;</span> — to play, you&apos;ll need Google Cloud credits. Use the link below to claim yours.
           </p>
-          {creditClaimed ? (
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500/20 border border-green-500/30 text-green-400 text-sm font-semibold">
-              <Check className="w-4 h-4" />
-              Credit claimed
-            </div>
-          ) : (
-            <Button
-              onClick={handleClaimCredit}
-              disabled={claimingCredit}
-              className="bg-blue-600 hover:bg-blue-500 text-white"
-            >
-              {claimingCredit ? "Claiming..." : "Claim Your GCP Credit"}
-              <ExternalLink className="h-4 w-4 ml-2" />
-            </Button>
-          )}
+          <p className="text-gray-300 leading-relaxed mb-3">
+            We will provide you cloud credits and will open it on the 11th. You will need to create a project so that we can send you credits.
+          </p>
+          <p className="text-blue-300 text-sm font-medium mb-5">
+            Opens 11th March 2026 at 9:00 AM GMT
+          </p>
+          <Button
+            onClick={handleClaimCredit}
+            disabled={claimingCredit}
+            className="bg-blue-600 hover:bg-blue-500 text-white"
+          >
+            {claimingCredit ? "Claiming..." : "Claim Your GCP Credit"}
+            <ExternalLink className="h-4 w-4 ml-2" />
+          </Button>
         </section>
       )}
 

@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Star, Search, Heart, MessageCircle, Eye, Trophy, AlertTriangle, Trash2, RotateCcw } from "lucide-react";
+import { Star, Search, Eye, Trophy, AlertTriangle, Trash2, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { HACKATHON_START_DATE, PROJECTS_COLLECTION } from "@/lib/constants";
@@ -498,14 +498,6 @@ export default function ProjectGalleryPage() {
                           </span>
                         </div>
                         <div className="flex items-center gap-3 text-gray-500 text-sm">
-                          <span className="flex items-center gap-1">
-                            <Heart className="h-4 w-4" />
-                            {submission.likes ?? 0}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <MessageCircle className="h-4 w-4" />
-                            {submission.commentCount ?? 0}
-                          </span>
                           <span className="flex items-center gap-1">
                             <Eye className="h-4 w-4" />
                             {submission.views ?? 0}
