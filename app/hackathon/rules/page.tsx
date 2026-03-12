@@ -89,10 +89,10 @@ export default function RulesPage() {
             <li>LinkedIn profile</li>
           </ul>
           <p className="mt-3">You can also browse the Idea Gallery and join an existing project.</p>
-          <div className="mt-4 p-4 rounded-xl bg-violet-600/10 border border-violet-500/20">
-            <p className="font-medium text-violet-300 mb-1">Or join the adventure &quot;Garden of Forgotten Prompt&quot;</p>
-            <p className="text-sm">We will provide you cloud credits and will open it on the 11th. You will need to create a project so that we can send you credits.</p>
-            <p className="text-sm text-gray-500 mt-2">Opens 11th March 2026 at 9:00 AM GMT</p>
+          <div className="mt-4 p-4 rounded-xl bg-emerald-600/10 border border-emerald-500/20">
+            <p className="font-medium text-emerald-300 mb-1">Or join the adventure &quot;Garden of Forgotten Prompt&quot;</p>
+            <p className="text-sm">Wed 11 March, 11:00 PM — Sat 14 March, 6:00 PM. Cloud credits provided.</p>
+            <p className="text-sm text-emerald-200/80 font-medium mt-2">Top 3 players on the leaderboard get entered into a raffle for prizes — speed counts!</p>
           </div>
         </CardContent>
       </Card>

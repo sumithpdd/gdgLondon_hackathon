@@ -1,6 +1,7 @@
 "use client";
 
-import { FileText, Square } from "lucide-react";
+import Image from "next/image";
+import { FileText, Square, ExternalLink } from "lucide-react";
 
 export default function ResourcesPage() {
   const links = [
@@ -8,11 +9,10 @@ export default function ResourcesPage() {
     { href: "https://platform.openai.com/docs", label: "OpenAI API Docs" },
     { href: "https://ai.google.dev/docs", label: "Gemini API Docs" },
     { href: "https://aistudio.google.com/", label: "AI Studio" },
-    { href: "https://adventure.wietsevenema.eu/", label: "Adventure Leaderboard — Test your skills" },
   ];
 
   return (
-    <div className="space-y-0 max-w-3xl mx-auto">
+    <div className="space-y-6 max-w-3xl mx-auto">
       <section className="rounded-3xl overflow-hidden">
         <div className="p-8 sm:p-12 bg-[#2c244c] border border-violet-500/20 rounded-t-3xl">
           <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3 justify-center">
@@ -57,6 +57,48 @@ export default function ResourcesPage() {
           </div>
         </div>
         <div className="h-24 bg-gradient-to-b from-[#2c244c] to-[#1a1625]" />
+      </section>
+
+      {/* Adventure Workshop */}
+      <section className="rounded-3xl overflow-hidden bg-gradient-to-br from-[#1a0a2e] via-[#0f1a0a] to-[#1a0a2e] border border-emerald-500/30 p-6 sm:p-8">
+        <div className="flex flex-col sm:flex-row items-center gap-6">
+          <div className="relative w-32 h-32 sm:w-40 sm:h-40 shrink-0 rounded-xl overflow-hidden">
+            <Image
+              src="/garden_adventure.png"
+              alt="The Garden of the Forgotten Prompt"
+              fill
+              className="object-cover"
+              sizes="160px"
+            />
+          </div>
+          <div className="text-center sm:text-left">
+            <h2 className="text-xl font-bold text-white mb-1">The Garden of the Forgotten Prompt</h2>
+            <p className="text-emerald-300 text-sm font-medium">BUILD WITH AI — GDG London</p>
+            <p className="text-gray-400 text-sm mt-2">
+              Wed 11 March, 11:00 PM — Sat 14 March, 6:00 PM
+            </p>
+            <div className="flex flex-wrap gap-3 mt-4 justify-center sm:justify-start">
+              <a
+                href="https://adventure.wietsevenema.eu/e/gdg-london"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-colors shadow-lg shadow-emerald-600/25 text-sm"
+              >
+                Play the Adventure
+                <ExternalLink className="w-4 h-4" />
+              </a>
+              <a
+                href="https://adventure.wietsevenema.eu/leaderboards/2c6f858e-98ec-438c-857f-671c5eab3c89"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-emerald-500/40 text-emerald-300 font-medium hover:bg-emerald-500/10 transition-colors text-sm"
+              >
+                View Leaderboard
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            </div>
+          </div>
+        </div>
       </section>
     </div>
   );

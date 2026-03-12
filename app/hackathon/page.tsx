@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Rocket, Sparkles, Ticket, GitBranch, ArrowRight, Pencil, Eye, Trophy, Award, Cloud, ExternalLink } from "lucide-react";
+import Image from "next/image";
 import { PrizeCarousel } from "@/components/PrizeCarousel";
 import { useAuthContext } from "@/lib/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
@@ -372,32 +373,60 @@ export default function HackathonOverviewPage() {
         </p>
       </section>
 
-      {/* GCP Credits - only for signed-in users */}
-      {isAuthenticated && (
-        <section className="p-8 rounded-3xl bg-gradient-to-br from-blue-600/20 via-[#1e1b2e] to-cyan-600/20 border border-blue-500/30 text-left w-full mt-8">
-          <h2 className="text-xl font-bold text-white mb-3 flex items-center gap-2">
-            <Cloud className="w-6 h-6 text-blue-400" />
-            Google Cloud Credits
-          </h2>
-          <p className="text-gray-300 leading-relaxed mb-3">
-            Join the adventure <span className="text-blue-400 font-semibold">&quot;Garden of Forgotten Prompts&quot;</span> — to play, you&apos;ll need Google Cloud credits. Use the link below to claim yours.
-          </p>
-          <p className="text-gray-300 leading-relaxed mb-3">
-            We will provide you cloud credits and will open it on the 11th. You will need to create a project so that we can send you credits.
-          </p>
-          <p className="text-blue-300 text-sm font-medium mb-5">
-            Opens 11th March 2026 at 9:00 AM GMT
-          </p>
-          <Button
-            onClick={handleClaimCredit}
-            disabled={claimingCredit}
-            className="bg-blue-600 hover:bg-blue-500 text-white"
+      {/* Adventure + GCP Credits */}
+      <section className="p-8 rounded-3xl bg-gradient-to-br from-[#1a0a2e] via-[#0f1a0a] to-[#1a0a2e] border border-emerald-500/30 text-left w-full mt-8">
+        <div className="flex items-center gap-4 mb-4">
+          <div className="relative w-16 h-16 shrink-0 rounded-lg overflow-hidden">
+            <Image
+              src="/garden_adventure.png"
+              alt="Garden of the Forgotten Prompt"
+              fill
+              className="object-cover"
+              sizes="64px"
+            />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-white">The Garden of the Forgotten Prompt</h2>
+            <p className="text-emerald-300 text-sm font-medium">Adventures await!</p>
+          </div>
+        </div>
+        <p className="text-gray-300 leading-relaxed mb-2">
+          Wed 11 March, 11:00 PM — Sat 14 March, 6:00 PM
+        </p>
+        <p className="text-gray-300 leading-relaxed mb-4">
+          To play, you&apos;ll need Google Cloud credits. Use the button below to claim yours, then dive into the adventure.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <a
+            href="https://adventure.wietsevenema.eu/e/gdg-london"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-colors shadow-lg shadow-emerald-600/25 text-sm"
           >
-            {claimingCredit ? "Claiming..." : "Claim Your GCP Credit"}
-            <ExternalLink className="h-4 w-4 ml-2" />
-          </Button>
-        </section>
-      )}
+            Play the Adventure
+            <ExternalLink className="h-4 w-4" />
+          </a>
+          <a
+            href="https://adventure.wietsevenema.eu/leaderboards/2c6f858e-98ec-438c-857f-671c5eab3c89"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-emerald-500/40 text-emerald-300 font-medium hover:bg-emerald-500/10 transition-colors text-sm"
+          >
+            View Leaderboard
+            <ExternalLink className="h-4 w-4" />
+          </a>
+          {isAuthenticated && (
+            <Button
+              onClick={handleClaimCredit}
+              disabled={claimingCredit}
+              className="bg-blue-600 hover:bg-blue-500 text-white text-sm"
+            >
+              {claimingCredit ? "Claiming..." : "Claim GCP Credit"}
+              <ExternalLink className="h-4 w-4 ml-2" />
+            </Button>
+          )}
+        </div>
+      </section>
 
       {/* What is a Hackathon */}
       <section className="p-8 rounded-3xl bg-[#2c244c] border border-violet-500/20 text-left w-full mt-8">
