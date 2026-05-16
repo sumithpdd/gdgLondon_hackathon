@@ -14,8 +14,7 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { httpsCallable } from "firebase/functions";
 import { db, storage, functions } from "@/lib/firebase";
 import Link from "next/link";
-import { Upload, X, Loader2, Save, Plus, Twitter, Facebook, Instagram, CalendarClock, AlertTriangle } from "lucide-react";
-import { TagSelector } from "@/components/TagSelector";
+import { Upload, X, Loader2, Save, Plus, CalendarClock, AlertTriangle } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +26,7 @@ import {
   HACKATHON_IDEA_SUBMISSION_OPENS,
   HACKATHON_DISPLAY_NAME,
 } from "@/lib/constants";
+import { getActiveHackathonId } from "@/lib/active-hackathon";
 import { isAfterDeadline, isBeforeIdeaSubmissionOpens } from "@/lib/deadline";
 import { getProfileCompletion } from "@/lib/profile-completion";
 
@@ -40,9 +40,6 @@ type FormShape = {
   demoVideoUrl: string;
   githubUrl: string;
   appPurpose: string;
-  twitterUrl: string;
-  facebookUrl: string;
-  instagramUrl: string;
 };
 
 export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
@@ -67,16 +64,10 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
     demoVideoUrl: "",
     githubUrl: "",
     appPurpose: "",
-    twitterUrl: "",
-    facebookUrl: "",
-    instagramUrl: "",
   });
 
   const [teamMembers, setTeamMembers] = useState<{ name: string; linkedinUrl: string }[]>([]);
   const [builtWith, setBuiltWith] = useState<string[]>([]);
-  const [interests, setInterests] = useState<string[]>([]);
-  const [expertise, setExpertise] = useState<string[]>([]);
-  const [techStack, setTechStack] = useState<string[]>([]);
 
   const projectToastForId = useRef<string | null>(null);
 
@@ -125,9 +116,6 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
             demoVideoUrl: (data.demoVideoUrl as string) || "",
             githubUrl: (data.githubUrl as string) || "",
             appPurpose: (data.appPurpose as string) || "",
-            twitterUrl: (data.twitterUrl as string) || "",
-            facebookUrl: (data.facebookUrl as string) || "",
-            instagramUrl: (data.instagramUrl as string) || "",
           });
           if (data.teamMembers && Array.isArray(data.teamMembers) && data.teamMembers.length > 0) {
             setTeamMembers(
@@ -142,15 +130,6 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
           }
           if (data.builtWith && Array.isArray(data.builtWith) && data.builtWith.length > 0) {
             setBuiltWith(data.builtWith as string[]);
-          }
-          if (data.interests && Array.isArray(data.interests) && data.interests.length > 0) {
-            setInterests(data.interests as string[]);
-          }
-          if (data.expertise && Array.isArray(data.expertise) && data.expertise.length > 0) {
-            setExpertise(data.expertise as string[]);
-          }
-          if (data.techStack && Array.isArray(data.techStack) && data.techStack.length > 0) {
-            setTechStack(data.techStack as string[]);
           }
 
           if (data.screenshots && Array.isArray(data.screenshots) && data.screenshots.length > 0) {
@@ -224,10 +203,16 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
 
   /** Minimal identity on the project doc (not synced from hackathon profile). */
   const buildContactPayload = () => ({
-    fullName: (user?.displayName || user?.email?.split("@")[0] || "").trim(),
+    fullName: (userProfile?.profileDisplayName || user?.displayName || user?.email?.split("@")[0] || "").trim(),
     email: (user?.email || "").trim(),
-    linkedinUrl: "",
-    websiteUrl: "",
+    linkedinUrl: (userProfile?.hackathonLinkedinUrl || "").trim(),
+    websiteUrl: (userProfile?.websiteUrl || "").trim(),
+    twitterUrl: (userProfile?.twitterUrl || "").trim(),
+    facebookUrl: (userProfile?.facebookUrl || "").trim(),
+    instagramUrl: (userProfile?.instagramUrl || "").trim(),
+    interests: userProfile?.interests ?? userProfile?.wantToLearnTags ?? [],
+    expertise: userProfile?.expertise ?? userProfile?.domainExpertise ?? [],
+    techStack: userProfile?.techStack ?? [],
   });
 
   const saveDraft = async () => {
@@ -285,11 +270,9 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
         builtWith,
         lookingForMembers,
         screenshots: screenshotUrls,
-        interests,
-        expertise,
-        techStack,
         userId: user.uid,
         userEmail: user.email,
+        hackathonId: getActiveHackathonId(),
         updatedAt: now,
         status: newStatus,
         updatedBy: user.uid,
@@ -418,11 +401,9 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
         builtWith,
         lookingForMembers,
         screenshots: screenshotUrls,
-        interests,
-        expertise,
-        techStack,
         userId: user.uid,
         userEmail: user.email,
+        hackathonId: getActiveHackathonId(),
         updatedAt: now,
         status: "submitted",
         place: null,
@@ -842,62 +823,14 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
               )}
             </div>
 
-            <TagSelector category="interests" selectedTags={interests} onChange={setInterests} label="Your interests" theme="hackathon" />
-            <TagSelector category="expertise" selectedTags={expertise} onChange={setExpertise} label="Your expertise" theme="hackathon" />
-            <TagSelector category="techStack" selectedTags={techStack} onChange={setTechStack} label="Technology stack" theme="hackathon" />
-
-            <div className="space-y-4">
-              <div>
-                <Label className="text-gray-200 text-base font-semibold">Social links (optional)</Label>
-                <p className="text-sm text-gray-500 mt-1">X, Facebook, Instagram for this entry (LinkedIn and site use your profile).</p>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-sky-500/15 flex items-center justify-center shrink-0">
-                    <Twitter className="w-5 h-5 text-sky-400" />
-                  </div>
-                  <div className="flex-1">
-                    <Input
-                      type="url"
-                      placeholder="https://twitter.com/username"
-                      value={formData.twitterUrl}
-                      onChange={(e) => setFormData({ ...formData, twitterUrl: e.target.value })}
-                      className={fieldClass}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-blue-500/15 flex items-center justify-center shrink-0">
-                    <Facebook className="w-5 h-5 text-blue-400" />
-                  </div>
-                  <div className="flex-1">
-                    <Input
-                      type="url"
-                      placeholder="https://facebook.com/username"
-                      value={formData.facebookUrl}
-                      onChange={(e) => setFormData({ ...formData, facebookUrl: e.target.value })}
-                      className={fieldClass}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-pink-500/15 flex items-center justify-center shrink-0">
-                    <Instagram className="w-5 h-5 text-pink-400" />
-                  </div>
-                  <div className="flex-1">
-                    <Input
-                      type="url"
-                      placeholder="https://instagram.com/username"
-                      value={formData.instagramUrl}
-                      onChange={(e) => setFormData({ ...formData, instagramUrl: e.target.value })}
-                      className={fieldClass}
-                    />
-                  </div>
-                </div>
-              </div>
+            <div className="rounded-lg border border-violet-500/30 bg-violet-950/20 px-4 py-3 text-sm text-gray-300">
+              <p>
+                Interests, expertise, tech stack, and social links are on your{" "}
+                <Link href="/hackathon/profile" className="text-violet-300 underline hover:text-violet-200">
+                  hackathon profile
+                </Link>
+                . They are copied onto your project when you save.
+              </p>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4 pt-2">

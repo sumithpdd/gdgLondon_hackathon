@@ -52,6 +52,7 @@ export const IO2026_COLLECTIONS = {
   updates: `${IO2026_PREFIX}_updates`,
   creditClaims: `${IO2026_PREFIX}_creditClaims`,
   buddyRequests: `${IO2026_PREFIX}_buddyRequests`,
+  liveStats: `${IO2026_PREFIX}_liveStats`,
 } as const;
 
 /** Pre-migration collection names (GDG London hackathon v1) */
@@ -105,5 +106,6 @@ export function getActiveCollections() {
     discussions: LEGACY_COLLECTIONS.discussions,
     updates: LEGACY_COLLECTIONS.updates,
     buddyRequests: LEGACY_COLLECTIONS.buddyRequests,
+    liveStats: "hackatonLiveStats",
   };
 }

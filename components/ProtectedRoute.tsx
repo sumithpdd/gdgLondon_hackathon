@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthContext } from "@/lib/AuthContext";
+import { isUserDeleted } from "@/lib/auth";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -41,6 +44,22 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
 
   if (requireAdmin && userProfile?.role !== "admin") {
     return null;
+  }
+
+  if (!requireAdmin && userProfile && isUserDeleted(userProfile)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0a0f] px-4">
+        <div className="max-w-md text-center space-y-4 rounded-2xl border border-amber-500/30 bg-amber-950/20 p-8">
+          <h1 className="text-xl font-semibold text-white">Account deactivated</h1>
+          <p className="text-gray-400 text-sm">
+            This profile has been marked as deleted. Contact the organisers if you believe this is a mistake.
+          </p>
+          <Button asChild variant="outline" className="border-white/20 text-white hover:bg-white/10">
+            <Link href="/hackathon">Back to hackathon hub</Link>
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return <>{children}</>;

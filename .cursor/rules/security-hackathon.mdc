@@ -12,6 +12,7 @@ alwaysApply: true
 - **Validate** payloads on trusted paths (Cloud Functions, Admin SDK, Route Handlers) before writes; normalize strings (trim, max length).
 - **Gate admin behaviour** with server-side or rules-backed checks; never rely on hiding admin UI alone.
 - **Least privilege:** new collections/paths get explicit rules; avoid `allow read, write: if true` except deliberate public read with safe fields.
+- **Voting:** `io2026Hackathon_votes` — client `create/update/delete: if false`; caps in **`castVotes`** only. Projects: clients cannot write `voteTotal` or `place`.
 
 **Don’t**
 

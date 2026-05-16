@@ -10,7 +10,7 @@ This project is a **Next.js 14 (App Router)** app with **Firebase Auth, Firestor
 |--------|----------|----------------|
 | **Presentation** | `app/`, `components/` | Routes, layout, UI composition, local UI state, calls into `lib/` or auth context. |
 | **Application / domain services** | `lib/*.ts` | Use-cases: queries, command-style functions, mapping to/from Firestore, HTTPS callable wrappers. |
-| **Configuration** | `lib/constants.ts`, `lib/hackathon-collections.ts`, `lib/firebase.ts` | Env-driven collection names, deadlines, Firebase app instance. |
+| **Configuration** | `lib/constants.ts`, `lib/hackathon-collections.ts`, `lib/active-hackathon.ts`, `lib/firebase.ts` | Env-driven collection names, active hackathon id, deadlines, Firebase app instance. |
 | **Types** | `types/` | Shared TypeScript models (e.g. IO 2026 shapes). |
 | **Privileged / cross-user logic** | `functions/src/` | Cloud Functions, Admin SDK, enforcement (e.g. one project per user). |
 
@@ -38,6 +38,25 @@ We follow a **component-based** front end with **domain-driven** naming: modules
 - **`/submit`** redirects to **`/hackathon/my-projects?project=1`** (and preserves `edit=` when present). Old links remain valid.
 
 ---
+
+## Multi-hackathon & domain modules
+
+| Module | Role |
+|--------|------|
+| `lib/hackathon-collections.ts` | `io2026` vs legacy vs `iwd2026` archive collection names |
+| `lib/hackathons-registry.ts` | CRUD for global `hackathons` registry |
+| `lib/active-hackathon.ts` | `getActiveHackathonId()` from env |
+| `lib/participation.ts` | `hackathonParticipations` on user sign-in |
+| `lib/prizes.ts` | Read/seed prize array on `settings/main` |
+| `components/HackathonAuthShell.tsx` | Sign-in modal + `?login=1` query handling |
+| `components/HackathonResultsSummary.tsx` | Winners + stats (admin + `/past-projects`) |
+
+**Auth UX:** `/register` (sign up), `AuthModal` (sign in / reset), pattern aligned with AI DevCamp Build withAI.
+
+**Resources + rules:** single page `/hackathon/resources`; `/hackathon/rules` redirects to `#rules`.
+
+---
+
 
 ## Security (summary)
 

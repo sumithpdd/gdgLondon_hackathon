@@ -16,8 +16,14 @@ export type ProfileCompletionResult = {
  * Team-join profile score: bio, LinkedIn, team preference, attendance (used for idea-gallery join requests).
  * Used to encourage fuller profiles before join requests (soft gate).
  */
+export type ProfileCompletionOptions = {
+  /** Set when the user has checked in at `/checkin` (event day). */
+  eventCheckedIn?: boolean;
+};
+
 export function getProfileCompletion(
-  profile: Partial<UserProfile> | null
+  profile: Partial<UserProfile> | null,
+  options?: ProfileCompletionOptions
 ): ProfileCompletionResult {
   if (!profile) {
     return {
@@ -40,9 +46,13 @@ export function getProfileCompletion(
 
   if ((profile.teamPreference ?? "").trim().length > 0) score += 1;
 
-  if (profile.inPersonAttendance !== undefined && profile.inPersonAttendance !== null) {
-    score += 1;
-  }
+  const checkedIn =
+    options?.eventCheckedIn === true ||
+    (options?.eventCheckedIn === undefined &&
+      profile.inPersonAttendance !== undefined &&
+      profile.inPersonAttendance !== null);
+
+  if (checkedIn) score += 1;
 
   const missing: string[] = [];
   if (bio.length < MIN_BIO_LENGTH) {
@@ -61,8 +71,11 @@ export function getProfileCompletion(
   return { percent, complete, missing, recommendations };
 }
 
-export function isHackathonProfileComplete(profile: Partial<UserProfile> | null): boolean {
-  return getProfileCompletion(profile).complete;
+export function isHackathonProfileComplete(
+  profile: Partial<UserProfile> | null,
+  options?: ProfileCompletionOptions
+): boolean {
+  return getProfileCompletion(profile, options).complete;
 }
 
 /** Rich profile steps (0–10) for progress UI — bio, location, experience, tags, links. */
@@ -70,7 +83,7 @@ export function getExtendedProfileSteps(profile: Partial<UserProfile> | null): {
   done: number;
   total: number;
 } {
-  const total = 10;
+  const total = 11;
   if (!profile) return { done: 0, total };
 
   let done = 0;
@@ -79,8 +92,9 @@ export function getExtendedProfileSteps(profile: Partial<UserProfile> | null): {
   if ((profile.country ?? "").trim()) done += 1;
   if (profile.experienceLevel) done += 1;
   if ((profile.programmingSkills ?? []).length > 0) done += 1;
-  if ((profile.domainExpertise ?? []).length > 0) done += 1;
-  if ((profile.wantToLearnTags ?? []).length > 0) done += 1;
+  if ((profile.expertise ?? profile.domainExpertise ?? []).length > 0) done += 1;
+  if ((profile.interests ?? profile.wantToLearnTags ?? []).length > 0) done += 1;
+  if ((profile.techStack ?? []).length > 0) done += 1;
   if ((profile.canOfferTags ?? []).length > 0) done += 1;
   if ((profile.hackathonLinkedinUrl ?? "").trim()) done += 1;
   if (

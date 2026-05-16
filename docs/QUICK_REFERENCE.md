@@ -30,8 +30,8 @@
 - Security best practices
 - Testing rules
 
-### IO 2026, Buddies & routes
-**→ [IO2026_HACKATHON_SPEC.md](./IO2026_HACKATHON_SPEC.md)** — `NEXT_PUBLIC_HACKATHON_DATASET`, `io2026Hackathon_*` vs legacy, `npm run migrate:iwd-archive`, `/past-projects`, Buddies under `/hackathon/buddies`, stub routes `/vote`, `/checkin`, `/live`, `/register`. **Canonical project URL:** `/hackathon/project/[id]` (short `/projects/:id` redirects). **Project submission:** `/hackathon/my-projects?project=1` (`/submit` redirects).
+### IO 2026, multi-hackathon, Buddies & routes
+**→ [IO2026_HACKATHON_SPEC.md](./IO2026_HACKATHON_SPEC.md)** — `NEXT_PUBLIC_HACKATHON_DATASET`, `hackathons` registry, `hackathonParticipations`, prizes in settings, `npm run migrate:iwd-archive`, `/past-projects` (winners + stats), Buddies, auth (`/register`, `?login=1`). **Data model:** [DATA_MODEL.md](./DATA_MODEL.md). **User flow:** [USER_FLOW.md](./USER_FLOW.md).
 
 ### Learn About Mentorship Program
 - Mentee applications
@@ -137,13 +137,17 @@ vercel --prod
 | `/hackathon` | Public | Overview (hero, intro, CTAs) |
 | `/hackathon/participants` | Public | Participant count, join projects |
 | `/hackathon/gallery` | Public | Browse all projects |
-| `/hackathon/rules` | Public | Teams, submission rules, judging |
-| `/hackathon/resources` | Public | Links (Gemini, AI Studio, Adventure) |
+| `/hackathon/resources` | Public | Learning links + rules (`/hackathon/rules` → `#rules`) |
+| `/hackathon/prizes` | Public | Prize list (Firestore `settings/main.prizes`) |
+| `/register` | Public | Sign up (Google + email) |
+| `/hackathon?login=1` | Public | Sign-in modal (`&reset=1`, `&redirect=`) |
+| `/past-projects` | Public | IWD archive winners, stats, projects |
 | `/hackathon/profile` | Protected | Hackathon profile (Buddies / directory settings) |
 | `/hackathon/my-projects` | Protected | Your project + draft / final submission form |
 | `/submit` | Public → redirect | → `/hackathon/my-projects?project=1` (preserves `?edit=`) |
-| `/admin` | Admin | Admin panel |
-| `/admin/users` | Admin | User management |
+| `/admin` | Admin | Submissions, winners, stats |
+| `/admin/hackathons` | Admin | Registry + seed prizes |
+| `/admin/users` | Admin | Users + `hackathonParticipations` |
 
 ---
 
@@ -156,6 +160,9 @@ NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789
 NEXT_PUBLIC_FIREBASE_APP_ID=1:123:web:abc
+NEXT_PUBLIC_HACKATHON_DATASET=io2026
+NEXT_PUBLIC_ACTIVE_HACKATHON_ID=io2026Hackathon
+NEXT_PUBLIC_APP_URL=https://your-app.vercel.app
 ```
 
 **Where to find**: Firebase Console → Project Settings → Your apps

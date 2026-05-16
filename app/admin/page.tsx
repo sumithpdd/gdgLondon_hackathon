@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
-import { Trophy, Github, Linkedin, Twitter, Trash2, ChevronLeft, ChevronRight, Tag } from "lucide-react";
+import { Github, Linkedin, Twitter, Trash2, ChevronLeft, ChevronRight, Tag } from "lucide-react";
+import { HackathonResultsSummary } from "@/components/HackathonResultsSummary";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminShell } from "@/components/AdminShell";
 import {
@@ -192,12 +193,6 @@ export default function AdminPage() {
     );
   }
 
-  const winners = {
-    first: submissions.find(s => s.place === "first"),
-    second: submissions.find(s => s.place === "second"),
-    third: submissions.find(s => s.place === "third"),
-  };
-
   return (
     <ProtectedRoute requireAdmin={true}>
     <AdminShell
@@ -205,75 +200,7 @@ export default function AdminPage() {
       subtitle="Review project submissions, assign winner places, and manage the competition."
     >
         <div className="space-y-8">
-            {/* Winners Section */}
-            <Card className="border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-[#1a1528]/80 to-[#1a1528]/90 shadow-lg shadow-amber-900/10">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Trophy className="w-6 h-6 text-amber-400" />
-                  <CardTitle className="text-white">Competition winners</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid md:grid-cols-3 gap-4">
-                  {['first', 'second', 'third'].map((place) => (
-                    <div key={place} className="rounded-xl border border-white/10 bg-[#0f0a18]/80 p-4">
-                      <h4 className="font-semibold text-white mb-2">
-                        {place === 'first' && '🥇 First place'}
-                        {place === 'second' && '🥈 Second place'}
-                        {place === 'third' && '🥉 Third place'}
-                      </h4>
-                      {winners[place as keyof typeof winners] ? (
-                        <p className="text-sm text-gray-300">{winners[place as keyof typeof winners]?.fullName}</p>
-                      ) : (
-                        <p className="text-sm text-gray-500 italic">Not selected yet</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Stats */}
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="border-white/10 bg-[#1a1528]/70">
-                <CardContent className="pt-6">
-                  <div className="text-center">
-                    <p className="text-3xl font-bold text-violet-300">{submissions.length}</p>
-                    <p className="text-sm text-gray-400">Total submissions</p>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="border-white/10 bg-[#1a1528]/70">
-                <CardContent className="pt-6">
-                  <div className="text-center">
-                    <p className="text-3xl font-bold text-emerald-400">
-                      {submissions.filter(s => s.status === "submitted").length}
-                    </p>
-                    <p className="text-sm text-gray-400">Submitted</p>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="border-white/10 bg-[#1a1528]/70">
-                <CardContent className="pt-6">
-                  <div className="text-center">
-                    <p className="text-3xl font-bold text-amber-300">
-                      {submissions.filter(s => s.status === "draft").length}
-                    </p>
-                    <p className="text-sm text-gray-400">Drafts</p>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="border-white/10 bg-[#1a1528]/70">
-                <CardContent className="pt-6">
-                  <div className="text-center">
-                    <p className="text-3xl font-bold text-fuchsia-300">
-                      {submissions.filter(s => s.place).length}
-                    </p>
-                    <p className="text-sm text-gray-400">Winners selected</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <HackathonResultsSummary projects={submissions} />
 
             {/* Submissions */}
             <div className="space-y-4">

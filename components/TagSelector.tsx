@@ -17,9 +17,23 @@ interface TagSelectorProps {
   label: string;
   /** Dark card styling for hackathon profile / project submission */
   theme?: "default" | "hackathon";
+  required?: boolean;
+  /** When false, users can only pick from the loaded tag list. */
+  allowCreate?: boolean;
+  /** `profile`: custom tags stay on the user profile only. `catalog`: also writes to Firestore tag collections. */
+  createScope?: "profile" | "catalog";
 }
 
-export function TagSelector({ category, selectedTags, onChange, label, theme = "default" }: TagSelectorProps) {
+export function TagSelector({
+  category,
+  selectedTags,
+  onChange,
+  label,
+  theme = "default",
+  required = true,
+  allowCreate = true,
+  createScope = "profile",
+}: TagSelectorProps) {
   const { user } = useAuthContext();
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
@@ -68,27 +82,38 @@ export function TagSelector({ category, selectedTags, onChange, label, theme = "
   };
 
   const addNewTag = async () => {
-    if (!newTag.trim() || !user) return;
-    
+    if (!newTag.trim()) return;
+
     const trimmedTag = newTag.trim();
-    
-    // Check if tag already exists
+
     if (availableTags.includes(trimmedTag) || selectedTags.includes(trimmedTag)) {
       setNewTag("");
       return;
     }
 
+    const applyLocal = () => {
+      if (!availableTags.includes(trimmedTag)) {
+        setAvailableTags((prev) => [...prev, trimmedTag]);
+      }
+      onChange([...selectedTags, trimmedTag]);
+      setNewTag("");
+      setShowInput(false);
+    };
+
+    if (createScope === "profile" || !user) {
+      applyLocal();
+      return;
+    }
+
     try {
-      // Map category to collection name
       const collectionMap: Record<string, string> = {
         interests: "Interests",
         expertise: "Expertise",
         techStack: "TechStack",
       };
-      
+
       const collectionName = collectionMap[category];
       const now = new Date();
-      // Add to Firestore
       await addDoc(collection(db, collectionName), {
         name: trimmedTag,
         createdAt: now,
@@ -98,19 +123,11 @@ export function TagSelector({ category, selectedTags, onChange, label, theme = "
         createdDate: now,
         updatedDate: now,
       });
-      
-      // Add to local state
-      setAvailableTags([...availableTags, trimmedTag]);
-      onChange([...selectedTags, trimmedTag]);
-      setNewTag("");
-      setShowInput(false);
+
+      applyLocal();
     } catch (error) {
       console.error("Error adding tag:", error);
-      // Still add locally even if Firestore fails
-      setAvailableTags([...availableTags, trimmedTag]);
-      onChange([...selectedTags, trimmedTag]);
-      setNewTag("");
-      setShowInput(false);
+      applyLocal();
     }
   };
 
@@ -132,7 +149,10 @@ export function TagSelector({ category, selectedTags, onChange, label, theme = "
 
   return (
     <div className="space-y-3">
-      <label className={labelClass}>{label} *</label>
+      <label className={labelClass}>
+        {label}
+        {required ? " *" : ""}
+      </label>
 
       {selectedTags.length > 0 && (
         <div className={selectedWrapClass}>
@@ -165,7 +185,7 @@ export function TagSelector({ category, selectedTags, onChange, label, theme = "
         ))}
       </div>
 
-      {showInput ? (
+      {allowCreate && showInput ? (
         <div className="flex gap-2 flex-wrap sm:flex-nowrap">
           <Input
             value={newTag}
@@ -191,16 +211,16 @@ export function TagSelector({ category, selectedTags, onChange, label, theme = "
             Cancel
           </Button>
         </div>
-      ) : (
+      ) : allowCreate ? (
         <Button type="button" variant="outline" size="sm" onClick={() => setShowInput(true)} className={addBtnClass}>
           <Plus className="w-4 h-4 mr-1" />
           Add new {label}
         </Button>
-      )}
+      ) : null}
 
-      <p className={isHackathon ? "text-xs text-gray-500" : "text-xs text-gray-500"}>
-        Click to select existing tags or add your own
-      </p>
+      {allowCreate ? (
+        <p className="text-xs text-gray-500">Click to select tags or add your own.</p>
+      ) : null}
     </div>
   );
 }

@@ -31,6 +31,30 @@
         { "fieldPath": "fromUserId", "order": "ASCENDING" },
         { "fieldPath": "status", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "io2026Hackathon_votes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "hackathonId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "io2026Hackathon_projects",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "voteTotal", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "io2026Hackathon_projects",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "hackathonId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

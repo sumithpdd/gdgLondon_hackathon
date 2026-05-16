@@ -22,7 +22,29 @@ Reference app patterns: [AI_DevCamp_BuildwithAI](https://github.com/sumithpdd/AI
 | Updates | `io2026Hackathon_updates` | `iwd2026Hackathon_updates` |
 | Credit claims | `io2026Hackathon_creditClaims` | `iwd2026Hackathon_creditClaims` |
 
+**Global (not prefixed):**
+
+| Collection | Purpose |
+|------------|---------|
+| `hackathons` | Edition registry (display name, slug, `dataCollectionKey`). Admin: `/admin/hackathons`. |
+
 Legacy collections (`hackatonUsers`, `hackatonProjects`, …) remain until you migrate and optionally delete them. With **`NEXT_PUBLIC_HACKATHON_DATASET` unset**, votes / attendance / winners use parallel legacy names: `hackatonVotes`, `hackatonAttendance`, `hackatonWinners` (not `io2026Hackathon_*`).
+
+---
+
+## 1b. Multi-hackathon model (three layers)
+
+The platform supports **multiple hackathon editions** without duplicating the whole app:
+
+| Layer | Mechanism | What it controls |
+|-------|-----------|------------------|
+| **Active data** | `NEXT_PUBLIC_HACKATHON_DATASET` | Which Firestore collection **prefix** the app uses (`io2026Hackathon_*` vs `hackaton*`). |
+| **Registry** | `hackathons/{id}` | Human-readable edition metadata; admin CRUD. |
+| **Participation** | `users.hackathonParticipations` | Map of registry id → `{ joinedAt }` for each edition a user joined. |
+
+**Important:** Changing registry docs does **not** switch live data — only `NEXT_PUBLIC_HACKATHON_DATASET` does. Default participation id: `io2026Hackathon` (`NEXT_PUBLIC_ACTIVE_HACKATHON_ID`).
+
+**Past editions:** archived data stays in `iwd2026Hackathon_*`; UI at `/past-projects` (winners + stats + project grid).
 
 ---
 
@@ -32,6 +54,8 @@ Legacy collections (`hackatonUsers`, `hackatonProjects`, …) remain until you m
 |----------|--------|
 | `NEXT_PUBLIC_HACKATHON_DATASET=io2026` | App reads/writes **all** active hackathon collections under `io2026Hackathon_*` (see `lib/hackathon-collections.ts`). |
 | *(unset)* | App uses legacy `hackaton*` for users/projects/joinRequests/settings, and `hackatonVotes` / `hackatonAttendance` / `hackatonWinners` for those features (see `lib/hackathon-collections.ts`). |
+| `NEXT_PUBLIC_ACTIVE_HACKATHON_ID` | Registry id stored on user profile under `hackathonParticipations` (default `io2026Hackathon`). |
+| `NEXT_PUBLIC_APP_URL` | Optional base URL for password-reset emails (sign-in flow). |
 
 **Cloud Functions:** set `PROJECTS_COLLECTION`, `USERS_COLLECTION`, `JOIN_REQUESTS_COLLECTION`, `CONFIG_COLLECTION`, and optionally `CONFIG_DOC` (`main` for IO settings) to match the app. Defaults in `functions/src/index.ts` still point at legacy names if env is unset — **set env to IO names before production IO 2026**.
 
@@ -113,7 +137,8 @@ The **project submission** card shows an **optional** amber callout when the tea
 | Route | Status / notes |
 |-------|----------------|
 | `/` | Landing |
-| `/register` | Stub — Firebase sign-in explainer |
+| `/register` | **Sign up** — Google + email/password; then `/hackathon/profile` |
+| `/hackathon?login=1` | Opens **sign-in modal** (optional `&reset=1`, `&redirect=`) |
 | `/hackathon/profile` | **Canonical** hackathon + Buddies directory settings (`/profile` **redirects** here) |
 | `/hackathon/my-projects` | Your project + **draft / final submission** form (deep link `?project=1`; team **members** see list only — owners submit) |
 | `/hackathon/buddies` | Buddies hub: Discover / Requests / My buddies (+ Admin tab for `role === admin`) |
@@ -123,9 +148,16 @@ The **project submission** card shows an **optional** amber callout when the tea
 | `/projects/:id` | **Redirect** → `/hackathon/project/:id` (`next.config.mjs`) |
 | `/projects/:id/join` | **Redirect** → `/hackathon/project/:id` (join UX on project page / ideas flow) |
 | `/submit` | **Redirect** → `/hackathon/my-projects?project=1` (optional `&edit=`) — submission UI + timeline gates live on **My project** |
-| `/past-projects` | IWD archive projects |
+| `/past-projects` | IWD archive — **winners + stats** + project cards (`iwd2026Hackathon_projects`) |
+| `/hackathon/resources` | Learning links + **rules** (`/hackathon/rules` → `#rules`) |
+| `/hackathon/prizes` | Full prize list (from `settings/main.prizes`) |
+| `/admin/hackathons` | Registry CRUD + seed IO 2026 prizes |
 | `/checkin` | **MVP** — self check-in + admin attendee list, optional `aidevcamp_flat` cohort tag (`lib/attendance.ts`). Room code / Functions validation still TODO. |
-| `/vote`, `/live` | Stub pages; behaviour in §8–§10 — **Cloud Functions** for caps & aggregates still TODO |
+| `/vote` | Audience voting UI → **`castVotes`** callable (check-in, caps, `voteTotal`) |
+| `/admin/voting` | Vote leaderboard, voting window, assign top 3 from votes |
+| `/live` | Projector — live vote leaderboard / pitch / welcome (§9) |
+| `/admin/live` | Admin slide controls + refresh aggregates |
+| `/admin/content` | CMS for resources links + rules sections (`settings/main`) |
 
 ---
 
@@ -141,6 +173,7 @@ The **project submission** card shows an **optional** amber callout when the tea
 - `votingOpensAt`, `votingClosesAt` (timestamps).
 - Optional: `attendanceWindowOpensAt` / `attendanceWindowClosesAt`.
 - Existing flags such as `winnersAnnounced` stay as today.
+- **`prizes`** — array for carousel and `/hackathon/prizes` (see `lib/prizes.ts`, admin seed on `/admin/hackathons`).
 
 ### 8.2 Suggested callable API (Gen 2 HTTPS)
 
@@ -149,7 +182,8 @@ Implement in `functions/src/index.ts` (names indicative):
 | Callable | Auth | Behaviour |
 |----------|------|-----------|
 | `recordCheckIn` | Signed-in | Validates live code + window; writes one doc per user in `ATTENDANCE_COLLECTION`; idempotent per event/day as designed. |
-| `castVotes` | Signed-in | Requires verified attendance; enforces **5 votes max** per user per voting window; writes to `VOTES_COLLECTION`; rejects duplicates / self-vote rules as product requires. |
+| `castVotes` | Signed-in | Requires verified attendance; **organisers (admin/moderator) 10 votes**, **participants 5**, **max 2 per project**; updates `VOTES_COLLECTION` + `project.voteTotal`; no self-vote. |
+| `assignWinnersFromVotes` | Admin | Sets `place` on top 3 projects by `voteTotal` for active `hackathonId`. |
 | `adminSetCheckInCode` / `adminSetVotingWindow` | Admin only | Updates settings doc. |
 
 Client-side rules are **not** sufficient for caps; Functions must validate.
@@ -174,7 +208,7 @@ Client-side rules are **not** sufficient for caps; Functions must validate.
 - **Source of truth:** still `VOTES_COLLECTION` / projects; aggregates updated by Functions on each `castVotes` **or** periodic scheduled function.
 - **UI:** `/live` subscribes to a small set of docs (e.g. `io2026Hackathon_settings/liveSlide` + `io2026Hackathon_liveStats/summary`) for minimal churn and smooth animations.
 
-**Status:** TODO — spec only until §8 callables exist.
+**Status:** Shipped — `io2026Hackathon_liveStats/summary` (rebuilt on `castVotes` + `refreshLiveStats`); `io2026Hackathon_settings/liveSlide` for projector mode; UI at **`/live`**, controls at **`/admin/live`**.
 
 ---
 
@@ -189,9 +223,17 @@ Client-side rules are **not** sufficient for caps; Functions must validate.
 
 ---
 
-## 11. Prizes (admin) — detail
+## 11. Prizes
 
-Configure prizes (headphones, keyboard, socks, bags); assign to winners via admin + `io2026Hackathon_winners` / project labels — **TODO** beyond current winner `place` fields on projects.
+**Physical prize pool (IO 2026):** Sony wireless headphones, wireless keyboard, bag, Google socks — stored in **`settings/main.prizes`** (seed via admin or `npm run seed:io2026 -- --force-settings`).
+
+| Surface | Source |
+|---------|--------|
+| Hub carousel | `fetchPrizesFromSettings()` → `DEFAULT_IO2026_PRIZES` fallback |
+| `/hackathon/prizes` | Same |
+| Admin seed | `/admin/hackathons` → “Seed IO 2026 prizes to settings” |
+
+**Winner assignment:** admin dashboard sets `place` on project docs (`first` \| `second` \| `third`); `HackathonResultsSummary` on admin + `/past-projects`.
 
 ---
 
@@ -205,9 +247,10 @@ See `types/io2026.ts` for draft interfaces (`Io2026User`, `Io2026Project`, `Io20
 
 ```bash
 export GOOGLE_APPLICATION_CREDENTIALS=/path/to/serviceAccount.json   # if needed
-npm run seed:io2026 -- --uid=YOUR_FIREBASE_AUTH_UID
+npm run seed:io2026 -- --uid=YOUR_FIREBASE_AUTH_UID --with-registry
 # Dry run:  npm run seed:io2026 -- --uid=... --dry-run
-# Source user not admin but you want them admin on IO:  add --force-admin
+# Merge prizes into existing settings:  --force-settings
+# Source user not admin but you want them admin on IO:  --force-admin
 ```
 
 Then:
@@ -215,15 +258,15 @@ Then:
 1. Deploy Firestore rules: `firebase deploy --only firestore:rules`
 2. Deploy indexes if needed: `firebase deploy --only firestore:indexes`
 3. Set Cloud Function env vars (`functions/.env.example` + planned `ATTENDANCE_COLLECTION` / `VOTES_COLLECTION`), then `firebase deploy --only functions`
-4. In **`.env.local`**: `NEXT_PUBLIC_HACKATHON_DATASET=io2026` — restart Next.js / redeploy hosting
+4. In **`.env.local`**: `NEXT_PUBLIC_HACKATHON_DATASET=io2026` and optionally `NEXT_PUBLIC_ACTIVE_HACKATHON_ID=io2026Hackathon` — restart Next.js / redeploy hosting
 
 ---
 
 ## 14. Immediate next steps for the team
 
-1. Run migration in staging; verify `/past-projects`.
-2. Implement **§8** callables + settings fields; deploy Functions.
-3. Wire **`/vote`** to callables; tighten `/checkin` with live code when Functions land; add admin audit views.
-4. Build **`/live`** aggregate docs + projector UI (§9).
-5. Extend **admin** for prizes, voting windows, join-request overview, user flags (§10).
-6. Keep sharing project URLs as **`/hackathon/project/[id]`**; `/projects/:id` remains a short redirect only.
+1. **Deploy** Firestore rules + indexes + Functions (`castVotes`, `assignWinnersFromVotes`).
+2. Set Functions env (`functions/.env.example`) and run `npm run seed:io2026 -- --uid=... --force-settings` for prizes + judging criteria.
+3. Configure **voting window** in `/admin/voting`; verify **check-in** then **`/vote`** end-to-end.
+4. After voting closes: **Assign 1st/2nd/3rd from votes** or announce winners on dashboard.
+5. Build **`/live`** projector (§9) — optional.
+6. Per-hackathon **editable rules/resources** in admin CMS — optional; judging criteria already in `settings/main`.

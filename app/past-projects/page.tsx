@@ -8,17 +8,17 @@ import { db } from "@/lib/firebase";
 import { IWD2026_COLLECTIONS } from "@/lib/hackathon-collections";
 import { Button } from "@/components/ui/button";
 import { HACKATHON_DISPLAY_NAME } from "@/lib/constants";
-import { Github, ExternalLink, Trophy, ArrowLeft } from "lucide-react";
+import { Github, ExternalLink, Trophy } from "lucide-react";
+import {
+  HackathonResultsSummary,
+  type ResultsSummaryProject,
+} from "@/components/HackathonResultsSummary";
 
-interface ArchivedProject {
+interface ArchivedProject extends ResultsSummaryProject {
   id: string;
-  projectTitle?: string;
-  teamName?: string;
   appPurpose?: string;
   githubUrl?: string;
   demoVideoUrl?: string;
-  place?: string;
-  status?: string;
   label?: string;
   screenshots?: string[];
 }
@@ -38,9 +38,9 @@ export default function PastProjectsPage() {
           ...d.data(),
         })) as ArchivedProject[];
         list.sort((a, b) => {
-          const order = (p: string | undefined) =>
+          const order = (p: ArchivedProject["place"]) =>
             p === "first" ? 0 : p === "second" ? 1 : p === "third" ? 2 : 99;
-          return order(a.place) - order(b.place);
+          return order(a.place ?? undefined) - order(b.place ?? undefined);
         });
         setProjects(list);
       } catch (e) {
@@ -54,21 +54,15 @@ export default function PastProjectsPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-gray-100">
-      <header className="border-b border-white/10 px-4 py-4 max-w-5xl mx-auto flex items-center justify-between">
-        <Link href="/hackathon">
-          <Button variant="ghost" className="text-violet-300 hover:text-white gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            Back to hackathon
-          </Button>
-        </Link>
-        <span className="text-sm text-gray-500">{HACKATHON_DISPLAY_NAME}</span>
-      </header>
-      <main className="max-w-5xl mx-auto px-4 py-10">
+    <div>
         <h1 className="text-3xl font-bold text-white mb-2">Past projects &amp; winners</h1>
-        <p className="text-gray-400 mb-8">
-          IWD 2026 archive — data lives in <code className="text-violet-400">iwd2026Hackathon_projects</code> after migration.
-        </p>
+        <p className="text-gray-400 mb-8">IWD 2026 hackathon — final results and archived submissions.</p>
+
+        {!loading && !error && projects.length > 0 && (
+          <div className="mb-10">
+            <HackathonResultsSummary projects={projects} title="Competition winners" />
+          </div>
+        )}
 
         <section id="past-hackathons" className="mb-12 scroll-mt-24">
           <h2 className="text-lg font-semibold text-white mb-2">Past hackathons &amp; side events</h2>
@@ -126,6 +120,10 @@ export default function PastProjectsPage() {
           </p>
         )}
 
+        {!loading && !error && projects.length > 0 && (
+          <h2 className="text-lg font-semibold text-white mb-4">All submissions</h2>
+        )}
+
         <div className="grid gap-6 sm:grid-cols-2">
           {projects.map((p) => (
             <article
@@ -175,7 +173,6 @@ export default function PastProjectsPage() {
             </article>
           ))}
         </div>
-      </main>
     </div>
   );
 }

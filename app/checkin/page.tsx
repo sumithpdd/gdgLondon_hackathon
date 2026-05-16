@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { HACKATHON_DISPLAY_NAME } from "@/lib/constants";
-import { ArrowLeft, ClipboardCheck, Loader2, UserCheck } from "lucide-react";
+import { ClipboardCheck, Loader2, UserCheck } from "lucide-react";
 import { useAuthContext } from "@/lib/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { collection, getDocs, limit, query } from "firebase/firestore";
@@ -15,6 +15,7 @@ import { db } from "@/lib/firebase";
 import { USERS_COLLECTION } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import { getAttendanceForUser, upsertCheckIn, type AttendanceCohort } from "@/lib/attendance";
+import { isUserDeleted } from "@/lib/auth";
 
 type UserRow = {
   uid: string;
@@ -52,19 +53,21 @@ export default function CheckinPage() {
     setLoadingUsers(true);
     try {
       const snap = await getDocs(query(collection(db, USERS_COLLECTION), limit(400)));
-      const rows: UserRow[] = snap.docs.map((d) => {
-        const data = d.data();
-        const display =
-          (data.profileDisplayName as string) ||
-          (data.displayName as string) ||
-          (data.email as string) ||
-          d.id;
-        return {
-          uid: d.id,
-          email: (data.email as string) ?? null,
-          displayName: display,
-        };
-      });
+      const rows: UserRow[] = snap.docs
+        .filter((d) => !isUserDeleted({ deletedAt: d.data().deletedAt?.toDate?.() }))
+        .map((d) => {
+          const data = d.data();
+          const display =
+            (data.profileDisplayName as string) ||
+            (data.displayName as string) ||
+            (data.email as string) ||
+            d.id;
+          return {
+            uid: d.id,
+            email: (data.email as string) ?? null,
+            displayName: display,
+          };
+        });
       rows.sort((a, b) => (a.displayName || "").localeCompare(b.displayName || ""));
       setUsers(rows);
     } catch (e) {
@@ -162,18 +165,7 @@ export default function CheckinPage() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-[#0a0a0f] text-gray-100">
-        <header className="border-b border-white/10 px-4 py-4 max-w-3xl mx-auto flex items-center justify-between">
-          <Link href="/hackathon">
-            <Button variant="ghost" className="text-violet-300 hover:text-white hover:bg-white/10 gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Button>
-          </Link>
-          <span className="text-sm text-gray-400">Check-in</span>
-        </header>
-
-        <main className="max-w-3xl mx-auto px-4 py-10 space-y-8">
+      <div className="space-y-8">
           <div>
             <h1 className="text-2xl font-bold text-white mb-2 flex items-center gap-2">
               <ClipboardCheck className="h-7 w-7 text-emerald-400" />
@@ -300,7 +292,6 @@ export default function CheckinPage() {
             Spec: <code className="text-violet-400">docs/IO2026_HACKATHON_SPEC.md</code> §8 · Collection{" "}
             <code className="text-gray-500">ATTENDANCE_COLLECTION</code>
           </p>
-        </main>
       </div>
     </ProtectedRoute>
   );

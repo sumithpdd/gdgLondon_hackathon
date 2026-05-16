@@ -10,8 +10,9 @@ GDG London Hackathon platform — IWD archive + IO 2026 live dataset. **Buddies*
 
 Start here if you're new to the project:
 
-1. **[IO2026_HACKATHON_SPEC.md](./IO2026_HACKATHON_SPEC.md)** — IO 2026 dataset, **Buddies**, migration, rules, routes, voting/attendance roadmap
-2. **[USER_FLOW.md](./USER_FLOW.md)** — User journey (Overview → Login → Profile / My project submission / Join)
+1. **[IO2026_HACKATHON_SPEC.md](./IO2026_HACKATHON_SPEC.md)** — IO 2026 dataset, **multi-hackathon registry**, migration, prizes, routes, voting/attendance roadmap
+2. **[DATA_MODEL.md](./DATA_MODEL.md)** — Collections, participation map, settings/prizes, archive
+3. **[USER_FLOW.md](./USER_FLOW.md)** — Overview → sign in / register → profile, ideas, past projects
 3. **[START_HERE.md](./START_HERE.md)** - Complete beginner's guide
 4. **[FEATURES_SIMPLE.md](./FEATURES_SIMPLE.md)** - What the app does
 5. **Admin setup** - See [DEPLOYMENT.md](./DEPLOYMENT.md) Step 4 (Firestore active `users` collection → set `role: "admin"`)
@@ -58,8 +59,7 @@ Having issues? Check here:
 | **DEPLOYMENT.md** | Complete deployment guide | Everyone deploying |
 | **FIREBASE_AUTH.md** | Authentication system details | Developers |
 | **FIRESTORE_RULES.md** | Database security rules | Developers & Admins |
-| **DATA_MODEL.md** | Firestore data model | Developers |
-
+| **DATA_MODEL.md** | Firestore collections, registry, participation, prizes | Developers |
 ### Setup Guides
 
 | Document | Purpose | Audience |
@@ -73,7 +73,7 @@ Having issues? Check here:
 
 | Document | Purpose | Audience |
 |----------|---------|----------|
-| **USER_FLOW.md** | User journey (overview → auth → profile + project submission → ideas) | Everyone |
+| **USER_FLOW.md** | Auth, register, participate, past hackathons | Everyone |
 | **FEATURES.md** | Complete feature list (technical) | Developers |
 | **FEATURES_SIMPLE.md** | Simple feature explanations | Everyone |
 

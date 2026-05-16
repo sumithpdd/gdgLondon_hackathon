@@ -11,7 +11,11 @@
     "start": "next start",
     "lint": "next lint",
     "migrate:iwd-archive": "node scripts/migrate-to-iwd-archive.mjs",
-    "seed:io2026": "node scripts/seed-io2026-admin-and-settings.mjs"
+    "seed:io2026": "node scripts/seed-io2026-admin-and-settings.mjs",
+    "seed:io2026:direct": "node scripts/seed-io2026-admin-and-settings.mjs",
+    "functions:install": "npm install --prefix functions",
+    "functions:build": "npm run build --prefix functions",
+    "functions:deploy": "npm run functions:build && firebase deploy --only functions"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",

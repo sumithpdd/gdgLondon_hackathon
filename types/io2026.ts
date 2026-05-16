@@ -42,6 +42,8 @@ export interface Io2026Project {
   members?: { name: string; email?: string; linkedinUrl?: string }[];
   status?: ProjectStatus;
   place?: "first" | "second" | "third" | null;
+  hackathonId?: string;
+  voteTotal?: number;
   builtWith?: string[];
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
@@ -54,7 +56,7 @@ export interface Io2026Vote {
   timestamp: Timestamp;
   voteCount: number;
   attendanceVerified: boolean;
-  hackathonId: "io2026";
+  hackathonId: string;
 }
 
 export interface Io2026Attendance {
@@ -64,8 +66,11 @@ export interface Io2026Attendance {
 }
 
 export interface Io2026Settings {
+  votingOpensAt?: Timestamp;
+  votingClosesAt?: Timestamp;
   votingOpen?: boolean;
   liveAttendanceCode?: string;
+  judgingCriteria?: { title: string; description: string }[];
   attendanceWindowOpens?: Timestamp;
   attendanceWindowCloses?: Timestamp;
   currentPitchProjectId?: string | null;

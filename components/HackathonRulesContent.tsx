@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, Lightbulb, Award, Clock, Users, Ticket, Gift, Shield, Database } from "lucide-react";
+import { HackathonJudgingCriteriaList } from "@/components/HackathonJudgingCriteriaList";
 
 export function HackathonRulesContent() {
   const submissionItems = [
@@ -139,11 +140,11 @@ export function HackathonRulesContent() {
           <Award className="w-5 h-5 text-violet-400" />
           Judging criteria
         </h3>
-        <ul className="space-y-2 text-muted-foreground">
-          <li><strong className="text-foreground">Innovation</strong> — How original or creative is the AI idea?</li>
-          <li><strong className="text-foreground">Technical execution &amp; UX</strong> — Is the solution functional, well built, and easy to use?</li>
-          <li><strong className="text-foreground">Impact</strong> — Does the project solve a real problem or improve workflows in a meaningful way?</li>
-        </ul>
+        <p className="text-muted-foreground text-sm mb-4">
+          Audience voting picks winners by <strong className="text-foreground">total votes</strong>. Use these lenses when
+          deciding where to allocate yours (max 2 per project).
+        </p>
+        <HackathonJudgingCriteriaList />
       </section>
 
       <Card className="bg-amber-500/15 border-2 border-amber-400/50 text-left shadow-[0_0_30px_-8px_rgba(251,191,36,0.3)]">

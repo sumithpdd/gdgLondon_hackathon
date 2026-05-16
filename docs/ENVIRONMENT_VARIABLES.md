@@ -23,6 +23,14 @@ This guide explains all environment variables needed for the app and how to get 
 
 **Note:** Exact variable names are in `.env.example`. Do not document actual key values.
 
+### Hackathon dataset & participation
+
+| Variable | Description | When to set |
+|----------|-------------|-------------|
+| `NEXT_PUBLIC_HACKATHON_DATASET` | Set to `io2026` to use `io2026Hackathon_*` collections; omit for legacy `hackaton*`. | After migration + rules deploy |
+| `NEXT_PUBLIC_ACTIVE_HACKATHON_ID` | Registry id written to `users.hackathonParticipations` (default `io2026Hackathon`). | Optional; set per live edition |
+| `NEXT_PUBLIC_APP_URL` | Public site URL for password-reset email links. | Production (e.g. Vercel URL) |
+
 **How to get Firebase config:**
 1. Go to [Firebase Console](https://console.firebase.google.com)
 2. Select your project (or create new one)

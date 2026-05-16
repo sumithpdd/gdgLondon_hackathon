@@ -15,19 +15,31 @@ import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { createJoinRequest, getUserProject } from "@/lib/join-requests";
 import { PROJECTS_COLLECTION } from "@/lib/constants";
-import { AuthModal } from "@/components/AuthModal";
+import { useHackathonAuth } from "@/components/HackathonAuthShell";
 import { isHackathonProfileComplete } from "@/lib/profile-completion";
+import { getAttendanceForUser } from "@/lib/attendance";
 
 export default function IdeaGalleryPage() {
   const { user, isAuthenticated, userProfile } = useAuthContext();
+  const { openSignIn } = useHackathonAuth();
   const { toast } = useToast();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [requestingIds, setRequestingIds] = useState<Set<string>>(new Set());
   const [requestedIds, setRequestedIds] = useState<Set<string>>(new Set());
-  const [showAuth, setShowAuth] = useState(false);
   const [userHasProject, setUserHasProject] = useState(false);
+  const [eventCheckedIn, setEventCheckedIn] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      setEventCheckedIn(false);
+      return;
+    }
+    void getAttendanceForUser(user.uid).then((a) => setEventCheckedIn(!!a?.attendanceVerified));
+  }, [user]);
+
+  const profileComplete = isHackathonProfileComplete(userProfile, { eventCheckedIn });
 
   useEffect(() => {
     const checkUserProject = async () => {
@@ -79,10 +91,10 @@ export default function IdeaGalleryPage() {
   const handleRequestToJoin = async (submission: Submission) => {
     if (!user || !submission.id) return;
 
-    if (!isHackathonProfileComplete(userProfile)) {
+    if (!profileComplete) {
       toast({
         title: "Complete your hackathon profile",
-        description: "Add a short bio, team preference, and attendance so teams know who you are.",
+        description: "Add a short bio, team preference, and check in at the event (/checkin) so teams know who you are.",
         variant: "destructive",
       });
       return;
@@ -132,7 +144,7 @@ export default function IdeaGalleryPage() {
         <p className="text-gray-400">
           Browse project ideas looking for team members. Request to join and build together!
         </p>
-        {isAuthenticated && userProfile && !isHackathonProfileComplete(userProfile) && (
+        {isAuthenticated && userProfile && !profileComplete && (
           <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100 max-w-xl mx-auto">
             <span className="font-medium">Profile incomplete — </span>
             finish your bio and preferences before sending join requests.{" "}
@@ -223,7 +235,7 @@ export default function IdeaGalleryPage() {
                     <Button
                       size="sm"
                       className="w-full bg-violet-600 hover:bg-violet-500"
-                      onClick={() => setShowAuth(true)}
+                      onClick={() => openSignIn({ redirect: "/hackathon/ideas" })}
                     >
                       <UserPlus className="h-4 w-4 mr-2" />
                       Sign in to Request to Join
@@ -232,7 +244,7 @@ export default function IdeaGalleryPage() {
                     <Button size="sm" className="w-full" disabled>
                       Already in a project
                     </Button>
-                  ) : !isHackathonProfileComplete(userProfile) ? (
+                  ) : !profileComplete ? (
                     <Button size="sm" className="w-full border-amber-500/50 text-amber-200" variant="outline" asChild>
                       <Link href="/hackathon/profile">Complete profile to join</Link>
                     </Button>
@@ -267,7 +279,6 @@ export default function IdeaGalleryPage() {
         </div>
       )}
 
-      <AuthModal isOpen={showAuth} onClose={() => setShowAuth(false)} />
     </div>
   );
 }

@@ -1,7 +1,72 @@
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signInWithRedirect,
+  sendPasswordResetEmail,
+  GoogleAuthProvider,
+  updateProfile,
+  type User,
+  type UserCredential,
+} from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { db } from "./firebase";
+import { auth, db } from "./firebase";
 import { USERS_COLLECTION } from "./constants";
-import { User } from "firebase/auth";
+
+const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: "select_account" });
+
+export function preferGoogleRedirect(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+}
+
+export async function loginWithEmail(email: string, password: string) {
+  const e = email.trim();
+  const p = password;
+  if (!e || !p) {
+    const err = new Error("missing-email-or-password") as Error & { code: string };
+    err.code = "auth/argument-error";
+    throw err;
+  }
+  return signInWithEmailAndPassword(auth, e, p);
+}
+
+export async function sendPasswordResetToEmail(email: string): Promise<void> {
+  const trimmed = email.trim();
+  if (!trimmed) {
+    const err = new Error("missing-email") as Error & { code: string };
+    err.code = "auth/missing-email";
+    throw err;
+  }
+  const base =
+    (typeof process !== "undefined" && process.env.NEXT_PUBLIC_APP_URL?.trim()) ||
+    (typeof window !== "undefined" ? window.location.origin : "");
+  const url = base ? `${base.replace(/\/$/, "")}/hackathon` : undefined;
+  await sendPasswordResetEmail(
+    auth,
+    trimmed,
+    url && /^https?:\/\//i.test(url) ? { url, handleCodeInApp: false } : undefined
+  );
+}
+
+/** Popup on desktop; redirect on mobile (returns null while navigation happens). */
+export async function loginWithGoogle(): Promise<UserCredential | null> {
+  if (preferGoogleRedirect()) {
+    await signInWithRedirect(auth, googleProvider);
+    return null;
+  }
+  return signInWithPopup(auth, googleProvider);
+}
+
+export async function registerWithEmail(email: string, password: string, displayName: string) {
+  const result = await createUserWithEmailAndPassword(auth, email.trim(), password);
+  if (displayName.trim()) {
+    await updateProfile(result.user, { displayName: displayName.trim() });
+  }
+  await createOrUpdateUserProfile(result.user);
+  return result;
+}
 
 export function parseParticipations(raw: unknown): Record<string, { joinedAt?: Date }> | undefined {
   if (!raw || typeof raw !== "object") return undefined;
@@ -32,6 +97,12 @@ export interface UserProfile {
   hackathonLinkedinUrl?: string;
   skills?: string[];
   interests?: string[];
+  /** Admin-managed tag picks (Interests collection). */
+  expertise?: string[];
+  techStack?: string[];
+  twitterUrl?: string;
+  facebookUrl?: string;
+  instagramUrl?: string;
   teamPreference?: string;
   /** true / false / null = “unsure” stored as null optional */
   inPersonAttendance?: boolean | null;
@@ -51,6 +122,13 @@ export interface UserProfile {
   buddiesVisibleInDirectory?: boolean;
   /** Hackathon ids this user has joined (metadata; keys = registry ids e.g. io2026Hackathon). */
   hackathonParticipations?: Record<string, { joinedAt?: Date }>;
+  /** Soft-delete: set by admin; user doc remains for audit. */
+  deletedAt?: Date | null;
+  deletedBy?: string | null;
+}
+
+export function isUserDeleted(profile: Pick<UserProfile, "deletedAt"> | null | undefined): boolean {
+  return profile?.deletedAt != null;
 }
 
 /**
@@ -76,6 +154,11 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
         hackathonLinkedinUrl: data.hackathonLinkedinUrl,
         skills: data.skills,
         interests: data.interests,
+        expertise: data.expertise,
+        techStack: data.techStack,
+        twitterUrl: data.twitterUrl,
+        facebookUrl: data.facebookUrl,
+        instagramUrl: data.instagramUrl,
         teamPreference: data.teamPreference,
         inPersonAttendance: data.inPersonAttendance,
         profileCompletionPercent: data.profileCompletionPercent,
@@ -91,6 +174,8 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
         websiteUrl: data.websiteUrl,
         buddiesVisibleInDirectory: data.buddiesVisibleInDirectory,
         hackathonParticipations: parseParticipations(data.hackathonParticipations),
+        deletedAt: data.deletedAt?.toDate?.() ?? undefined,
+        deletedBy: (data.deletedBy as string) ?? undefined,
       };
     }
     return null;

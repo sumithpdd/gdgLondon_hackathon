@@ -15,6 +15,7 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { USERS_COLLECTION, BUDDY_REQUESTS_COLLECTION } from "./constants";
+import { isUserDeleted } from "./auth";
 import type { BuddyRequest, BuddyRequestStatus } from "@/types/buddy-request";
 
 export type DirectoryProfile = {
@@ -65,7 +66,9 @@ export async function listDirectoryProfiles(): Promise<DirectoryProfile[]> {
     limit(200)
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => mapUserDoc(d.id, d.data()));
+  return snap.docs
+    .filter((d) => !isUserDeleted({ deletedAt: d.data().deletedAt?.toDate?.() }))
+    .map((d) => mapUserDoc(d.id, d.data()));
 }
 
 export async function listIncomingBuddyRequests(uid: string): Promise<BuddyRequest[]> {

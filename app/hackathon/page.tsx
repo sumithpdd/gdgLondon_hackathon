@@ -5,13 +5,13 @@ import { useRouter } from "next/navigation";
 import { Rocket, Sparkles, Ticket, GitBranch, ArrowRight, Pencil, Eye, Trophy, Award } from "lucide-react";
 import { PrizeCarousel } from "@/components/PrizeCarousel";
 import { useAuthContext } from "@/lib/AuthContext";
-import { AuthModal } from "@/components/AuthModal";
+import { useHackathonAuth } from "@/components/HackathonAuthShell";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { getUserProject } from "@/lib/join-requests";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { PROJECTS_COLLECTION } from "@/lib/constants";
+import { PROJECTS_COLLECTION, HACKATHON_EVENT_TAGLINE, HACKATHON_EVENT_SHORT } from "@/lib/constants";
 import { Submission } from "@/types/submission";
 import { getHackathonConfig } from "@/lib/hackathon-config";
 import confetti from "canvas-confetti";
@@ -67,6 +67,7 @@ export default function HackathonOverviewPage() {
   const [winnersAnnounced, setWinnersAnnounced] = useState(false);
   const [confettiFired, setConfettiFired] = useState(false);
   const { user, isAuthenticated } = useAuthContext();
+  const { openSignIn } = useHackathonAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -130,7 +131,7 @@ export default function HackathonOverviewPage() {
       {/* Badge */}
       <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-500/20 border border-violet-400/30 text-foreground dark:text-white text-sm font-semibold animate-bounce">
         <Rocket className="w-4 h-4" />
-        HACKATHON 2026
+        {HACKATHON_EVENT_SHORT.toUpperCase()}
       </div>
 
       {/* Heading */}
@@ -143,7 +144,7 @@ export default function HackathonOverviewPage() {
           </span>
         </h1>
         <p className="text-muted-foreground text-lg sm:text-xl max-w-2xl mx-auto">
-          Build with AI × IWD 2026 — GDG London
+          {HACKATHON_EVENT_TAGLINE}
         </p>
         <div className="mt-6 px-6 py-4 rounded-2xl bg-amber-500/15 border-2 border-amber-400/40 text-center">
           <p className="text-amber-100 font-bold text-base sm:text-lg">
@@ -272,10 +273,7 @@ export default function HackathonOverviewPage() {
                 ) : (
                   <Button
                     className="w-full mt-4"
-                    onClick={() => {
-                      setAuthRedirect("/hackathon/my-projects?project=1");
-                      setShowAuth(true);
-                    }}
+                    onClick={() => openSignIn({ redirect: "/hackathon/my-projects?project=1" })}
                   >
                     Sign Up to Create
                     <ArrowRight className="h-4 w-4 ml-2" />
@@ -304,10 +302,7 @@ export default function HackathonOverviewPage() {
                   <Button
                     variant="outline"
                     className="w-full mt-4 border-primary/40 text-primary hover:bg-primary/10"
-                    onClick={() => {
-                      setAuthRedirect("/hackathon/ideas");
-                      setShowAuth(true);
-                    }}
+                    onClick={() => openSignIn({ redirect: "/hackathon/ideas" })}
                   >
                     Sign Up to Browse
                     <ArrowRight className="h-4 w-4 ml-2" />
@@ -322,19 +317,6 @@ export default function HackathonOverviewPage() {
           </div>
         </section>
       )}
-
-      <AuthModal
-        isOpen={showAuth}
-        onClose={() => {
-          setShowAuth(false);
-          setAuthRedirect(null);
-        }}
-        onSuccess={() => {
-          if (authRedirect) {
-            router.push(authRedirect);
-          }
-        }}
-      />
 
       {/* Ticket requirement */}
       <section className="p-8 rounded-3xl bg-violet-600/20 border border-violet-500/30 text-left w-full mt-8">

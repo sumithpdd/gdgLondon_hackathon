@@ -1,161 +1,202 @@
-# User Flow — Build with AI Hackathon
+# User Flow — GDG London Hackathon
 
-This document describes the user journey through the hackathon platform.
+Participant journey from landing through auth, profile, projects, and past editions.
 
 ---
 
 ## Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           USER FLOW                                          │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│   1. OVERVIEW         2. LOGIN/REGISTER        3. PARTICIPATE                │
-│   ─────────────       ─────────────────       ─────────────────             │
-│   User lands on       User signs in or         User chooses one or more:     │
-│   hackathon page      creates account         • Join a project              │
-│   • Sees hero         (Firebase Auth)         • Create project idea          │
-│   • Reads "What is    • Email/password        • Work on Adventure            │
-│     a Hackathon?"     • Google sign-in          Leaderboard                  │
-│   • Sees stats                                (adventure.wietsevenema.eu)    │
-│   • CTA buttons                                                              │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                              USER FLOW                                        │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                               │
+│   1. OVERVIEW          2. AUTH                    3. PARTICIPATE              │
+│   ───────────          ─────                    ──────────────                │
+│   /hackathon           /register (sign up)      Profile → Ideas / My project  │
+│   Prizes, CTAs         /hackathon?login=1        Buddies, Gallery, Past       │
+│                        (sign in modal)                                        │
+│                                                                               │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## Step 1: Overview
 
-**Route:** `/hackathon` (Overview tab)
+**Route:** `/hackathon`
 
 **What the user sees:**
-- **Hero** — Build with AI · IWD 2026 · GDG London
-- **Stats** — 100+ participants, Mar 13 deadline
-- **What is a Hackathon?** — Brief intro to hackathons and Build with AI
-- **CTA buttons** — Submit Project, Find a Team, Project Gallery
+- Hero, timeline, prize carousel (from Firestore `settings/main.prizes` or defaults)
+- CTAs: submit project, browse ideas, gallery
+- **Sign in** / **Register** in the app bar (guests)
 
-**User actions:**
-- **Not signed in:** "Sign in to submit" (disabled) — prompts user to log in
-- **Signed in:** Submit Project, Find a Team, Project Gallery (all active)
-
-**Next step:** User clicks "Sign In" (header) or attempts to submit → goes to Step 2
+**Not signed in:** gated actions open sign-in or link to `/register`.
 
 ---
 
-## Step 2: Login or Register
+## Step 2: Sign in or register
 
-**Trigger:** User clicks "Sign In" in the header
+Aligned with [AI DevCamp Build with AI](https://github.com/sumithpdd/AI_DevCamp_BuildwithAI) auth UX.
 
-**What happens:**
-- Auth modal opens with two tabs: **Sign In** and **Sign Up**
-- **Sign In:** Email + password, or "Sign in with Google"
-- **Sign Up:** Display name, email, password, or "Sign up with Google"
+### Sign in
 
-**Authentication:** Firebase Auth (email/password + Google OAuth)
+| Entry | Behaviour |
+|-------|-----------|
+| App bar **Sign in** | Opens sign-in modal (`HackathonAuthShell` + `AuthModal`) |
+| `/hackathon?login=1` | Opens modal on load (query stripped from URL) |
+| `/hackathon?login=1&reset=1` | Modal in **forgot password** mode |
+| `/hackathon?login=1&redirect=/hackathon/ideas` | After success → redirect path |
 
-**After successful login:**
-- Modal closes; user is signed in
-- Header shows hackathon actions, **Profile** link, user name, Sign Out
-- **Recommended:** open **[/hackathon/profile](/hackathon/profile)** (or `/profile`, which redirects) and complete bio, team preference, and in-person attendance — required before **Request to join** on **[/hackathon/ideas](/hackathon/ideas)**
+**Modal (`components/AuthModal.tsx`):**
+- **Continue with Google** (popup on desktop; redirect on mobile)
+- Email + password
+- **Forgot password?** → reset email via Firebase
+- Link to **Register** → `/register`
 
-**Next step:** Participate (Step 3) or finish profile first
+**Libraries:** `lib/auth.ts` (`loginWithEmail`, `loginWithGoogle`, `sendPasswordResetToEmail`), `lib/firebaseAuthErrors.ts`.
+
+### Register
+
+**Route:** `/register`
+
+- Dedicated page (not a stub): Google + name / email / password
+- After success → **`/hackathon/profile`**
+- Footer: **Sign in** → `/hackathon?login=1`, **Forgot password?** → `/hackathon?login=1&reset=1`
+
+### After authentication
+
+1. Firebase Auth session established
+2. `createOrUpdateUserProfile` writes/merges active **`users`** doc (`io2026Hackathon_users` when dataset=io2026)
+3. `recordHackathonParticipationIfNeeded` merges **`hackathonParticipations.{activeHackathonId}`** (default `io2026Hackathon`)
+4. Header shows profile, buddies, my projects, sign out
+
+**Recommended next step:** complete **`/hackathon/profile`** before **Request to join** on **`/hackathon/ideas`**.
 
 ---
 
 ## Step 3: Participate
 
-Once signed in, the user can choose one or more of these paths:
+### Option A: Complete hackathon profile
 
-### Option A: Join a Project
+**Route:** `/hackathon/profile` (`/profile` redirects here)
 
-**Routes:** `/hackathon/participants` or `/hackathon/gallery`
+Bio, location, tags, Buddies directory opt-in, in-person attendance — used by **`isHackathonProfileComplete`** for idea gallery join requests.
 
-**Participants page:**
-- Shows unique participant count and project count
-- Lists projects by participants
-- User can browse and click a project to view details
+### Option B: Idea gallery — request to join
 
-**Project Gallery:**
-- Browse all submitted projects
-- Search, sort, filter
-- Click a project to view details, like, comment
-- Connect with teams
+**Route:** `/hackathon/ideas` (`/ideas` redirects)
 
-**Flow:** User browses → finds interesting project → views details → can reach out to team (via project info)
+- Projects with **looking for members**
+- **Request to join** requires complete hackathon profile
+- Guests: **Sign in to Request to Join** → opens sign-in with redirect
 
----
+### Option C: Create / submit project
 
-### Option B: Idea gallery & join a team
+**Route:** `/hackathon/my-projects` (`?project=1`, `&edit=<id>`)
 
-**Route:** `/hackathon/ideas` (short URL `/ideas` redirects here)
+- Project card + draft/final submission form
+- **`/submit`** and **`/ideas/create`** redirect here
+- Timeline gates: `HACKATHON_IDEA_SUBMISSION_OPENS`, `HACKATHON_SUBMISSION_DEADLINE`
 
-- Lists projects with **Looking for members**
-- **Request to join** is available only after the user’s **hackathon profile** is complete (see `/hackathon/profile`)
+### Option D: Browse gallery & participants
 
-### Option C: Create a project / submit
+| Route | Purpose |
+|-------|---------|
+| `/hackathon/gallery` | All submitted projects |
+| `/hackathon/participants` | Counts and project list |
 
-**Route:** **`/hackathon/my-projects`** — project summary and **Project submission** form below (deep link: `?project=1`, edit: `?project=1&edit=<id>`). Legacy **`/submit`** redirects here.
+### Option E: Buddies
 
-**What the user does:**
+**Route:** `/hackathon/buddies` — directory, requests, connections (see `BUDDIES_FEATURE_LABEL`).
 
-- Reviews or edits the **project** card (title, status, links).
-- Uses the **submission** form for draft/final ship (separate from hackathon profile fields).
-- Saves as **draft** or **submits** when ready (timeline gates unchanged).
+### Option F: Resources & rules
 
-**Flow:** Complete profile as needed → create idea → save draft → iterate → submit before deadline
+**Route:** `/hackathon/resources` — learning links **and** hackathon rules (`#rules` anchor).
 
----
+**`/hackathon/rules`** redirects to `/hackathon/resources#rules` (single combined page).
 
-### Option D: Work on Adventure Leaderboard
+### Option G: Past hackathons
 
-**External link:** [adventure.wietsevenema.eu](https://adventure.wietsevenema.eu/)
+**Route:** `/past-projects`
 
-**What it is:** A separate platform to test and practice AI skills (leaderboard, challenges).
-
-**How users find it:**
-- Mentioned in Overview "What is a Hackathon?" section
-- Linked from Resources page
-
-**Flow:** User visits adventure.wietsevenema.eu → completes challenges → builds skills → may return to create/join a hackathon project
+- **Competition winners** + stats (total / submitted / drafts / winners selected) from **`iwd2026Hackathon_projects`**
+- Archived project cards
+- Side-event card (Garden of the Forgotten Prompt)
 
 ---
 
-## Flow Summary Table
+## Admin flows (summary)
 
-| Step | Action | Route / Location |
+| Route | Purpose |
+|-------|---------|
+| `/admin` | Submissions, winner places, results summary |
+| `/admin/hackathons` | Registry CRUD, seed prizes to settings |
+| `/admin/users` | Roles; **Hackathons** column = `hackathonParticipations` keys |
+
+---
+
+## Flow summary table
+
+| Step | Action | Route / location |
 |------|--------|------------------|
 | 1 | See overview | `/hackathon` |
-| 2 | Sign in or register | Auth modal (header "Sign In") |
-| 2b | Complete hackathon profile (for join requests) | `/hackathon/profile` |
-| 3a | Join a project | `/hackathon/participants`, `/hackathon/gallery` |
-| 3b | Idea gallery — request to join | `/hackathon/ideas` (`/ideas`) |
-| 3c | Create / submit project | `/hackathon/my-projects?project=1` (`/ideas/create` redirects here; `/submit` redirects) |
-| 3d | Work on Adventure | [adventure.wietsevenema.eu](https://adventure.wietsevenema.eu/) |
+| 2a | Sign in | App bar or `/hackathon?login=1` |
+| 2b | Register | `/register` |
+| 2c | Reset password | `/hackathon?login=1&reset=1` |
+| 3a | Complete profile | `/hackathon/profile` |
+| 3b | Request to join team | `/hackathon/ideas` |
+| 3c | Submit project | `/hackathon/my-projects?project=1` |
+| 3d | Browse / gallery | `/hackathon/gallery`, `/hackathon/participants` |
+| 3e | Buddies | `/hackathon/buddies` |
+| 3f | Rules & resources | `/hackathon/resources` |
+| 3g | Past results | `/past-projects` |
 
 ---
 
-## Navigation Tabs (Signed In)
+## Navigation (signed in)
 
-| Tab | Route | Purpose |
-|-----|-------|---------|
-| Overview | `/hackathon` | Hero, intro, CTAs |
-| My Projects | `/hackathon/my-projects` | User's drafts and submissions |
-| Participants | `/hackathon/participants` | Participant count, project list |
-| Resources | `/hackathon/resources` | Links (Gemini API, AI Studio, Adventure) |
-| Rules | `/hackathon/rules` | Teams, submission requirements, judging |
-| Project Gallery | `/hackathon/gallery` | Browse all projects |
+| Tab / link | Route | Purpose |
+|------------|-------|---------|
+| Overview | `/hackathon` | Hub |
+| My Projects | `/hackathon/my-projects` | Drafts & submission |
+| Ideas | `/hackathon/ideas` | Join teams |
+| Resources & rules | `/hackathon/resources` | Links + requirements |
+| Prizes | `/hackathon/prizes` | Full prize list |
+| Buddies | `/hackathon/buddies` | Networking |
+| Profile | `/hackathon/profile` | Directory profile |
+| Past projects | `/past-projects` | IWD archive |
+| Check-in | `/checkin` | Required before voting |
+| Vote | `/vote` | Audience ballot (after check-in) |
 
 ---
 
-## Quick Reference
+## Step 6: Check-in & voting (event day)
+
+1. **Check in** at `/checkin` (self-service or admin) → `io2026Hackathon_attendance/{uid}` with `attendanceVerified: true`.
+2. **Vote** at `/vote` when the admin voting window is open:
+   - **Organisers** (`admin` / `moderator`): up to **10** votes, **max 2** per project.
+   - **Everyone else**: up to **5** votes, **max 2** per project.
+   - Cannot vote for your own project.
+3. Votes sum into **`project.voteTotal`** (server-side via `castVotes` Cloud Function).
+4. Admin assigns **1st / 2nd / 3rd** from vote totals at `/admin/voting` or manually on `/admin`.
+
+**Judging lenses** (for voters): Uniqueness, Completeness, Fresh idea, Use of AI — see `/hackathon/resources#rules`.
+
+---
+
+## Quick reference
 
 ```
-Overview → Sign In → Profile (recommended) → [Join | Idea gallery | My project | Adventure]
+Overview → Sign in OR Register → Profile (for joins) → [Ideas | My project | Gallery | Buddies]
+Event day → Check-in → Vote → Winners from vote totals (admin)
+Past editions → /past-projects
 ```
 
-- **Join:** Participants or Gallery
-- **Ideas:** `/hackathon/ideas` — complete `/hackathon/profile` first to request to join
-- **Create:** `/hackathon/my-projects` (`?project=1` deep link; `/submit` redirects)
-- **Adventure:** adventure.wietsevenema.eu (external)
+---
+
+## Related docs
+
+- [DATA_MODEL.md](./DATA_MODEL.md) — collections, participation, prizes
+- [IO2026_HACKATHON_SPEC.md](./IO2026_HACKATHON_SPEC.md) — env switches, migration
+- [FIREBASE_AUTH.md](./FIREBASE_AUTH.md) — auth implementation details

@@ -7,12 +7,37 @@ import { AdminShell } from "@/components/AdminShell";
 import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { USERS_COLLECTION } from "@/lib/constants";
-import { UserProfile, UserRole, parseParticipations } from "@/lib/auth";
+import { UserProfile, UserRole, isUserDeleted } from "@/lib/auth";
+import { parseUserProfileDoc, softDeleteUser, restoreUser } from "@/lib/admin-users";
+import { AdminUserEditDialog } from "@/components/admin/AdminUserEditDialog";
 import { getProfileCompletion } from "@/lib/profile-completion";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, Shield, UserCog, User, Search, LayoutGrid, List, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Users,
+  Shield,
+  UserCog,
+  User,
+  Search,
+  LayoutGrid,
+  List,
+  ChevronLeft,
+  ChevronRight,
+  Pencil,
+  Trash2,
+  RotateCcw,
+} from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -26,6 +51,7 @@ import {
 import { cn } from "@/lib/utils";
 
 type RoleFilter = "all" | UserRole;
+type StatusFilter = "active" | "deleted" | "all";
 type SortMode = "newest" | "oldest" | "name";
 
 const PAGE_SIZE_OPTIONS = [12, 24, 48] as const;
@@ -60,19 +86,15 @@ export default function AdminUsersPage() {
   const [sortMode, setSortMode] = useState<SortMode>("newest");
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(12);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
+  const [editUser, setEditUser] = useState<UserProfile | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<UserProfile | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     try {
       const usersSnapshot = await getDocs(collection(db, USERS_COLLECTION));
-      const usersList = usersSnapshot.docs.map((d) => {
-        const data = d.data();
-        return {
-          ...data,
-          uid: data.uid || d.id,
-          createdAt: data.createdAt?.toDate() || new Date(0),
-          updatedAt: data.updatedAt?.toDate() || new Date(0),
-        } as UserProfile;
-      });
+      const usersList = usersSnapshot.docs.map((d) => parseUserProfileDoc(d.id, d.data()));
       setUsers(usersList);
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -98,6 +120,11 @@ export default function AdminUsersPage() {
     if (roleFilter !== "all") {
       list = list.filter((u) => (u.role || "user") === roleFilter);
     }
+    if (statusFilter === "active") {
+      list = list.filter((u) => !isUserDeleted(u));
+    } else if (statusFilter === "deleted") {
+      list = list.filter((u) => isUserDeleted(u));
+    }
     const out = [...list];
     out.sort((a, b) => {
       if (sortMode === "name") {
@@ -110,7 +137,7 @@ export default function AdminUsersPage() {
       return sortMode === "newest" ? bt - at : at - bt;
     });
     return out;
-  }, [users, searchQuery, incompleteOnly, roleFilter, sortMode]);
+  }, [users, searchQuery, incompleteOnly, roleFilter, statusFilter, sortMode]);
 
   const totalPages = Math.max(1, Math.ceil(filteredSorted.length / pageSize));
 
@@ -122,6 +149,40 @@ export default function AdminUsersPage() {
     const start = page * pageSize;
     return filteredSorted.slice(start, start + pageSize);
   }, [filteredSorted, page, pageSize]);
+
+  const handleSoftDelete = async () => {
+    if (!user || !deleteTarget) return;
+    setActionLoading(true);
+    try {
+      await softDeleteUser(user.uid, deleteTarget.uid);
+      toast({
+        title: "User marked deleted",
+        description: "The account is deactivated and hidden from directories.",
+      });
+      setDeleteTarget(null);
+      void fetchUsers();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Could not delete user.";
+      toast({ title: "Error", description: msg, variant: "destructive" });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRestore = async (target: UserProfile) => {
+    if (!user) return;
+    setActionLoading(true);
+    try {
+      await restoreUser(user.uid, target.uid);
+      toast({ title: "User restored", description: "Account is active again." });
+      void fetchUsers();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Could not restore user.";
+      toast({ title: "Error", description: msg, variant: "destructive" });
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const updateUserRole = async (userId: string, newRole: UserRole) => {
     if (!user) return;
@@ -172,6 +233,52 @@ export default function AdminUsersPage() {
         <User className="w-3 h-3 mr-1" />
         User
       </Badge>
+    );
+  };
+
+  const UserManageActions = ({ rowUser, compact }: { rowUser: UserProfile; compact?: boolean }) => {
+    const deleted = isUserDeleted(rowUser);
+    const isSelf = user?.uid === rowUser.uid;
+
+    return (
+      <div className={cn("flex flex-wrap gap-1", compact && "justify-end")}>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => setEditUser(rowUser)}
+          className="border-white/20 text-white hover:bg-white/10 h-8 px-2"
+        >
+          <Pencil className="w-3 h-3 sm:mr-1" />
+          {!compact && "Edit"}
+        </Button>
+        {deleted ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={actionLoading}
+            onClick={() => void handleRestore(rowUser)}
+            className="border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 h-8 px-2"
+          >
+            <RotateCcw className="w-3 h-3 sm:mr-1" />
+            {!compact && "Restore"}
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={isSelf || actionLoading}
+            onClick={() => setDeleteTarget(rowUser)}
+            className="border-red-500/40 text-red-300 hover:bg-red-500/10 h-8 px-2"
+            title={isSelf ? "You cannot delete your own account" : "Mark as deleted"}
+          >
+            <Trash2 className="w-3 h-3 sm:mr-1" />
+            {!compact && "Delete"}
+          </Button>
+        )}
+      </div>
     );
   };
 
@@ -247,7 +354,7 @@ export default function AdminUsersPage() {
     <ProtectedRoute requireAdmin={true}>
       <AdminShell
         title="Users"
-        subtitle="Browse every Firestore profile in a grid or table. Filter by role, search, and paginate. Role changes apply immediately."
+        subtitle="Edit profiles, change roles, or mark users as deleted (soft delete). Deleted accounts stay in Firestore for audit."
       >
         <Card className="border-white/10 bg-[#1a1528]/80">
           <CardHeader>
@@ -306,6 +413,22 @@ export default function AdminUsersPage() {
                     <SelectItem value="newest">Newest first</SelectItem>
                     <SelectItem value="oldest">Oldest first</SelectItem>
                     <SelectItem value="name">Name A–Z</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={statusFilter}
+                  onValueChange={(v) => {
+                    setStatusFilter(v as StatusFilter);
+                    setPage(0);
+                  }}
+                >
+                  <SelectTrigger className="w-full sm:w-[140px] border-white/15 bg-black/25 text-white">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active only</SelectItem>
+                    <SelectItem value="deleted">Deleted only</SelectItem>
+                    <SelectItem value="all">All statuses</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -391,6 +514,11 @@ export default function AdminUsersPage() {
                             </div>
                             <div className="flex flex-wrap gap-2">
                               {getRoleBadge(currentRole)}
+                              {isUserDeleted(u) && (
+                                <Badge className="bg-amber-900/60 text-amber-200 border border-amber-500/40">
+                                  Deleted
+                                </Badge>
+                              )}
                               <Badge
                                 variant="outline"
                                 className={
@@ -405,6 +533,7 @@ export default function AdminUsersPage() {
                             <p className="text-[11px] text-violet-300/90 font-mono break-all" title={participationSummary(u)}>
                               Hackathons: {participationSummary(u)}
                             </p>
+                            <UserManageActions rowUser={u} />
                             <RoleActions rowUser={u} />
                           </CardContent>
                         </Card>
@@ -426,8 +555,10 @@ export default function AdminUsersPage() {
                           <th className="px-4 py-3 font-medium">Email</th>
                           <th className="px-4 py-3 font-medium">User ID</th>
                           <th className="px-4 py-3 font-medium">Role</th>
+                          <th className="px-4 py-3 font-medium">Status</th>
                           <th className="px-4 py-3 font-medium">Profile</th>
-                          <th className="px-4 py-3 font-medium text-right">Actions</th>
+                          <th className="px-4 py-3 font-medium text-right">Manage</th>
+                          <th className="px-4 py-3 font-medium text-right">Role</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/10">
@@ -446,14 +577,18 @@ export default function AdminUsersPage() {
                                 {u.uid}
                               </td>
                               <td className="px-4 py-3">{getRoleBadge(currentRole)}</td>
-                              <td
-                                className="px-4 py-3 font-mono text-xs text-violet-300/90 max-w-[200px] truncate"
-                                title={participationSummary(u)}
-                              >
-                                {participationSummary(u)}
+                              <td className="px-4 py-3">
+                                {isUserDeleted(u) ? (
+                                  <Badge className="bg-amber-900/50 text-amber-200 border-amber-500/30">Deleted</Badge>
+                                ) : (
+                                  <span className="text-emerald-400/90 text-xs">Active</span>
+                                )}
                               </td>
                               <td className="px-4 py-3">
                                 <span className={complete ? "text-emerald-400" : "text-amber-300"}>{percent}%</span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <UserManageActions rowUser={u} compact />
                               </td>
                               <td className="px-4 py-3">
                                 <div className="flex justify-end">
@@ -528,6 +663,41 @@ export default function AdminUsersPage() {
             </div>
           </CardContent>
         </Card>
+
+        <AdminUserEditDialog
+          user={editUser}
+          open={!!editUser}
+          onOpenChange={(open) => !open && setEditUser(null)}
+          actorUid={user?.uid ?? ""}
+          onSaved={() => void fetchUsers()}
+        />
+
+        <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+          <AlertDialogContent className="border-white/10 bg-[#14101f] text-gray-100">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-white">Mark user as deleted?</AlertDialogTitle>
+              <AlertDialogDescription className="text-gray-400">
+                {deleteTarget?.displayName || deleteTarget?.email || deleteTarget?.uid} will be deactivated and hidden
+                from the Buddies directory. Their Firestore record is kept for audit. You can restore them later.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="border-white/20 bg-transparent text-white hover:bg-white/10">
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                disabled={actionLoading}
+                onClick={(e) => {
+                  e.preventDefault();
+                  void handleSoftDelete();
+                }}
+                className="bg-red-600 hover:bg-red-500 text-white"
+              >
+                {actionLoading ? "Deleting…" : "Mark deleted"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </AdminShell>
     </ProtectedRoute>
   );

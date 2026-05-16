@@ -234,61 +234,41 @@ export const getUserRole = (userProfile: UserProfile | null): string => {
 
 ---
 
-## Authentication Components
+## Authentication components
 
-### AuthModal
+### Sign in — `AuthModal` + `HackathonAuthShell`
 
-**File**: `components/AuthModal.tsx`
+| File | Role |
+|------|------|
+| `components/AuthModal.tsx` | Sign-in overlay: Google, email/password, forgot password, link to `/register` |
+| `components/HackathonAuthShell.tsx` | Wraps hackathon layout; opens modal from app bar or `?login=1` |
+| `components/OpenLoginFromQuery.tsx` | Parses `login`, `reset`, `redirect` query params |
+| `lib/auth.ts` | `loginWithEmail`, `loginWithGoogle`, `registerWithEmail`, `sendPasswordResetToEmail` |
+| `lib/firebaseAuthErrors.ts` | User-facing Firebase error messages |
 
-Custom sign-in/sign-up modal with email and Google authentication:
+**Query URLs:**
+- `/hackathon?login=1` — open sign-in
+- `/hackathon?login=1&reset=1` — password reset
+- `/hackathon?login=1&redirect=/hackathon/ideas` — post-login redirect
 
-```typescript
-import { useState } from "react";
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword,
-  signInWithPopup,
-  GoogleAuthProvider,
-  updateProfile
-} from "firebase/auth";
-import { auth } from "@/lib/firebase";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
+**Google on mobile:** `loginWithGoogle()` uses redirect when `preferGoogleRedirect()` is true; `getRedirectResult` in `HackathonAuthShell` completes the session.
 
-interface AuthModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
+### Register — `/register`
 
-export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
+| File | Role |
+|------|------|
+| `app/register/page.tsx` | Full-page sign up (Google + name/email/password) → `/hackathon/profile` |
 
-  const handleEmailSignIn = async () => {
-    // Email sign-in logic
-  };
+Sign-in from register footer: `/hackathon?login=1`.
 
-  const handleEmailSignUp = async () => {
-    // Email sign-up logic
-  };
+### Profile side effects
 
-  const handleGoogleSignIn = async () => {
-    // Google sign-in logic
-  };
+On auth state change (`hooks/useAuth.ts`):
 
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      {/* Modal content */}
-    </Dialog>
-  );
-}
-```
+1. `createOrUpdateUserProfile` — active `users` collection doc
+2. `recordHackathonParticipationIfNeeded` — `hackathonParticipations.{activeHackathonId}`
+
+See [USER_FLOW.md](./USER_FLOW.md) and [DATA_MODEL.md](./DATA_MODEL.md).
 
 ### UserButton
 

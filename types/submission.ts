@@ -41,6 +41,8 @@ export interface Submission {
   // Labels (applied after judging)
   label?: LabelType;
   place?: "first" | "second" | "third" | null;
+  hackathonId?: string;
+  voteTotal?: number;
   // Engagement (denormalized for performance)
   likes?: number;
   views?: number;

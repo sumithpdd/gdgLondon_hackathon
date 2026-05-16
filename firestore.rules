@@ -27,11 +27,13 @@ service cloud.firestore {
     match /hackatonUsers/{userId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && request.auth.uid == userId;
-      // Users can update their own doc but NOT the role field
-      allow update: if isOwner(userId)
-        && !("role" in request.resource.data && request.resource.data.role != resource.data.role)
-        || isAdmin();
-      allow delete: if isAdmin();
+      // Users can update their own doc but NOT role or soft-delete fields
+      allow update: if isAdmin()
+        || (isOwner(userId)
+          && !("role" in request.resource.data && request.resource.data.role != resource.data.role)
+          && !("deletedAt" in request.resource.data)
+          && !("deletedBy" in request.resource.data));
+      allow delete: if false;
     }
 
     match /hackatonProjects/{projectId} {
@@ -169,10 +171,12 @@ service cloud.firestore {
     match /io2026Hackathon_users/{userId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isOwner(userId)
-        && !("role" in request.resource.data && request.resource.data.role != resource.data.role)
-        || isAdmin();
-      allow delete: if isAdmin();
+      allow update: if isAdmin()
+        || (isOwner(userId)
+          && !("role" in request.resource.data && request.resource.data.role != resource.data.role)
+          && !("deletedAt" in request.resource.data)
+          && !("deletedBy" in request.resource.data));
+      allow delete: if false;
     }
     match /io2026Hackathon_users/{userId}/bookmarks/{projectId} {
       allow read, write: if isAuthenticated() && request.auth.uid == userId;
@@ -185,6 +189,7 @@ service cloud.firestore {
       allow update: if isAuthenticated()
         && resource.data.userId == request.auth.uid
         && !("place" in request.resource.data && request.resource.data.place != resource.data.place)
+        && !("voteTotal" in request.resource.data && request.resource.data.voteTotal != resource.data.voteTotal)
         && request.resource.data.userId == resource.data.userId;
       allow delete: if isAuthenticated() &&
         (resource.data.userId == request.auth.uid || isAdmin());
@@ -207,10 +212,8 @@ service cloud.firestore {
     }
     match /io2026Hackathon_votes/{voteId} {
       allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
-      allow create: if isAuthenticated()
-        && request.resource.data.userId == request.auth.uid
-        && request.resource.data.attendanceVerified == true;
-      allow update, delete: if isAdmin();
+      // Writes only via Cloud Functions (castVotes) — caps enforced server-side
+      allow create, update, delete: if false;
     }
     match /io2026Hackathon_attendance/{attendanceId} {
       allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
@@ -224,8 +227,12 @@ service cloud.firestore {
     }
     match /io2026Hackathon_settings/{docId} {
       allow read: if true;
-      allow create, update: if isAdmin() && docId == "main";
+      allow create, update: if isAdmin() && docId in ["main", "liveSlide"];
       allow delete: if false;
+    }
+    match /io2026Hackathon_liveStats/{docId} {
+      allow read: if true;
+      allow write: if false;
     }
     match /io2026Hackathon_winners/{winnerId} {
       allow read: if true;

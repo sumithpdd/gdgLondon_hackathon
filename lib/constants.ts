@@ -11,6 +11,10 @@ const c = getActiveCollections();
 
 export const HACKATHON_DISPLAY_NAME = HACKATHON_BRAND_NAME;
 
+/** Live hackathon edition (IO 2026) — hub hero, footer, metadata. Archive: /past-projects (IWD 2026). */
+export const HACKATHON_EVENT_TAGLINE = "Build with AI × Google I/O 2026 — GDG London";
+export const HACKATHON_EVENT_SHORT = "Google I/O 2026";
+
 /** Logged-in networking: directory, requests, accepted buddies (not the overall event title). */
 export const BUDDIES_FEATURE_LABEL = "Buddies";
 
@@ -25,6 +29,9 @@ export const ATTENDANCE_COLLECTION = c.attendance;
 export const WINNERS_COLLECTION = c.winners;
 export const SETTINGS_COLLECTION = c.settingsCollection;
 export const SETTINGS_DOC_ID = c.settingsDocId;
+export const LIVE_STATS_COLLECTION = c.liveStats ?? "io2026Hackathon_liveStats";
+export const LIVE_STATS_DOC_ID = "summary";
+export const LIVE_SLIDE_DOC_ID = "liveSlide";
 
 export const FIREBASE_STORAGE_FOLDER = "hackathon_uploads";
 export const COMMENTS_SUBCOLLECTION = "comments";
@@ -88,6 +95,11 @@ export const ALLOWED_IMAGE_TYPES = [
 ];
 
 export const TOAST_DURATION = 5000;
+
+/** Audience voting caps (enforced in Cloud Functions `castVotes`). */
+export const VOTE_BUDGET_ORGANISER = 10;
+export const VOTE_BUDGET_PARTICIPANT = 5;
+export const VOTE_MAX_PER_PROJECT = 2;
 
 export const FORM_LIMITS = {
   fullName: { min: 2, max: 100 },
