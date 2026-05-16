@@ -30,6 +30,9 @@
 - Security best practices
 - Testing rules
 
+### IO 2026, Buddies & routes
+**→ [IO2026_HACKATHON_SPEC.md](./IO2026_HACKATHON_SPEC.md)** — `NEXT_PUBLIC_HACKATHON_DATASET`, `io2026Hackathon_*` vs legacy, `npm run migrate:iwd-archive`, `/past-projects`, Buddies under `/hackathon/buddies`, stub routes `/vote`, `/checkin`, `/live`, `/register`. **Canonical project URL:** `/hackathon/project/[id]` (short `/projects/:id` redirects). **Project submission:** `/hackathon/my-projects?project=1` (`/submit` redirects).
+
 ### Learn About Mentorship Program
 - Mentee applications
 - Mentor applications
@@ -63,11 +66,11 @@
 
 ### Deployment
 - [DEPLOYMENT.md](./DEPLOYMENT.md) - Complete deployment guide ⭐
-- [DEPLOYMENT.md](./DEPLOYMENT.md) - Deployment guide
 - [CHECKLIST.md](./CHECKLIST.md) - Pre-deployment checklist
 
 ### Features & Flow
-- [USER_FLOW.md](./USER_FLOW.md) - User journey (Overview → Login → Join/Create/Adventure) ⭐
+- [ARCHITECTURE.md](./ARCHITECTURE.md) - Layers, DDD-style `lib/` modules, submission on profile, Cursor rules ⭐
+- [USER_FLOW.md](./USER_FLOW.md) - User journey (overview → auth → profile + project submission → ideas) ⭐
 - [FEATURES.md](./FEATURES.md) - Complete feature list (technical)
 - [FEATURES_SIMPLE.md](./FEATURES_SIMPLE.md) - Simple explanations
 
@@ -136,7 +139,9 @@ vercel --prod
 | `/hackathon/gallery` | Public | Browse all projects |
 | `/hackathon/rules` | Public | Teams, submission rules, judging |
 | `/hackathon/resources` | Public | Links (Gemini, AI Studio, Adventure) |
-| `/submit` | Protected | Create/submit project |
+| `/hackathon/profile` | Protected | Hackathon profile (Buddies / directory settings) |
+| `/hackathon/my-projects` | Protected | Your project + draft / final submission form |
+| `/submit` | Public → redirect | → `/hackathon/my-projects?project=1` (preserves `?edit=`) |
 | `/admin` | Admin | Admin panel |
 | `/admin/users` | Admin | User management |
 

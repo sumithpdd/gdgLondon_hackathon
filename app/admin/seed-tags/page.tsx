@@ -3,15 +3,14 @@
 import { useState } from "react";
 import { useAuthContext } from "@/lib/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AdminShell } from "@/components/AdminShell";
 import { collection, addDoc, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
-import Image from "next/image";
-import { ArrowLeft, Loader2, Shield, CheckCircle2 } from "lucide-react";
+import { Loader2, CheckCircle2 } from "lucide-react";
 
 const defaultTags = {
   Interests: [
@@ -135,59 +134,40 @@ export default function SeedTagsPage() {
 
   return (
     <ProtectedRoute requireAdmin={true}>
-      <div className="min-h-screen bg-gray-50">
-        <header className="bg-white border-b border-gray-200 shadow-sm">
-          <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <Link href="/" className="inline-block">
-                <Image 
-                  src="/gdg-london-logo.png" 
-                  alt="DevFest London 2025" 
-                  width={180}
-                  height={60}
-                  className="h-12 w-auto"
-                />
-              </Link>
-              <Badge variant="secondary" className="text-sm bg-red-100 text-red-700">
-                <Shield className="w-3 h-3 mr-1" />
-                Admin Panel - Seed Tags
-              </Badge>
-            </div>
-          </div>
-        </header>
-
-        <main className="container mx-auto px-4 py-8 max-w-4xl">
+      <AdminShell
+        title="Seed default tags"
+        subtitle="Add starter tags to each collection. Existing tag names are skipped."
+      >
           <div className="mb-6">
             <Link href="/admin/tags">
-              <Button variant="ghost" className="text-gray-700 hover:text-gray-900">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Tag Management
+              <Button variant="outline" className="border-white/20 text-white hover:bg-white/10">
+                Back to tag management
               </Button>
             </Link>
           </div>
 
-          <Card className="bg-white border-gray-200 shadow-md">
+          <Card className="border-white/10 bg-[#1a1528]/80">
             <CardHeader>
-              <CardTitle className="text-2xl text-gray-900">Seed Default Tags</CardTitle>
-              <p className="text-gray-600 mt-2">
-                Add default tags to the collections. Existing tags will be skipped.
+              <CardTitle className="text-2xl text-white">Bulk seed</CardTitle>
+              <p className="text-gray-400 mt-2 text-sm">
+                Add default tags to the collections. Existing tags will be skipped (case-insensitive).
               </p>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 {Object.entries(defaultTags).map(([collectionName, tags]) => (
-                  <div key={collectionName} className="border border-gray-200 rounded-lg p-4">
+                  <div key={collectionName} className="border border-white/10 rounded-xl p-4 bg-[#0f0a18]/60">
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-semibold text-gray-900">{collectionName}</h3>
+                      <h3 className="font-semibold text-white">{collectionName}</h3>
                       {seeded[collectionName as keyof typeof seeded] && (
-                        <CheckCircle2 className="w-5 h-5 text-green-600" />
+                        <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                       )}
                     </div>
                     <div className="flex flex-wrap gap-2 mb-3">
                       {tags.map((tag, idx) => (
                         <span
                           key={idx}
-                          className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm"
+                          className="px-2 py-1 rounded-md text-sm bg-violet-500/15 text-violet-200 border border-violet-500/25"
                         >
                           {tag}
                         </span>
@@ -198,6 +178,7 @@ export default function SeedTagsPage() {
                       disabled={loading}
                       variant="outline"
                       size="sm"
+                      className="border-white/20 text-white hover:bg-white/10"
                     >
                       {loading ? (
                         <>
@@ -212,27 +193,26 @@ export default function SeedTagsPage() {
                 ))}
               </div>
 
-              <div className="pt-4 border-t border-gray-200">
+              <div className="pt-4 border-t border-white/10">
                 <Button
                   onClick={seedAll}
                   disabled={loading}
-                  className="w-full bg-blue-600 hover:bg-blue-700"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
                   size="lg"
                 >
                   {loading ? (
                     <>
                       <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      Seeding All Tags...
+                      Seeding all tags...
                     </>
                   ) : (
-                    "Seed All Collections"
+                    "Seed all collections"
                   )}
                 </Button>
               </div>
             </CardContent>
           </Card>
-        </main>
-      </div>
+      </AdminShell>
     </ProtectedRoute>
   );
 }

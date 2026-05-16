@@ -50,7 +50,7 @@ Click **Publish** → Wait 10 seconds → Try again
 **Fix**: Sign in first
 1. Click "Sign In" button
 2. Create account or log in
-3. Go back to submit page
+3. Go back to **My project** (`/hackathon/my-projects?project=1`) to continue your draft or submission.
 
 ### Can't sign in
 
@@ -184,6 +184,21 @@ Before submitting:
 - [ ] Images < 10MB each
 - [ ] Max 5 images
 - [ ] GitHub URL is valid
+
+---
+
+## Next.js: `Unexpected end of JSON input` / `loadManifest` during `next build`
+
+Sometimes the `.next` cache gets corrupted.
+
+**Fix:** delete the build output and rebuild:
+
+```bash
+rm -rf .next
+npm run build
+```
+
+(On Windows PowerShell: `Remove-Item -Recurse -Force .next` then `npm run build`.)
 
 ---
 

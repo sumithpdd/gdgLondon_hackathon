@@ -1,8 +1,6 @@
 import { doc, getDoc, setDoc, Timestamp } from "firebase/firestore";
 import { db } from "./firebase";
-
-const CONFIG_COLLECTION = "hackatonConfig";
-const CONFIG_DOC = "settings";
+import { SETTINGS_COLLECTION, SETTINGS_DOC_ID } from "./constants";
 
 export interface HackathonConfig {
   winnersAnnounced: boolean;
@@ -11,7 +9,7 @@ export interface HackathonConfig {
 }
 
 export async function getHackathonConfig(): Promise<HackathonConfig> {
-  const ref = doc(db, CONFIG_COLLECTION, CONFIG_DOC);
+  const ref = doc(db, SETTINGS_COLLECTION, SETTINGS_DOC_ID);
   const snap = await getDoc(ref);
   if (!snap.exists()) {
     return { winnersAnnounced: false };
@@ -25,7 +23,7 @@ export async function getHackathonConfig(): Promise<HackathonConfig> {
 }
 
 export async function announceWinners(adminUid: string): Promise<void> {
-  const ref = doc(db, CONFIG_COLLECTION, CONFIG_DOC);
+  const ref = doc(db, SETTINGS_COLLECTION, SETTINGS_DOC_ID);
   await setDoc(ref, {
     winnersAnnounced: true,
     winnersAnnouncedAt: Timestamp.now(),

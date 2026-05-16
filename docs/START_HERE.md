@@ -23,7 +23,7 @@ A competition submission platform for DevFest 2025 London AI Innovation Lab wher
 ### Next.js 🔷
 **What it is**: A React framework that adds routing and server features  
 **What it does here**: 
-- Handles page navigation (`/`, `/submit`, `/gallery`)
+- Handles page navigation (`/`, `/hackathon/profile`, `/gallery`; `/submit` redirects to profile)
 - Renders pages on the server for better performance
 - Organizes our app structure  
 
@@ -66,7 +66,7 @@ DevfestCompetitionForm/
 │
 ├── app/                          # All pages (Next.js routing)
 │   ├── page.tsx                  # Home page (/)
-│   ├── submit/page.tsx           # Submit page (/submit)
+│   ├── submit/page.tsx           # Redirect → /hackathon/my-projects?project=1
 │   ├── gallery/page.tsx          # Gallery page (/gallery)
 │   └── admin/
 │       ├── page.tsx              # Admin dashboard (/admin)
@@ -256,7 +256,7 @@ After setup, test these:
 - [ ] Click "Sign In" opens Clerk modal
 - [ ] Sign up with email
 - [ ] See "User" badge in header
-- [ ] Navigate to `/submit`
+- [ ] Navigate to `/hackathon/my-projects?project=1` (or `/submit`)
 - [ ] Fill and submit form (test with dummy data)
 - [ ] Check Firebase Console → Firestore to see your submission
 - [ ] Visit `/gallery` to see your project
@@ -364,7 +364,7 @@ greet(123)  // ❌ TypeScript catches this error!
 | **Component** | Reusable piece of UI (like a Lego block) |
 | **Props** | Data passed to a component (like function arguments) |
 | **State** | Data that can change (causes re-render when updated) |
-| **Route** | URL path (like `/submit` or `/gallery`) |
+| **Route** | URL path (like `/hackathon/profile` or `/gallery`) |
 | **API** | Way for code to communicate with external services |
 | **Environment Variable** | Secret configuration stored in `.env.local` |
 | **Hook** | Special React function (starts with `use`) |

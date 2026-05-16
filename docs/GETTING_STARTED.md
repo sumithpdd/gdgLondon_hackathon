@@ -66,7 +66,7 @@ Open [http://localhost:3000](http://localhost:3000)
 
 ## Key Features
 
-- **Submit** (`/submit`) - Users submit projects with drafts
+- **Submit** (`/hackathon/my-projects` — project + form; `/submit` redirects) - Users submit projects with drafts
 - **Gallery** (`/gallery`) - Public view of submissions
 - **Admin** (`/admin`) - Manage winners (login required)
 
@@ -88,7 +88,9 @@ Open [http://localhost:3000](http://localhost:3000)
 ```
 app/
 ├── page.tsx          # Home page
-├── submit/           # Submission form
+├── hackathon/profile/   # Hackathon profile (directory / buddies)
+├── hackathon/my-projects/  # Your project + submission form (canonical)
+├── submit/              # Redirects to hackathon/my-projects?project=1
 ├── gallery/          # Public gallery
 └── admin/            # Admin panel
 components/ui/        # UI components

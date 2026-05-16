@@ -1,8 +1,14 @@
-# GDG London Hackathon - Competition Entry Form
+# GDG London Hackathon — competition platform
 
-> **🚀 Hackathon competition submission platform built with Next.js & Firebase**
+> **Hackathon submission platform built with Next.js & Firebase** (IO 2026 live collections + IWD 2026 archive). Optional **Buddies** networking (`/hackathon/buddies`) is separate from the main event name. Originally based on [DevfestCompetitionForm](https://github.com/sumithpdd/DevfestCompetitionForm).
 
-A modern web application for managing project submissions for the GDG London Hackathon competition. Based on [DevfestCompetitionForm](https://github.com/sumithpdd/DevfestCompetitionForm).
+See **[docs/IO2026_HACKATHON_SPEC.md](docs/IO2026_HACKATHON_SPEC.md)** for collection names (`io2026Hackathon_*` / `iwd2026Hackathon_*`), migration, Firestore rules, and route checklist.
+
+**Engineering layout & Cursor:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · project rules in `.cursor/rules/` · skill `.cursor/skills/hackathon-clean-architecture/` · [AGENTS.md](AGENTS.md).
+
+### Dataset switch
+
+Set `NEXT_PUBLIC_HACKATHON_DATASET=io2026` in `.env.local` to use live IO 2026 collections (omit for legacy `hackaton*`). Match Cloud Functions env vars when you flip the app.
 
 [![Next.js](https://img.shields.io/badge/Next.js-14.2-black)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue)](https://www.typescriptlang.org/)
@@ -18,6 +24,7 @@ A modern web application for managing project submissions for the GDG London Hac
 - 📸 **Multi-Upload** - Up to 5 screenshots per project
 - 🏆 **Winner Selection** - Admin panel for selecting top 3
 - 🎯 **Social Integration** - Profile tags and social links
+- 💬 **Buddies** (signed-in) — attendee directory, buddy requests, extended profile chips (`/hackathon/buddies`; see spec)
 - 👥 **User Roles** - Admin, Moderator, and User roles
 - 📱 **Responsive** - Works on all devices
 
@@ -42,6 +49,8 @@ NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
 NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+# Optional: io2026 | unset for legacy hackaton* collections
+# NEXT_PUBLIC_HACKATHON_DATASET=io2026
 ```
 
 ### 3. Setup Firebase
@@ -74,7 +83,7 @@ Open [http://localhost:3000](http://localhost:3000)
 - **[docs/CHECKLIST.md](docs/CHECKLIST.md)** - Pre-deployment checklist
 
 ### 🔧 Developer Guides
-- **[docs/DATA_MODEL.md](docs/DATA_MODEL.md)** - Firestore collections (hackatonUsers, hackatonProjects)
+- **[docs/DATA_MODEL.md](docs/DATA_MODEL.md)** — Firestore collections (active + archive; user profile fields)
 - **[docs/FIREBASE_AUTH.md](docs/FIREBASE_AUTH.md)** - Authentication implementation
 - **[docs/FIRESTORE_RULES.md](docs/FIRESTORE_RULES.md)** - Security rules
 - **[docs/FEATURES.md](docs/FEATURES.md)** - Complete feature list
@@ -111,10 +120,11 @@ vercel --prod
 DevfestCompetitionForm/
 ├── app/                      # Next.js App Router
 │   ├── page.tsx             # Home page
-│   ├── submit/              # Submission form
+│   ├── submit/              # Redirect → hackathon profile (project submission)
 │   ├── gallery/             # Public gallery
 │   ├── hackathon/           # Hackathon pages (overview, gallery, etc.)
 │   └── admin/               # Admin panel
+├── .cursor/                 # Cursor rules (.mdc) & skills (agent workflows)
 ├── components/              # React components
 │   ├── ui/                  # shadcn UI components
 │   ├── AuthModal.tsx        # Sign-in modal
@@ -139,7 +149,8 @@ DevfestCompetitionForm/
 | Route | Access | Description |
 |-------|--------|-------------|
 | `/` | Public | Landing page |
-| `/submit` | Protected | Submit projects (with drafts) |
+| `/submit` | Public → redirect | Redirects to `/hackathon/my-projects?project=1` (legacy `?edit=` preserved) |
+| `/hackathon/my-projects` | Protected | Your project card + **draft / final submission** form |
 | `/gallery` | Public | View all submissions |
 | `/admin` | Admin | Manage submissions & winners |
 | `/admin/users` | Admin | User role management |

@@ -1,72 +1,94 @@
 /**
  * Application Constants
- * 
- * Centralized configuration values used throughout the app.
- * Update these values to customize the application behavior.
+ *
+ * Firestore collection names follow getActiveCollections() — see lib/hackathon-collections.ts
+ * Set NEXT_PUBLIC_HACKATHON_DATASET=io2026 for the new IO 2026 collections (empty until populated).
  */
 
-// Firebase collections - Build with AI Hackathon IWD 2026
-// NOTE: Do not expose these values in documentation
-export const PROJECTS_COLLECTION = 'hackatonProjects'
-export const USERS_COLLECTION = 'hackatonUsers'
-export const FIREBASE_STORAGE_FOLDER = 'hackathon_uploads'
-export const COMMENTS_SUBCOLLECTION = 'comments'
-export const BOOKMARKS_SUBCOLLECTION = 'bookmarks'
-export const DISCUSSIONS_COLLECTION = 'hackatonDiscussions'
-export const UPDATES_COLLECTION = 'hackatonUpdates'
-export const JOIN_REQUESTS_COLLECTION = 'hackatonJoinRequests'
-export const CREDIT_CLAIMS_COLLECTION = 'hackatonCreditClaims'
+import { getActiveCollections, HACKATHON_BRAND_NAME } from "./hackathon-collections";
 
-// Legacy (for migration reference only - do not use)
+const c = getActiveCollections();
+
+export const HACKATHON_DISPLAY_NAME = HACKATHON_BRAND_NAME;
+
+/** Logged-in networking: directory, requests, accepted buddies (not the overall event title). */
+export const BUDDIES_FEATURE_LABEL = "Buddies";
+
+export const HACKATHONS_COLLECTION = "hackathons";
+
+// Firebase collections (active hackathon)
+export const PROJECTS_COLLECTION = c.projects;
+export const USERS_COLLECTION = c.users;
+export const JOIN_REQUESTS_COLLECTION = c.joinRequests;
+export const VOTES_COLLECTION = c.votes;
+export const ATTENDANCE_COLLECTION = c.attendance;
+export const WINNERS_COLLECTION = c.winners;
+export const SETTINGS_COLLECTION = c.settingsCollection;
+export const SETTINGS_DOC_ID = c.settingsDocId;
+
+export const FIREBASE_STORAGE_FOLDER = "hackathon_uploads";
+export const COMMENTS_SUBCOLLECTION = "comments";
+export const BOOKMARKS_SUBCOLLECTION = "bookmarks";
+export const DISCUSSIONS_COLLECTION = c.discussions;
+export const UPDATES_COLLECTION = c.updates;
+export const CREDIT_CLAIMS_COLLECTION = c.creditClaims;
+export const BUDDY_REQUESTS_COLLECTION = c.buddyRequests;
+
 /** @deprecated Use PROJECTS_COLLECTION */
-export const FIREBASE_COLLECTION = PROJECTS_COLLECTION
+export const FIREBASE_COLLECTION = PROJECTS_COLLECTION;
 
-// Build with AI Hackathon - IWD London 2026
-export const HACKATHON_START_DATE = new Date('2025-12-09') // Dec 9, 2025
-export const HACKATHON_SUBMISSION_DEADLINE = new Date('2026-03-14T09:00:00')
-export const BUILT_WITH_OPTIONS = ['OpenAI', 'Claude', 'Gemini', 'Hugging Face', 'Firebase', 'Flutter', 'Vertex AI', 'Cloud Run'] as const
-export const AI_CATEGORIES = ['agents', 'ai-apps', 'devtools', 'ai-for-good', 'other'] as const
+// IO 2026 submission timeline (London)
+export const HACKATHON_IDEA_SUBMISSION_OPENS = new Date("2026-05-17T00:00:00+01:00");
+export const HACKATHON_SUBMISSION_DEADLINE = new Date("2026-05-19T20:00:00+01:00");
+/** @deprecated Use HACKATHON_IDEA_SUBMISSION_OPENS / HACKATHON_SUBMISSION_DEADLINE */
+export const HACKATHON_START_DATE = HACKATHON_IDEA_SUBMISSION_OPENS;
 
-// File upload limits
-export const MAX_SCREENSHOTS = 5
-export const MAX_FILE_SIZE_MB = 10
-export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+export const BUILT_WITH_OPTIONS = [
+  "OpenAI",
+  "Claude",
+  "Gemini",
+  "Hugging Face",
+  "Firebase",
+  "Flutter",
+  "Vertex AI",
+  "Cloud Run",
+] as const;
+export const AI_CATEGORIES = ["agents", "ai-apps", "devtools", "ai-for-good", "other"] as const;
 
-// Admin session duration (in hours)
-export const ADMIN_SESSION_DURATION_HOURS = 24
+export const MAX_SCREENSHOTS = 5;
+export const MAX_FILE_SIZE_MB = 10;
+export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
-// Admin credentials (CHANGE FOR PRODUCTION!)
+export const ADMIN_SESSION_DURATION_HOURS = 24;
+
 export const ADMIN_CREDENTIALS = {
-  username: 'admin',
-  password: 'admin',
-} as const
+  username: "admin",
+  password: "admin",
+} as const;
 
-// Submission statuses
 export const SUBMISSION_STATUS = {
-  DRAFT: 'draft',
-  SUBMITTED: 'submitted',
-} as const
+  DRAFT: "draft",
+  SUBMITTED: "submitted",
+  FINALIST: "finalist",
+  WINNER: "winner",
+} as const;
 
-// Winner places
 export const WINNER_PLACES = {
-  FIRST: 'first',
-  SECOND: 'second',
-  THIRD: 'third',
-} as const
+  FIRST: "first",
+  SECOND: "second",
+  THIRD: "third",
+} as const;
 
-// Allowed image types
 export const ALLOWED_IMAGE_TYPES = [
-  'image/jpeg',
-  'image/jpg',
-  'image/png',
-  'image/gif',
-  'image/webp',
-]
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+];
 
-// Toast duration (in milliseconds)
-export const TOAST_DURATION = 5000
+export const TOAST_DURATION = 5000;
 
-// Form field limits
 export const FORM_LIMITS = {
   fullName: { min: 2, max: 100 },
   email: { max: 100 },
@@ -79,5 +101,4 @@ export const FORM_LIMITS = {
   websiteUrl: { max: 200 },
   interest: { max: 50 },
   maxInterests: 10,
-}
-
+};

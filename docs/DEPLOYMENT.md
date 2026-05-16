@@ -178,7 +178,7 @@ After deployment, test:
 - [ ] Click "Sign In" button
 - [ ] Sign up with email/password works
 - [ ] Sign in with Google works
-- [ ] Go to `/submit` - can submit project
+- [ ] Go to `/hackathon/my-projects?project=1` — can save draft / submit project (`/submit` redirects)
 - [ ] Upload screenshot works
 - [ ] Check Firestore (projects collection) - submission saved
 - [ ] Visit `/hackathon/gallery` - submission displays

@@ -54,7 +54,7 @@ const { user } = useUser();
 
 **Technical**:
 ```typescript
-// Location: app/submit/page.tsx
+// Location: components/ProjectSubmissionForm.tsx (embedded on /hackathon/profile); app/submit redirects
 status: "draft" | "submitted"
 updatedAt: timestamp
 ```
@@ -532,7 +532,7 @@ FORM_LIMITS = {
 ## Quick Reference
 
 ### For Users
-- **Submit**: `/submit` - Create submission
+- **Submit**: `/hackathon/my-projects` (submission form; `/submit` redirects) - Create submission
 - **Gallery**: `/gallery` - View projects
 - **Admin**: `/admin/login` - Manage (admin only)
 

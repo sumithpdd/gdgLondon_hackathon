@@ -8,15 +8,18 @@ import { Button } from "@/components/ui/button";
 import { collection, getDocs, addDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuthContext } from "@/lib/AuthContext";
+import { cn } from "@/lib/utils";
 
 interface TagSelectorProps {
   category: "interests" | "expertise" | "techStack";
   selectedTags: string[];
   onChange: (tags: string[]) => void;
   label: string;
+  /** Dark card styling for hackathon profile / project submission */
+  theme?: "default" | "hackathon";
 }
 
-export function TagSelector({ category, selectedTags, onChange, label }: TagSelectorProps) {
+export function TagSelector({ category, selectedTags, onChange, label, theme = "default" }: TagSelectorProps) {
   const { user } = useAuthContext();
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
@@ -111,21 +114,32 @@ export function TagSelector({ category, selectedTags, onChange, label }: TagSele
     }
   };
 
+  const isHackathon = theme === "hackathon";
+  const labelClass = isHackathon ? "text-sm font-medium text-gray-200" : "text-sm font-medium text-gray-900";
+  const selectedWrapClass = isHackathon
+    ? "flex flex-wrap gap-2 p-3 rounded-lg border border-violet-500/30 bg-violet-950/25"
+    : "flex flex-wrap gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200";
+  const selectedBadgeClass = isHackathon
+    ? "bg-violet-600 text-white flex items-center gap-1 px-3 py-1 border-0"
+    : "bg-blue-600 text-white flex items-center gap-1 px-3 py-1";
+  const removeHoverClass = isHackathon ? "ml-1 hover:bg-violet-800 rounded-full p-0.5" : "ml-1 hover:bg-blue-700 rounded-full p-0.5";
+  const inputClass = isHackathon
+    ? "bg-white/5 border-white/15 text-white placeholder:text-gray-500"
+    : undefined;
+  const addBtnClass = isHackathon
+    ? "border-white/20 bg-white/5 text-violet-200 hover:bg-white/10 hover:text-white"
+    : "text-blue-600";
+
   return (
     <div className="space-y-3">
-      <label className="text-sm font-medium text-gray-900">{label} *</label>
-      
-      {/* Selected Tags */}
+      <label className={labelClass}>{label} *</label>
+
       {selectedTags.length > 0 && (
-        <div className="flex flex-wrap gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
-          {selectedTags.map(tag => (
-            <Badge key={tag} className="bg-blue-600 text-white flex items-center gap-1 px-3 py-1">
+        <div className={selectedWrapClass}>
+          {selectedTags.map((tag) => (
+            <Badge key={tag} className={selectedBadgeClass}>
               {tag}
-              <button
-                type="button"
-                onClick={() => toggleTag(tag)}
-                className="ml-1 hover:bg-blue-700 rounded-full p-0.5"
-              >
+              <button type="button" onClick={() => toggleTag(tag)} className={removeHoverClass}>
                 <X className="w-3 h-3" />
               </button>
             </Badge>
@@ -133,15 +147,17 @@ export function TagSelector({ category, selectedTags, onChange, label }: TagSele
         </div>
       )}
 
-      {/* Available Tags */}
       <div className="flex flex-wrap gap-2">
-        {availableTags.map(tag => (
+        {availableTags.map((tag) => (
           <Badge
             key={tag}
             variant="outline"
-            className={`cursor-pointer hover:bg-gray-100 ${
-              selectedTags.includes(tag) ? 'hidden' : ''
-            }`}
+            className={cn(
+              isHackathon
+                ? "cursor-pointer border-white/20 text-gray-300 bg-transparent hover:bg-white/10"
+                : "cursor-pointer hover:bg-gray-100",
+              selectedTags.includes(tag) && "hidden"
+            )}
             onClick={() => toggleTag(tag)}
           >
             {tag}
@@ -149,37 +165,40 @@ export function TagSelector({ category, selectedTags, onChange, label }: TagSele
         ))}
       </div>
 
-      {/* Add New Tag */}
       {showInput ? (
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap sm:flex-nowrap">
           <Input
             value={newTag}
             onChange={(e) => setNewTag(e.target.value)}
             placeholder="Enter new tag..."
-            onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addNewTag())}
+            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), void addNewTag())}
             autoFocus
+            className={inputClass}
           />
-          <Button type="button" onClick={addNewTag} size="sm">
+          <Button type="button" onClick={() => void addNewTag()} size="sm" className={isHackathon ? "bg-violet-600 hover:bg-violet-500" : ""}>
             Add
           </Button>
-          <Button type="button" onClick={() => {setShowInput(false); setNewTag("");}} variant="outline" size="sm">
+          <Button
+            type="button"
+            onClick={() => {
+              setShowInput(false);
+              setNewTag("");
+            }}
+            variant="outline"
+            size="sm"
+            className={isHackathon ? "border-white/20 text-gray-200 hover:bg-white/10" : ""}
+          >
             Cancel
           </Button>
         </div>
       ) : (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setShowInput(true)}
-          className="text-blue-600"
-        >
+        <Button type="button" variant="outline" size="sm" onClick={() => setShowInput(true)} className={addBtnClass}>
           <Plus className="w-4 h-4 mr-1" />
-          Add New {label}
+          Add new {label}
         </Button>
       )}
 
-      <p className="text-xs text-gray-500">
+      <p className={isHackathon ? "text-xs text-gray-500" : "text-xs text-gray-500"}>
         Click to select existing tags or add your own
       </p>
     </div>

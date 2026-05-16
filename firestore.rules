@@ -3,7 +3,9 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function getUserRole(userId) {
-      return get(/databases/$(database)/documents/hackatonUsers/$(userId)).data.role;
+      return exists(/databases/$(database)/documents/io2026Hackathon_users/$(userId))
+        ? get(/databases/$(database)/documents/io2026Hackathon_users/$(userId)).data.role
+        : get(/databases/$(database)/documents/hackatonUsers/$(userId)).data.role;
     }
 
     function isAuthenticated() {
@@ -99,6 +101,48 @@ service cloud.firestore {
         && resource.data.status == "pending";
     }
 
+    // Legacy live voting / attendance / winners (NEXT_PUBLIC_HACKATHON_DATASET unset)
+    match /hackatonVotes/{voteId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.attendanceVerified == true;
+      allow update, delete: if isAdmin();
+    }
+    match /hackatonAttendance/{attendanceId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.userId is string
+        && (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAuthenticated() && (
+        isAdmin() ||
+        (resource.data.userId == request.auth.uid && request.resource.data.userId == resource.data.userId)
+      );
+      allow delete: if isAdmin();
+    }
+    match /hackatonWinners/{winnerId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /hackatonBuddyRequests/{requestId} {
+      allow read: if isAuthenticated() && (
+        resource.data.fromUserId == request.auth.uid ||
+        resource.data.toUserId == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isAuthenticated()
+        && request.resource.data.fromUserId == request.auth.uid
+        && request.resource.data.status == "pending"
+        && request.resource.data.fromUserId != request.resource.data.toUserId;
+      allow update: if isAuthenticated() && (
+        (resource.data.toUserId == request.auth.uid && resource.data.status == "pending") ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated()
+        && resource.data.fromUserId == request.auth.uid
+        && resource.data.status == "pending";
+    }
+
     match /Interests/{tagId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
@@ -113,6 +157,163 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update, delete: if isAdmin();
+    }
+
+    // Platform hackathon registry (metadata; Firestore data paths still follow dataset env)
+    match /hackathons/{hackathonId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ── IO 2026 live hackathon (NEXT_PUBLIC_HACKATHON_DATASET=io2026) ─────────────
+    match /io2026Hackathon_users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isOwner(userId)
+        && !("role" in request.resource.data && request.resource.data.role != resource.data.role)
+        || isAdmin();
+      allow delete: if isAdmin();
+    }
+    match /io2026Hackathon_users/{userId}/bookmarks/{projectId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+    match /io2026Hackathon_projects/{projectId} {
+      allow read: if true;
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        && !("place" in request.resource.data && request.resource.data.place != null);
+      allow update: if isAuthenticated()
+        && resource.data.userId == request.auth.uid
+        && !("place" in request.resource.data && request.resource.data.place != resource.data.place)
+        && request.resource.data.userId == resource.data.userId;
+      allow delete: if isAuthenticated() &&
+        (resource.data.userId == request.auth.uid || isAdmin());
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isAuthenticated();
+        allow delete: if isAuthenticated() &&
+          (resource.data.userId == request.auth.uid || isAdmin());
+      }
+    }
+    match /io2026Hackathon_joinRequests/{requestId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == "pending";
+      allow update: if false;
+      allow delete: if isAuthenticated()
+        && resource.data.userId == request.auth.uid
+        && resource.data.status == "pending";
+    }
+    match /io2026Hackathon_votes/{voteId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.attendanceVerified == true;
+      allow update, delete: if isAdmin();
+    }
+    match /io2026Hackathon_attendance/{attendanceId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.userId is string
+        && (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAuthenticated() && (
+        isAdmin() ||
+        (resource.data.userId == request.auth.uid && request.resource.data.userId == resource.data.userId)
+      );
+      allow delete: if isAdmin();
+    }
+    match /io2026Hackathon_settings/{docId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && docId == "main";
+      allow delete: if false;
+    }
+    match /io2026Hackathon_winners/{winnerId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /io2026Hackathon_discussions/{docId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() &&
+        (resource.data.authorId == request.auth.uid || isAdmin());
+    }
+    match /io2026Hackathon_updates/{docId} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update, delete: if isAdmin();
+    }
+    match /io2026Hackathon_creditClaims/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update, delete: if false;
+    }
+    match /io2026Hackathon_buddyRequests/{requestId} {
+      allow read: if isAuthenticated() && (
+        resource.data.fromUserId == request.auth.uid ||
+        resource.data.toUserId == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isAuthenticated()
+        && request.resource.data.fromUserId == request.auth.uid
+        && request.resource.data.status == "pending"
+        && request.resource.data.fromUserId != request.resource.data.toUserId;
+      allow update: if isAuthenticated() && (
+        (resource.data.toUserId == request.auth.uid && resource.data.status == "pending") ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated()
+        && resource.data.fromUserId == request.auth.uid
+        && resource.data.status == "pending";
+    }
+
+    // ── IWD 2026 archive (read-only for clients; writes via Admin SDK / migration) ─
+    match /iwd2026Hackathon_users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+    match /iwd2026Hackathon_projects/{projectId} {
+      allow read: if true;
+      allow write: if false;
+      match /comments/{commentId} {
+        allow read: if true;
+        allow write: if false;
+      }
+    }
+    match /iwd2026Hackathon_joinRequests/{requestId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+    match /iwd2026Hackathon_votes/{voteId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow write: if false;
+    }
+    match /iwd2026Hackathon_attendance/{attendanceId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow write: if false;
+    }
+    match /iwd2026Hackathon_settings/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /iwd2026Hackathon_winners/{winnerId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /iwd2026Hackathon_discussions/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /iwd2026Hackathon_updates/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /iwd2026Hackathon_creditClaims/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow write: if false;
+    }
+    match /iwd2026Hackathon_buddyRequests/{requestId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
     }
   }
 }

@@ -35,3 +35,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+scripts/seed-io2026-admin-and-settings.mjs
+scripts/migrate-to-iwd-archive.mjs

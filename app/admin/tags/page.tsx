@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useAuthContext } from "@/lib/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AdminShell } from "@/components/AdminShell";
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -12,8 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
-import Image from "next/image";
-import { ArrowLeft, Plus, Edit2, Trash2, Tag, Shield, Loader2 } from "lucide-react";
+import { Plus, Edit2, Trash2, Tag, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -55,7 +54,6 @@ const categoryCollections: Record<TagCategory, string> = {
 };
 
 export default function AdminTagsPage() {
-  const router = useRouter();
   const { user } = useAuthContext();
   const { toast } = useToast();
   const [activeCategory, setActiveCategory] = useState<TagCategory>("interests");
@@ -249,38 +247,14 @@ export default function AdminTagsPage() {
 
   return (
     <ProtectedRoute requireAdmin={true}>
-      <div className="min-h-screen bg-gray-50">
-        <header className="bg-white border-b border-gray-200 shadow-sm">
-          <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <Link href="/" className="inline-block">
-                <Image 
-                  src="/gdg-london-logo.png" 
-                  alt="DevFest London 2025" 
-                  width={180}
-                  height={60}
-                  className="h-12 w-auto"
-                />
-              </Link>
-              <Badge variant="secondary" className="text-sm bg-red-100 text-red-700">
-                <Shield className="w-3 h-3 mr-1" />
-                Admin Panel - Tag Management
-              </Badge>
-            </div>
-          </div>
-        </header>
-
-        <main className="container mx-auto px-4 py-8 max-w-6xl">
-          <div className="mb-6 flex justify-between items-center">
-            <Link href="/admin">
-              <Button variant="ghost" className="text-gray-700 hover:text-gray-900">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Admin Panel
-              </Button>
-            </Link>
+      <AdminShell
+        title="Tag management"
+        subtitle="Create, edit, and delete tags for interests, expertise, and technology stack."
+      >
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <Link href="/admin/seed-tags">
-              <Button variant="outline" className="border-green-600 text-green-600 hover:bg-green-50">
-                Seed Default Tags
+              <Button variant="outline" className="border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 w-full sm:w-auto">
+                Seed default tags
               </Button>
             </Link>
             <Button
@@ -288,51 +262,57 @@ export default function AdminTagsPage() {
                 setNewTagName("");
                 setShowAddDialog(true);
               }}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-violet-600 hover:bg-violet-700 text-white w-full sm:w-auto"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Add New Tag
+              Add new tag
             </Button>
           </div>
 
-          <Card className="bg-white border-gray-200 shadow-md">
+          <Card className="border-white/10 bg-[#1a1528]/80">
             <CardHeader>
-              <CardTitle className="text-2xl text-gray-900 flex items-center gap-2">
-                <Tag className="w-6 h-6" />
-                Manage Tags
+              <CardTitle className="text-2xl text-white flex items-center gap-2">
+                <Tag className="w-6 h-6 text-violet-400" />
+                Manage tags
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-gray-400">
                 Create, edit, and delete tags for interests, expertise, and technology stack
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Tabs value={activeCategory} onValueChange={(value) => setActiveCategory(value as TagCategory)}>
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="interests">Your Interests</TabsTrigger>
-                  <TabsTrigger value="expertise">Your Expertise</TabsTrigger>
-                  <TabsTrigger value="techStack">Technology Stack</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-3 border border-white/10 bg-black/25 p-1">
+                  <TabsTrigger value="interests" className="data-[state=active]:bg-emerald-600/25 data-[state=active]:text-emerald-300">
+                    Your Interests
+                  </TabsTrigger>
+                  <TabsTrigger value="expertise" className="data-[state=active]:bg-emerald-600/25 data-[state=active]:text-emerald-300">
+                    Your Expertise
+                  </TabsTrigger>
+                  <TabsTrigger value="techStack" className="data-[state=active]:bg-emerald-600/25 data-[state=active]:text-emerald-300">
+                    Technology Stack
+                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value={activeCategory} className="mt-6">
                   {loading ? (
                     <div className="flex items-center justify-center py-12">
-                      <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-                      <span className="ml-2 text-gray-600">Loading tags...</span>
+                      <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
+                      <span className="ml-2 text-gray-400">Loading tags...</span>
                     </div>
                   ) : tags.length === 0 ? (
                     <div className="text-center py-12">
-                      <Tag className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600">No tags found. Add your first tag to get started.</p>
+                      <Tag className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+                      <p className="text-gray-400">No tags found. Add your first tag to get started.</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {tags.map((tag) => (
                         <div
                           key={tag.id}
-                          className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-sm transition-all"
+                          className="flex items-center justify-between p-4 rounded-xl border border-white/10 bg-[#0f0a18]/80 hover:border-violet-500/30 transition-all"
                         >
-                          <div className="flex-1">
-                            <Badge variant="secondary" className="text-sm font-medium bg-blue-100 text-blue-700">
+                          <div className="flex-1 min-w-0">
+                            <Badge variant="secondary" className="text-sm font-medium bg-violet-500/20 text-violet-200 border border-violet-500/30">
                               {tag.name}
                             </Badge>
                             {tag.usageCount !== undefined && tag.usageCount > 0 && (
@@ -341,22 +321,22 @@ export default function AdminTagsPage() {
                               </p>
                             )}
                           </div>
-                          <div className="flex gap-2 ml-4">
+                          <div className="flex gap-2 ml-4 shrink-0">
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => openEditDialog(tag)}
-                              className="h-8 w-8 p-0"
+                              className="h-8 w-8 p-0 text-gray-400 hover:text-white hover:bg-white/10"
                             >
-                              <Edit2 className="w-4 h-4 text-blue-600" />
+                              <Edit2 className="w-4 h-4" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => openDeleteDialog(tag)}
-                              className="h-8 w-8 p-0"
+                              className="h-8 w-8 p-0 text-gray-400 hover:text-rose-400 hover:bg-rose-500/10"
                             >
-                              <Trash2 className="w-4 h-4 text-red-600" />
+                              <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
                         </div>
@@ -367,7 +347,6 @@ export default function AdminTagsPage() {
               </Tabs>
             </CardContent>
           </Card>
-        </main>
 
         {/* Add Tag Dialog */}
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
@@ -478,7 +457,7 @@ export default function AdminTagsPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </div>
+      </AdminShell>
     </ProtectedRoute>
   );
 }

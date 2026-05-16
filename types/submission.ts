@@ -59,7 +59,7 @@ export interface Submission {
   userEmail: string;
   createdAt: Date;
   updatedAt?: Date;
-  status?: "draft" | "submitted";
+  status?: "draft" | "submitted" | "finalist" | "winner";
   // Audit (always set on create/update)
   createdBy?: string;
   updatedBy?: string;

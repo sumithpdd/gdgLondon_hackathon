@@ -3,6 +3,17 @@ import { db } from "./firebase";
 import { USERS_COLLECTION } from "./constants";
 import { User } from "firebase/auth";
 
+export function parseParticipations(raw: unknown): Record<string, { joinedAt?: Date }> | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const out: Record<string, { joinedAt?: Date }> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (!v || typeof v !== "object") continue;
+    const jo = (v as { joinedAt?: { toDate?: () => Date } }).joinedAt;
+    out[k] = { joinedAt: jo && typeof jo.toDate === "function" ? jo.toDate() : undefined };
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 export type UserRole = "admin" | "moderator" | "user";
 
 export interface UserProfile {
@@ -16,6 +27,30 @@ export interface UserProfile {
   updatedBy?: string;
   createdDate?: Date;
   updatedDate?: Date;
+  /** Short intro for teams / directory */
+  hackathonBio?: string;
+  hackathonLinkedinUrl?: string;
+  skills?: string[];
+  interests?: string[];
+  teamPreference?: string;
+  /** true / false / null = “unsure” stored as null optional */
+  inPersonAttendance?: boolean | null;
+  profileCompletionPercent?: number;
+  /** Public name in directory (defaults to displayName) */
+  profileDisplayName?: string;
+  city?: string;
+  country?: string;
+  experienceLevel?: "beginner" | "intermediate" | "advanced";
+  programmingSkills?: string[];
+  domainExpertise?: string[];
+  wantToLearnTags?: string[];
+  canOfferTags?: string[];
+  githubUrl?: string;
+  websiteUrl?: string;
+  /** Opt in to the Buddies public attendee directory */
+  buddiesVisibleInDirectory?: boolean;
+  /** Hackathon ids this user has joined (metadata; keys = registry ids e.g. io2026Hackathon). */
+  hackathonParticipations?: Record<string, { joinedAt?: Date }>;
 }
 
 /**
@@ -37,6 +72,25 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
         updatedBy: data.updatedBy,
         createdDate: data.createdDate?.toDate?.(),
         updatedDate: data.updatedDate?.toDate?.(),
+        hackathonBio: data.hackathonBio,
+        hackathonLinkedinUrl: data.hackathonLinkedinUrl,
+        skills: data.skills,
+        interests: data.interests,
+        teamPreference: data.teamPreference,
+        inPersonAttendance: data.inPersonAttendance,
+        profileCompletionPercent: data.profileCompletionPercent,
+        profileDisplayName: data.profileDisplayName,
+        city: data.city,
+        country: data.country,
+        experienceLevel: data.experienceLevel,
+        programmingSkills: data.programmingSkills,
+        domainExpertise: data.domainExpertise,
+        wantToLearnTags: data.wantToLearnTags,
+        canOfferTags: data.canOfferTags,
+        githubUrl: data.githubUrl,
+        websiteUrl: data.websiteUrl,
+        buddiesVisibleInDirectory: data.buddiesVisibleInDirectory,
+        hackathonParticipations: parseParticipations(data.hackathonParticipations),
       };
     }
     return null;

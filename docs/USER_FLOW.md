@@ -56,11 +56,11 @@ This document describes the user journey through the hackathon platform.
 **Authentication:** Firebase Auth (email/password + Google OAuth)
 
 **After successful login:**
-- Modal closes
-- User is signed in
-- Header shows: Submit Project, Find a Team, user name, Sign Out
+- Modal closes; user is signed in
+- Header shows hackathon actions, **Profile** link, user name, Sign Out
+- **Recommended:** open **[/hackathon/profile](/hackathon/profile)** (or `/profile`, which redirects) and complete bio, team preference, and in-person attendance — required before **Request to join** on **[/hackathon/ideas](/hackathon/ideas)**
 
-**Next step:** User can now participate (Step 3)
+**Next step:** Participate (Step 3) or finish profile first
 
 ---
 
@@ -87,24 +87,28 @@ Once signed in, the user can choose one or more of these paths:
 
 ---
 
-### Option B: Create a Project Idea
+### Option B: Idea gallery & join a team
 
-**Route:** `/submit`
+**Route:** `/hackathon/ideas` (short URL `/ideas` redirects here)
+
+- Lists projects with **Looking for members**
+- **Request to join** is available only after the user’s **hackathon profile** is complete (see `/hackathon/profile`)
+
+### Option C: Create a project / submit
+
+**Route:** **`/hackathon/my-projects`** — project summary and **Project submission** form below (deep link: `?project=1`, edit: `?project=1&edit=<id>`). Legacy **`/submit`** redirects here.
 
 **What the user does:**
-- Clicks "Submit Project" in header or overview
-- Fills in project details:
-  - Project title, team name
-  - Solo or group
-  - Description, AI tools used, built with
-  - Screenshots, demo video link, code repo
-- Saves as **draft** or **submits** when ready
 
-**Flow:** Create idea → save draft → iterate → submit before deadline
+- Reviews or edits the **project** card (title, status, links).
+- Uses the **submission** form for draft/final ship (separate from hackathon profile fields).
+- Saves as **draft** or **submits** when ready (timeline gates unchanged).
+
+**Flow:** Complete profile as needed → create idea → save draft → iterate → submit before deadline
 
 ---
 
-### Option C: Work on Adventure Leaderboard
+### Option D: Work on Adventure Leaderboard
 
 **External link:** [adventure.wietsevenema.eu](https://adventure.wietsevenema.eu/)
 
@@ -124,9 +128,11 @@ Once signed in, the user can choose one or more of these paths:
 |------|--------|------------------|
 | 1 | See overview | `/hackathon` |
 | 2 | Sign in or register | Auth modal (header "Sign In") |
+| 2b | Complete hackathon profile (for join requests) | `/hackathon/profile` |
 | 3a | Join a project | `/hackathon/participants`, `/hackathon/gallery` |
-| 3b | Create project idea | `/submit` |
-| 3c | Work on Adventure | [adventure.wietsevenema.eu](https://adventure.wietsevenema.eu/) |
+| 3b | Idea gallery — request to join | `/hackathon/ideas` (`/ideas`) |
+| 3c | Create / submit project | `/hackathon/my-projects?project=1` (`/ideas/create` redirects here; `/submit` redirects) |
+| 3d | Work on Adventure | [adventure.wietsevenema.eu](https://adventure.wietsevenema.eu/) |
 
 ---
 
@@ -146,9 +152,10 @@ Once signed in, the user can choose one or more of these paths:
 ## Quick Reference
 
 ```
-Overview → Sign In → [Join Project | Create Project | Adventure]
+Overview → Sign In → Profile (recommended) → [Join | Idea gallery | My project | Adventure]
 ```
 
 - **Join:** Participants or Gallery
-- **Create:** Submit
+- **Ideas:** `/hackathon/ideas` — complete `/hackathon/profile` first to request to join
+- **Create:** `/hackathon/my-projects` (`?project=1` deep link; `/submit` redirects)
 - **Adventure:** adventure.wietsevenema.eu (external)

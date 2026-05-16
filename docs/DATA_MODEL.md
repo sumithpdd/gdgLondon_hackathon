@@ -1,14 +1,15 @@
 # Firestore Data Model
 
-Build with AI Hackathon — IWD London 2026
+**GDG London Hackathon** — live data uses `io2026Hackathon_*` when `NEXT_PUBLIC_HACKATHON_DATASET=io2026`, otherwise legacy `hackaton*`. Archived IWD 2026 data: `iwd2026Hackathon_*`. **Buddies** uses `io2026Hackathon_buddyRequests` (or legacy `hackatonBuddyRequests`) when the active dataset is wired in `lib/hackathon-collections.ts`. See [IO2026_HACKATHON_SPEC.md](./IO2026_HACKATHON_SPEC.md) and `lib/constants.ts`.
 
 ---
 
-## Collections Overview
+## Collections overview
 
 | Purpose | Notes |
 |---------|-------|
-| User profiles and roles | admin, moderator, user |
+| User profiles and roles | admin, moderator, user; optional **Buddies** / extended profile fields (directory opt-in, tags, links) |
+| Buddy requests | Pending / accepted / declined between users (active collection from `BUDDY_REQUESTS_COLLECTION`) |
 | Project submissions | Hackathon projects with engagement data |
 | Tag libraries | Interests, Expertise, TechStack |
 | Project comments | Subcollection under each project |
@@ -16,13 +17,13 @@ Build with AI Hackathon — IWD London 2026
 | Community discussions | Forum-style posts |
 | Hackathon updates | Admin announcements |
 
-**Security note:** Collection names and storage paths are defined in `lib/constants.ts`. Do not expose these values in public documentation or client-facing content.
+**Security note:** Collection names and storage paths are defined in `lib/constants.ts` (from `getActiveCollections()`). Do not expose raw collection names in public-facing UI.
 
 ---
 
-## User Profiles
+## User profiles
 
-User profiles created on first sign-in. Document ID = Firebase Auth UID.
+User profiles are created on first sign-in. Document ID = Firebase Auth UID.
 
 ```typescript
 {
@@ -32,10 +33,29 @@ User profiles created on first sign-in. Document ID = Firebase Auth UID.
   role: "admin" | "moderator" | "user";
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  // Buddies / extended profile (optional) — see BUDDIES_FEATURE_LABEL routes in IO spec
+  hackathonBio?: string;
+  hackathonLinkedinUrl?: string;
+  profileDisplayName?: string;
+  city?: string;
+  country?: string;
+  experienceLevel?: "beginner" | "intermediate" | "advanced";
+  programmingSkills?: string[];
+  domainExpertise?: string[];
+  wantToLearnTags?: string[];
+  canOfferTags?: string[];
+  githubUrl?: string;
+  websiteUrl?: string;
+  buddiesVisibleInDirectory?: boolean;
+  skills?: string[];
+  interests?: string[];
+  teamPreference?: string; // e.g. "solo" | "team" | "flexible"
+  inPersonAttendance?: boolean | null; // null = "unsure"
+  profileCompletionPercent?: number;
 }
 ```
 
-**To set admin:** Firestore Console → users collection → select user doc → set `role` to `"admin"`
+**To set admin:** Firestore Console → active **users** collection (see `USERS_COLLECTION` in `lib/constants.ts`) → set `role` to `"admin"`.
 
 ---
 
@@ -112,4 +132,11 @@ These are set on every create and update. See `types/audit.ts` for helpers.
 
 ## Constants
 
-All collection names and storage paths are centralized in `lib/constants.ts`. Reference that file in code; do not duplicate or expose values in docs.
+All collection names and storage paths are centralized in `lib/constants.ts` (backed by `lib/hackathon-collections.ts`). Reference those files in code; avoid hardcoding collection strings.
+
+---
+
+## Migration & datasets
+
+- **Archive:** `npm run migrate:iwd-archive` — copies legacy `hackaton*` → `iwd2026Hackathon_*` (see IO 2026 spec).
+- **Switching live dataset:** set `NEXT_PUBLIC_HACKATHON_DATASET=io2026` only after rules, Functions env, and admin user docs are aligned with `io2026Hackathon_*`.

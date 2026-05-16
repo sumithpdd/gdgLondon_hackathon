@@ -1,0 +1,22 @@
+---
+description: Security do and don't for Firebase, Next.js, and client/server boundaries
+alwaysApply: true
+---
+
+# Security — do and don’t
+
+**Do**
+
+- Treat **Firestore / Storage security rules** as the real authorization layer; client checks are UX only.
+- Keep **secrets in env** (e.g. `.env.local`, never committed). Use `NEXT_PUBLIC_*` only for values that must be public.
+- **Validate** payloads on trusted paths (Cloud Functions, Admin SDK, Route Handlers) before writes; normalize strings (trim, max length).
+- **Gate admin behaviour** with server-side or rules-backed checks; never rely on hiding admin UI alone.
+- **Least privilege:** new collections/paths get explicit rules; avoid `allow read, write: if true` except deliberate public read with safe fields.
+
+**Don’t**
+
+- Don’t commit `.env`, service accounts, or private keys; don’t log tokens or PII in production paths.
+- Don’t build **storage object paths** only from user-controlled strings without validation and rule alignment.
+- Don’t expose **role elevation** or moderation actions without verifying `role` / claims on the server or in rules.
+- Don’t `dangerouslySetInnerHTML` with unsanitized content; prefer plain text or a vetted sanitizer if rich HTML is required.
+- Don’t disable hooks (`--no-verify`) or weaken auth for convenience in shared scripts.

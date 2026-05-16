@@ -1,6 +1,6 @@
 # 📚 Documentation Index
 
-Build with AI Hackathon — IWD London 2026. Documentation for the GDG London hackathon platform.
+GDG London Hackathon platform — IWD archive + IO 2026 live dataset. **Buddies** networking is documented alongside IO 2026 in the spec below.
 
 ---
 
@@ -10,10 +10,11 @@ Build with AI Hackathon — IWD London 2026. Documentation for the GDG London ha
 
 Start here if you're new to the project:
 
-1. **[USER_FLOW.md](./USER_FLOW.md)** - User journey (Overview → Login → Join/Create/Adventure)
-2. **[START_HERE.md](./START_HERE.md)** - Complete beginner's guide
-3. **[FEATURES_SIMPLE.md](./FEATURES_SIMPLE.md)** - What the app does
-4. **Admin setup** - See [DEPLOYMENT.md](./DEPLOYMENT.md) Step 4 (Firestore `users` → set `role: "admin"`)
+1. **[IO2026_HACKATHON_SPEC.md](./IO2026_HACKATHON_SPEC.md)** — IO 2026 dataset, **Buddies**, migration, rules, routes, voting/attendance roadmap
+2. **[USER_FLOW.md](./USER_FLOW.md)** — User journey (Overview → Login → Profile / My project submission / Join)
+3. **[START_HERE.md](./START_HERE.md)** - Complete beginner's guide
+4. **[FEATURES_SIMPLE.md](./FEATURES_SIMPLE.md)** - What the app does
+5. **Admin setup** - See [DEPLOYMENT.md](./DEPLOYMENT.md) Step 4 (Firestore active `users` collection → set `role: "admin"`)
 
 ### For Deployment
 
@@ -28,8 +29,9 @@ Ready to deploy? Follow these guides:
 
 Technical documentation:
 
-1. **[FIREBASE_AUTH.md](./FIREBASE_AUTH.md)** - Authentication implementation
-2. **[FIRESTORE_RULES.md](./FIRESTORE_RULES.md)** - Security rules
+1. **[ARCHITECTURE.md](./ARCHITECTURE.md)** — DDD-leaning layout, data boundaries, Cursor rules pointer
+2. **[FIREBASE_AUTH.md](./FIREBASE_AUTH.md)** - Authentication implementation
+3. **[FIRESTORE_RULES.md](./FIRESTORE_RULES.md)** - Security rules
 4. **[FEATURES.md](./FEATURES.md)** - Complete feature list
 
 ### For Admins
@@ -51,6 +53,8 @@ Having issues? Check here:
 
 | Document | Purpose | Audience |
 |----------|---------|----------|
+| **ARCHITECTURE.md** | App layers, submission on profile, security summary, `.cursor/` | Developers |
+| **IO2026_HACKATHON_SPEC.md** | IO 2026 collections, Buddies, migration, rules, routes, voting/live roadmap | Organisers & developers |
 | **DEPLOYMENT.md** | Complete deployment guide | Everyone deploying |
 | **FIREBASE_AUTH.md** | Authentication system details | Developers |
 | **FIRESTORE_RULES.md** | Database security rules | Developers & Admins |
@@ -69,7 +73,7 @@ Having issues? Check here:
 
 | Document | Purpose | Audience |
 |----------|---------|----------|
-| **USER_FLOW.md** | User journey (Overview → Login → Join/Create/Adventure) | Everyone |
+| **USER_FLOW.md** | User journey (overview → auth → profile + project submission → ideas) | Everyone |
 | **FEATURES.md** | Complete feature list (technical) | Developers |
 | **FEATURES_SIMPLE.md** | Simple feature explanations | Everyone |
 
@@ -114,6 +118,9 @@ Having issues? Check here:
 
 #### ...configure security rules
 → [FIRESTORE_RULES.md](./FIRESTORE_RULES.md)
+
+#### ...understand architecture & Cursor rules
+→ [ARCHITECTURE.md](./ARCHITECTURE.md) and repo [AGENTS.md](../AGENTS.md)
 
 #### ...fix an error
 → [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) or [FIREBASE_SETUP.md](./FIREBASE_SETUP.md)

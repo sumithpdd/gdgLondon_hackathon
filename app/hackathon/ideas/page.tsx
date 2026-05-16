@@ -12,12 +12,14 @@ import { Badge } from "@/components/ui/badge";
 import { Search, Users, UserPlus, Loader2 } from "lucide-react";
 import { useAuthContext } from "@/lib/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import Link from "next/link";
 import { createJoinRequest, getUserProject } from "@/lib/join-requests";
 import { PROJECTS_COLLECTION } from "@/lib/constants";
 import { AuthModal } from "@/components/AuthModal";
+import { isHackathonProfileComplete } from "@/lib/profile-completion";
 
 export default function IdeaGalleryPage() {
-  const { user, isAuthenticated } = useAuthContext();
+  const { user, isAuthenticated, userProfile } = useAuthContext();
   const { toast } = useToast();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,6 +79,15 @@ export default function IdeaGalleryPage() {
   const handleRequestToJoin = async (submission: Submission) => {
     if (!user || !submission.id) return;
 
+    if (!isHackathonProfileComplete(userProfile)) {
+      toast({
+        title: "Complete your hackathon profile",
+        description: "Add a short bio, team preference, and attendance so teams know who you are.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setRequestingIds((prev) => new Set(prev).add(submission.id!));
     try {
       await createJoinRequest(
@@ -121,6 +132,15 @@ export default function IdeaGalleryPage() {
         <p className="text-gray-400">
           Browse project ideas looking for team members. Request to join and build together!
         </p>
+        {isAuthenticated && userProfile && !isHackathonProfileComplete(userProfile) && (
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100 max-w-xl mx-auto">
+            <span className="font-medium">Profile incomplete — </span>
+            finish your bio and preferences before sending join requests.{" "}
+            <Link href="/hackathon/profile" className="text-violet-300 underline hover:text-white">
+              Edit profile
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Search */}
@@ -211,6 +231,10 @@ export default function IdeaGalleryPage() {
                   ) : userHasProject ? (
                     <Button size="sm" className="w-full" disabled>
                       Already in a project
+                    </Button>
+                  ) : !isHackathonProfileComplete(userProfile) ? (
+                    <Button size="sm" className="w-full border-amber-500/50 text-amber-200" variant="outline" asChild>
+                      <Link href="/hackathon/profile">Complete profile to join</Link>
                     </Button>
                   ) : hasRequested ? (
                     <Button size="sm" className="w-full" disabled>

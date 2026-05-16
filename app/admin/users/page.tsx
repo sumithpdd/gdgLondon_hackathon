@@ -1,72 +1,129 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { useAuthContext } from '@/lib/AuthContext'
-import { ProtectedRoute } from '@/components/ProtectedRoute'
-import { collection, getDocs, doc, updateDoc, query, where } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
-import { USERS_COLLECTION } from '@/lib/constants'
-import { UserProfile } from '@/lib/auth'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Users, Shield, UserCog, User, Search } from 'lucide-react'
-import { Input } from '@/components/ui/input'
-import Link from 'next/link'
-import Image from 'next/image'
-import { useToast } from '@/hooks/use-toast'
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useAuthContext } from "@/lib/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AdminShell } from "@/components/AdminShell";
+import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { USERS_COLLECTION } from "@/lib/constants";
+import { UserProfile, UserRole, parseParticipations } from "@/lib/auth";
+import { getProfileCompletion } from "@/lib/profile-completion";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Users, Shield, UserCog, User, Search, LayoutGrid, List, ChevronLeft, ChevronRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+
+type RoleFilter = "all" | UserRole;
+type SortMode = "newest" | "oldest" | "name";
+
+const PAGE_SIZE_OPTIONS = [12, 24, 48] as const;
+
+function matchesSearch(u: UserProfile, q: string): boolean {
+  if (!q.trim()) return true;
+  const s = q.toLowerCase();
+  const partKeys = u.hackathonParticipations ? Object.keys(u.hackathonParticipations) : [];
+  return (
+    (u.email?.toLowerCase().includes(s) ?? false) ||
+    (u.displayName?.toLowerCase().includes(s) ?? false) ||
+    (u.profileDisplayName?.toLowerCase().includes(s) ?? false) ||
+    u.uid.toLowerCase().includes(s) ||
+    partKeys.some((k) => k.toLowerCase().includes(s))
+  );
+}
+
+function participationSummary(u: UserProfile): string {
+  const p = u.hackathonParticipations;
+  if (!p || !Object.keys(p).length) return "—";
+  return Object.keys(p).join(", ");
+}
 
 export default function AdminUsersPage() {
-  const router = useRouter()
-  const { user, userProfile } = useAuthContext()
-  const { toast } = useToast()
-  const [users, setUsers] = useState<UserProfile[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [filteredUsers, setFilteredUsers] = useState<UserProfile[]>([])
+  const { user } = useAuthContext();
+  const { toast } = useToast();
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [incompleteOnly, setIncompleteOnly] = useState(false);
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
+  const [sortMode, setSortMode] = useState<SortMode>("newest");
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(12);
 
-  useEffect(() => {
-    fetchUsers()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredUsers(users)
-    } else {
-      const query = searchQuery.toLowerCase()
-      const filtered = users.filter(user => 
-        user.email?.toLowerCase().includes(query) ||
-        user.displayName?.toLowerCase().includes(query)
-      )
-      setFilteredUsers(filtered)
-    }
-  }, [searchQuery, users])
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
-      const usersSnapshot = await getDocs(collection(db, USERS_COLLECTION))
-      const usersList = usersSnapshot.docs.map(doc => ({
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-      })) as UserProfile[]
-      setUsers(usersList)
-      setFilteredUsers(usersList)
+      const usersSnapshot = await getDocs(collection(db, USERS_COLLECTION));
+      const usersList = usersSnapshot.docs.map((d) => {
+        const data = d.data();
+        return {
+          ...data,
+          uid: data.uid || d.id,
+          createdAt: data.createdAt?.toDate() || new Date(0),
+          updatedAt: data.updatedAt?.toDate() || new Date(0),
+        } as UserProfile;
+      });
+      setUsers(usersList);
     } catch (error) {
-      console.error('Error fetching users:', error)
+      console.error("Error fetching users:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to fetch users',
-        variant: 'destructive',
-      })
+        title: "Error",
+        description: "Failed to fetch users",
+        variant: "destructive",
+      });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  }, [toast]);
 
-  const updateUserRole = async (userId: string, newRole: 'admin' | 'moderator' | 'user') => {
+  useEffect(() => {
+    void fetchUsers();
+  }, [fetchUsers]);
+
+  const filteredSorted = useMemo(() => {
+    let list = users.filter((u) => matchesSearch(u, searchQuery));
+    if (incompleteOnly) {
+      list = list.filter((u) => !getProfileCompletion(u).complete);
+    }
+    if (roleFilter !== "all") {
+      list = list.filter((u) => (u.role || "user") === roleFilter);
+    }
+    const out = [...list];
+    out.sort((a, b) => {
+      if (sortMode === "name") {
+        const an = (a.displayName || a.email || a.uid).toLowerCase();
+        const bn = (b.displayName || b.email || b.uid).toLowerCase();
+        return an.localeCompare(bn);
+      }
+      const at = a.createdAt?.getTime() ?? 0;
+      const bt = b.createdAt?.getTime() ?? 0;
+      return sortMode === "newest" ? bt - at : at - bt;
+    });
+    return out;
+  }, [users, searchQuery, incompleteOnly, roleFilter, sortMode]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredSorted.length / pageSize));
+
+  useEffect(() => {
+    setPage((p) => Math.min(p, totalPages - 1));
+  }, [totalPages, pageSize, filteredSorted.length]);
+
+  const pageSlice = useMemo(() => {
+    const start = page * pageSize;
+    return filteredSorted.slice(start, start + pageSize);
+  }, [filteredSorted, page, pageSize]);
+
+  const updateUserRole = async (userId: string, newRole: UserRole) => {
     if (!user) return;
     const now = new Date();
     try {
@@ -75,224 +132,415 @@ export default function AdminUsersPage() {
         updatedAt: now,
         updatedBy: user.uid,
         updatedDate: now,
-      })
-      
+      });
+
       toast({
-        title: 'Success',
+        title: "Success",
         description: `User role updated to ${newRole}`,
-      })
-      
-      // Refresh users list
-      fetchUsers()
+      });
+
+      void fetchUsers();
     } catch (error) {
-      console.error('Error updating role:', error)
+      console.error("Error updating role:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to update user role',
-        variant: 'destructive',
-      })
+        title: "Error",
+        description: "Failed to update user role",
+        variant: "destructive",
+      });
     }
-  }
+  };
 
   const getRoleBadge = (role: string) => {
-    if (role === 'admin') {
-      return <Badge className="bg-red-600 text-white"><Shield className="w-3 h-3 mr-1" />Admin</Badge>
+    if (role === "admin") {
+      return (
+        <Badge className="bg-red-600/90 text-white border-0">
+          <Shield className="w-3 h-3 mr-1" />
+          Admin
+        </Badge>
+      );
     }
-    if (role === 'moderator') {
-      return <Badge className="bg-blue-600 text-white"><UserCog className="w-3 h-3 mr-1" />Moderator</Badge>
+    if (role === "moderator") {
+      return (
+        <Badge className="bg-blue-600/90 text-white border-0">
+          <UserCog className="w-3 h-3 mr-1" />
+          Moderator
+        </Badge>
+      );
     }
-    return <Badge variant="secondary" className="bg-gray-200 text-gray-700"><User className="w-3 h-3 mr-1" />User</Badge>
-  }
+    return (
+      <Badge variant="secondary" className="bg-white/10 text-gray-200 border border-white/10">
+        <User className="w-3 h-3 mr-1" />
+        User
+      </Badge>
+    );
+  };
+
+  const RoleActions = ({
+    rowUser,
+    compact,
+  }: {
+    rowUser: UserProfile;
+    compact?: boolean;
+  }) => {
+    const currentRole = rowUser.role || "user";
+    const btnClass = compact
+      ? "h-8 px-2 text-xs"
+      : "text-xs sm:text-sm";
+
+    return (
+      <div className={cn("flex gap-1 flex-wrap", compact && "justify-end")}>
+        <Button
+          type="button"
+          onClick={() => void updateUserRole(rowUser.uid, "admin")}
+          variant={currentRole === "admin" ? "default" : "outline"}
+          size="sm"
+          disabled={currentRole === "admin"}
+          className={cn(currentRole === "admin" ? "bg-red-600 hover:bg-red-700" : "border-white/20 text-white hover:bg-white/10", btnClass)}
+        >
+          <Shield className="w-3 h-3 sm:mr-1" />
+          {!compact && "Admin"}
+        </Button>
+        <Button
+          type="button"
+          onClick={() => void updateUserRole(rowUser.uid, "moderator")}
+          variant={currentRole === "moderator" ? "default" : "outline"}
+          size="sm"
+          disabled={currentRole === "moderator"}
+          className={cn(
+            currentRole === "moderator" ? "bg-blue-600 hover:bg-blue-700" : "border-white/20 text-white hover:bg-white/10",
+            btnClass
+          )}
+        >
+          <UserCog className="w-3 h-3 sm:mr-1" />
+          {!compact && "Mod"}
+        </Button>
+        <Button
+          type="button"
+          onClick={() => void updateUserRole(rowUser.uid, "user")}
+          variant="outline"
+          size="sm"
+          disabled={currentRole === "user"}
+          className={cn("border-white/20 text-white hover:bg-white/10", btnClass)}
+        >
+          User
+        </Button>
+      </div>
+    );
+  };
 
   if (loading) {
     return (
       <ProtectedRoute requireAdmin={true}>
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading users...</p>
+        <AdminShell title="Users" subtitle="Loading directory…">
+          <div className="flex items-center justify-center py-24">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-2 border-emerald-500/30 border-t-emerald-400 mx-auto" />
+              <p className="mt-4 text-gray-400">Loading users…</p>
+            </div>
           </div>
-        </div>
+        </AdminShell>
       </ProtectedRoute>
-    )
+    );
   }
 
   return (
     <ProtectedRoute requireAdmin={true}>
-      <div className="min-h-screen bg-gray-50">
-        <header className="bg-white border-b border-gray-200 shadow-sm">
-          <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <Link href="/" className="inline-block">
-                <Image 
-                  src="/gdg-london-logo.png" 
-                  alt="DevFest London 2025" 
-                  width={180}
-                  height={60}
-                  className="h-12 w-auto"
-                />
-              </Link>
-              <Badge variant="secondary" className="text-sm bg-red-100 text-red-700">
-                <Shield className="w-3 h-3 mr-1" />
-                Admin Panel
-              </Badge>
-            </div>
-          </div>
-        </header>
-
-        <main className="container mx-auto px-4 py-8">
-          <div className="mb-6">
-            <Link href="/admin">
-              <Button variant="ghost" className="text-gray-700 hover:text-gray-900">
-                ← Back to Admin Dashboard
-              </Button>
-            </Link>
-          </div>
-
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5" />
-                User Role Management
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600 mb-6">
-                Search for users by name or email to manage their roles. Changes take effect immediately.
-              </p>
-
-              {/* Search Box */}
-              <div className="mb-6">
-                <div className="flex gap-2">
+      <AdminShell
+        title="Users"
+        subtitle="Browse every Firestore profile in a grid or table. Filter by role, search, and paginate. Role changes apply immediately."
+      >
+        <Card className="border-white/10 bg-[#1a1528]/80">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-white">
+              <Users className="w-5 h-5 text-emerald-400" />
+              User directory
+            </CardTitle>
+            <CardDescription className="text-gray-400">
+              {filteredSorted.length} of {users.length} users match the current filters.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+              <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                <div className="relative flex-1 min-w-[200px] max-w-md">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
                   <Input
-                    type="text"
-                    placeholder="Search for users by name or email..."
+                    type="search"
+                    placeholder="Search name, email, or user id…"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="flex-1"
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setPage(0);
+                    }}
+                    className="border-white/15 bg-black/25 pl-9 text-white placeholder:text-gray-500"
                   />
-                  <Button variant="outline">
-                    <Search className="w-4 h-4 mr-2" />
-                    Search
-                  </Button>
+                </div>
+                <Select
+                  value={roleFilter}
+                  onValueChange={(v) => {
+                    setRoleFilter(v as RoleFilter);
+                    setPage(0);
+                  }}
+                >
+                  <SelectTrigger className="w-full sm:w-[160px] border-white/15 bg-black/25 text-white">
+                    <SelectValue placeholder="Role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All roles</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="moderator">Moderator</SelectItem>
+                    <SelectItem value="user">User</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={sortMode}
+                  onValueChange={(v) => {
+                    setSortMode(v as SortMode);
+                    setPage(0);
+                  }}
+                >
+                  <SelectTrigger className="w-full sm:w-[160px] border-white/15 bg-black/25 text-white">
+                    <SelectValue placeholder="Sort" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="newest">Newest first</SelectItem>
+                    <SelectItem value="oldest">Oldest first</SelectItem>
+                    <SelectItem value="name">Name A–Z</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-wrap items-center gap-4">
+                <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={incompleteOnly}
+                    onChange={(e) => {
+                      setIncompleteOnly(e.target.checked);
+                      setPage(0);
+                    }}
+                    className="rounded border-white/30 bg-black/30 text-emerald-500 focus:ring-emerald-500/50"
+                  />
+                  Incomplete team-join profile only
+                </label>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-400">Per page</span>
+                  <Select
+                    value={String(pageSize)}
+                    onValueChange={(v) => {
+                      setPageSize(Number(v) as (typeof PAGE_SIZE_OPTIONS)[number]);
+                      setPage(0);
+                    }}
+                  >
+                    <SelectTrigger className="w-[88px] border-white/15 bg-black/25 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAGE_SIZE_OPTIONS.map((n) => (
+                        <SelectItem key={n} value={String(n)}>
+                          {n}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
+            </div>
 
-              {/* Users List */}
-              <div className="mt-6">
-                {filteredUsers.length === 0 ? (
-                  <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
-                    <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                    <p className="text-gray-600">
-                      {searchQuery ? `No users found matching "${searchQuery}"` : 'No users found'}
-                    </p>
-                    <p className="text-sm text-gray-500 mt-2">
-                      {searchQuery ? 'Try searching with a different name or email' : 'Users will appear here once they sign up'}
-                    </p>
-                  </div>
+            <Tabs defaultValue="grid" className="w-full">
+              <TabsList className="grid w-full max-w-md grid-cols-2 border border-white/10 bg-black/20 p-1">
+                <TabsTrigger
+                  value="grid"
+                  className="gap-2 data-[state=active]:bg-emerald-600/25 data-[state=active]:text-emerald-300"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                  Grid
+                </TabsTrigger>
+                <TabsTrigger
+                  value="table"
+                  className="gap-2 data-[state=active]:bg-emerald-600/25 data-[state=active]:text-emerald-300"
+                >
+                  <List className="h-4 w-4" />
+                  Table
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="grid" className="mt-6">
+                {pageSlice.length === 0 ? (
+                  <EmptyState searchQuery={searchQuery} />
                 ) : (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      {searchQuery ? `Found ${filteredUsers.length}` : `Total ${filteredUsers.length}`} user{filteredUsers.length !== 1 ? 's' : ''}
-                    </h3>
-                    {filteredUsers.map((user) => {
-                      const currentRole = user.role || 'user'
-                      
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    {pageSlice.map((u) => {
+                      const currentRole = u.role || "user";
+                      const { percent, complete } = getProfileCompletion(u);
                       return (
-                        <Card key={user.uid} className="bg-white hover:shadow-md transition-shadow">
-                          <CardContent className="p-6">
-                            <div className="flex items-center justify-between gap-4 flex-wrap">
-                              <div className="flex-1 min-w-[200px]">
-                                <div className="flex items-center gap-3 mb-2">
-                                  <div>
-                                    <h4 className="font-semibold text-gray-900">
-                                      {user.displayName || 'No Name'}
-                                    </h4>
-                                    <p className="text-sm text-gray-600">
-                                      {user.email}
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className="mt-2">
-                                  {getRoleBadge(currentRole)}
-                                </div>
-                              </div>
-
-                              <div className="flex gap-2 flex-wrap">
-                                <Button 
-                                  onClick={() => updateUserRole(user.uid, 'admin')}
-                                  variant={currentRole === 'admin' ? 'default' : 'outline'}
-                                  size="sm"
-                                  disabled={currentRole === 'admin'}
-                                  className={currentRole === 'admin' ? 'bg-red-600 hover:bg-red-700' : ''}
-                                >
-                                  <Shield className="w-4 h-4 mr-1" />
-                                  Make Admin
-                                </Button>
-
-                                <Button 
-                                  onClick={() => updateUserRole(user.uid, 'moderator')}
-                                  variant={currentRole === 'moderator' ? 'default' : 'outline'}
-                                  size="sm"
-                                  disabled={currentRole === 'moderator'}
-                                  className={currentRole === 'moderator' ? 'bg-blue-600 hover:bg-blue-700' : ''}
-                                >
-                                  <UserCog className="w-4 h-4 mr-1" />
-                                  Make Moderator
-                                </Button>
-
-                                <Button 
-                                  onClick={() => updateUserRole(user.uid, 'user')}
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={currentRole === 'user'}
-                                >
-                                  Make User
-                                </Button>
+                        <Card
+                          key={u.uid}
+                          className="border-white/10 bg-[#0f0a18]/90 transition-colors hover:border-violet-500/30"
+                        >
+                          <CardContent className="p-4 space-y-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="font-semibold text-white truncate">
+                                  {u.displayName || u.profileDisplayName || "No name"}
+                                </p>
+                                <p className="text-xs text-gray-400 truncate">{u.email || "—"}</p>
+                                <p className="text-[10px] text-gray-500 font-mono truncate mt-1" title={u.uid}>
+                                  {u.uid}
+                                </p>
                               </div>
                             </div>
+                            <div className="flex flex-wrap gap-2">
+                              {getRoleBadge(currentRole)}
+                              <Badge
+                                variant="outline"
+                                className={
+                                  complete
+                                    ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-200"
+                                    : "border-amber-500/40 bg-amber-500/10 text-amber-200"
+                                }
+                              >
+                                Profile {percent}%
+                              </Badge>
+                            </div>
+                            <p className="text-[11px] text-violet-300/90 font-mono break-all" title={participationSummary(u)}>
+                              Hackathons: {participationSummary(u)}
+                            </p>
+                            <RoleActions rowUser={u} />
                           </CardContent>
                         </Card>
-                      )
+                      );
                     })}
                   </div>
                 )}
-              </div>
+              </TabsContent>
 
-              {/* Role Definitions */}
-              {!searchQuery && (
-              <div className="mt-6 p-6 bg-blue-50 border border-blue-200 rounded-lg">
-                <h4 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
-                  <Shield className="w-5 h-5" />
-                  Role Definitions
-                </h4>
-                <ul className="space-y-3 text-sm text-blue-800">
-                  <li className="flex items-start gap-2">
-                    <Shield className="w-4 h-4 mt-0.5 text-red-600" />
-                    <div>
-                      <strong>Admin:</strong> Full access - manage submissions, select winners, delete projects, manage user roles
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <UserCog className="w-4 h-4 mt-0.5 text-blue-600" />
-                    <div>
-                      <strong>Moderator:</strong> View access - can view all submissions but cannot modify them
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <User className="w-4 h-4 mt-0.5 text-gray-600" />
-                    <div>
-                      <strong>User:</strong> Standard access - can submit their own projects and view public gallery
-                    </div>
-                  </li>
-                </ul>
+              <TabsContent value="table" className="mt-6">
+                {pageSlice.length === 0 ? (
+                  <EmptyState searchQuery={searchQuery} />
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-white/10">
+                    <table className="w-full min-w-[880px] text-left text-sm">
+                      <thead className="border-b border-white/10 bg-black/30 text-gray-400">
+                        <tr>
+                          <th className="px-4 py-3 font-medium">Name</th>
+                          <th className="px-4 py-3 font-medium">Email</th>
+                          <th className="px-4 py-3 font-medium">User ID</th>
+                          <th className="px-4 py-3 font-medium">Role</th>
+                          <th className="px-4 py-3 font-medium">Profile</th>
+                          <th className="px-4 py-3 font-medium text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/10">
+                        {pageSlice.map((u) => {
+                          const currentRole = u.role || "user";
+                          const { percent, complete } = getProfileCompletion(u);
+                          return (
+                            <tr key={u.uid} className="bg-[#0f0a18]/40 hover:bg-[#1a1528]/60">
+                              <td className="px-4 py-3 text-white font-medium">
+                                {u.displayName || u.profileDisplayName || "—"}
+                              </td>
+                              <td className="px-4 py-3 text-gray-300 max-w-[200px] truncate" title={u.email || ""}>
+                                {u.email || "—"}
+                              </td>
+                              <td className="px-4 py-3 font-mono text-xs text-gray-500 max-w-[120px] truncate" title={u.uid}>
+                                {u.uid}
+                              </td>
+                              <td className="px-4 py-3">{getRoleBadge(currentRole)}</td>
+                              <td
+                                className="px-4 py-3 font-mono text-xs text-violet-300/90 max-w-[200px] truncate"
+                                title={participationSummary(u)}
+                              >
+                                {participationSummary(u)}
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={complete ? "text-emerald-400" : "text-amber-300"}>{percent}%</span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex justify-end">
+                                  <RoleActions rowUser={u} compact />
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+
+            {filteredSorted.length > 0 && (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-white/10 pt-6">
+                <p className="text-sm text-gray-400">
+                  Page <span className="text-white font-medium">{page + 1}</span> of{" "}
+                  <span className="text-white font-medium">{totalPages}</span>
+                  <span className="text-gray-500"> · </span>
+                  Showing{" "}
+                  <span className="text-white font-medium">
+                    {page * pageSize + 1}–{Math.min((page + 1) * pageSize, filteredSorted.length)}
+                  </span>{" "}
+                  of <span className="text-white font-medium">{filteredSorted.length}</span>
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={page <= 0}
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    className="border-white/20 text-white hover:bg-white/10"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Prev
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={page >= totalPages - 1}
+                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                    className="border-white/20 text-white hover:bg-white/10"
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-              )}
-            </CardContent>
-          </Card>
-        </main>
-      </div>
+            )}
+
+            <div className="rounded-xl border border-violet-500/25 bg-violet-500/5 p-5 text-sm text-gray-300">
+              <h4 className="font-semibold text-violet-200 mb-2 flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                Role definitions
+              </h4>
+              <ul className="space-y-2 list-disc list-inside marker:text-violet-400">
+                <li>
+                  <strong className="text-white">Admin:</strong> full access — submissions, winners, tags, users.
+                </li>
+                <li>
+                  <strong className="text-white">Moderator:</strong> view-focused panel access.
+                </li>
+                <li>
+                  <strong className="text-white">User:</strong> standard participant.
+                </li>
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+      </AdminShell>
     </ProtectedRoute>
-  )
+  );
 }
 
+function EmptyState({ searchQuery }: { searchQuery: string }) {
+  return (
+    <div className="text-center py-16 rounded-xl border border-dashed border-white/15 bg-black/20">
+      <Users className="w-12 h-12 text-gray-500 mx-auto mb-3" />
+      <p className="text-gray-300">
+        {searchQuery.trim() ? `No users match “${searchQuery}”.` : "No users match these filters."}
+      </p>
+      <p className="text-sm text-gray-500 mt-2">Try clearing search or changing role filters.</p>
+    </div>
+  );
+}

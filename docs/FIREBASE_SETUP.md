@@ -103,7 +103,7 @@ After updating rules, test:
 
 ```bash
 1. Sign in to the app
-2. Go to /submit
+2. Go to `/hackathon/my-projects?project=1` (or `/submit`, which redirects)
 3. Fill form
 4. Upload 1 image
 5. Click "Submit Project"

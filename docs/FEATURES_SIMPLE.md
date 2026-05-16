@@ -59,7 +59,8 @@ Fill Form → Upload Images to Firebase Storage → Save Data to Firestore
 - Submission linked to your Clerk user ID
 
 **Files involved**:
-- `app/submit/page.tsx` - The form
+- `components/ProjectSubmissionForm.tsx` - Project draft/final form (on `/hackathon/profile`)
+- `app/submit/page.tsx` - Redirects to `/hackathon/my-projects?project=1`
 - `lib/firebase.ts` - Connects to Firebase
 
 **Important Code**:
@@ -97,7 +98,7 @@ await addDoc(collection(db, "projects"), {
 - Marked as `status: "draft"` (not visible in gallery)
 
 **Files involved**:
-- `app/submit/page.tsx` - Has "Save as Draft" button
+- `components/ProjectSubmissionForm.tsx` - Has "Save as Draft" / final submit (on profile page)
 
 ---
 
@@ -336,7 +337,7 @@ onClick={() => {
 
 **Protected Routes**:
 ```
-/submit       → Must be signed in (Clerk)
+/hackathon/my-projects?project=1  →  Project submission (signed in); `/submit` redirects here
 /admin        → Must have admin role
 /admin/users  → Must have admin role
 ```
@@ -390,7 +391,7 @@ if (file.size > 10 * 1024 * 1024) {
 ```
 
 **Files involved**:
-- `app/submit/page.tsx` - Has validation
+- `components/ProjectSubmissionForm.tsx` - Has validation
 
 ---
 
@@ -482,7 +483,7 @@ Update UI (Toast, Redirect)
 **Example: Submitting a Project**
 
 ```
-1. User fills form → app/submit/page.tsx
+1. User fills form → `components/ProjectSubmissionForm.tsx` on `/hackathon/profile`
 2. User clicks Submit → handleSubmit()
 3. Validate form data → if (!valid) return error
 4. Upload screenshots → Firebase Storage API

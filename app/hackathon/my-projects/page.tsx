@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { PROJECTS_COLLECTION } from "@/lib/constants";
@@ -24,8 +25,29 @@ import {
 } from "lucide-react";
 import { JoinRequestsReceived } from "@/components/JoinRequestsReceived";
 import { JoinRequestsSent } from "@/components/JoinRequestsSent";
+import { ProjectSubmissionForm } from "@/components/ProjectSubmissionForm";
 import { getUserProject } from "@/lib/join-requests";
 import { getHackathonConfig } from "@/lib/hackathon-config";
+
+function MyProjectsSubmissionPanel() {
+  const searchParams = useSearchParams();
+  const editId = searchParams.get("edit");
+  const focusProject = searchParams.get("project") === "1" || Boolean(editId);
+
+  useEffect(() => {
+    if (!focusProject) return;
+    const id = requestAnimationFrame(() => {
+      document.getElementById("project-submission")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [focusProject]);
+
+  return (
+    <div id="project-submission" className="scroll-mt-28 mt-10">
+      <ProjectSubmissionForm editId={editId} />
+    </div>
+  );
+}
 
 export default function MyProjectPage() {
   const { user, isAuthenticated } = useAuthContext();
@@ -107,20 +129,33 @@ export default function MyProjectPage() {
   }
 
   const displayProject = project || memberProject;
+  const showSubmissionPanel = Boolean(user && userRole !== "member");
+
+  const submissionSection = showSubmissionPanel ? (
+    <Suspense
+      fallback={
+        <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-12 text-center text-sm text-gray-400">
+          Loading project form…
+        </div>
+      }
+    >
+      <MyProjectsSubmissionPanel />
+    </Suspense>
+  ) : null;
 
   // No project yet
   if (!displayProject) {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
-        <h1 className="text-3xl font-bold text-white">My Project</h1>
+        <h1 className="text-3xl font-bold text-white">My project</h1>
         <Card className="bg-white/5 border-white/10">
           <CardContent className="py-16 text-center">
             <p className="text-gray-400 mb-4">You haven&apos;t joined or created a project yet.</p>
-            <div className="flex gap-3 justify-center">
-              <Link href="/submit">
+            <div className="flex gap-3 justify-center flex-wrap">
+              <Link href="/hackathon/my-projects?project=1">
                 <Button className="bg-violet-600 hover:bg-violet-500">
                   <Plus className="h-4 w-4 mr-2" />
-                  Create a Project
+                  Create a project
                 </Button>
               </Link>
               <Link href="/hackathon/ideas">
@@ -132,6 +167,7 @@ export default function MyProjectPage() {
           </CardContent>
         </Card>
         {user && <JoinRequestsSent userId={user.uid} />}
+        {submissionSection}
       </div>
     );
   }
@@ -150,9 +186,9 @@ export default function MyProjectPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-white">My Project</h1>
+        <h1 className="text-3xl font-bold text-white">My project</h1>
         {isOwner && displayProject.id && (
-          <Link href={`/submit?edit=${displayProject.id}`}>
+          <Link href={`/hackathon/my-projects?project=1&edit=${displayProject.id}`}>
             <Button variant="outline" className="border-white/20 text-gray-300 hover:bg-white/10">
               <Pencil className="h-4 w-4 mr-2" />
               {isDraft ? "Edit draft" : "Edit project"}
@@ -305,6 +341,8 @@ export default function MyProjectPage() {
 
       {/* Outgoing join requests */}
       {user && <JoinRequestsSent userId={user.uid} />}
+
+      {submissionSection}
     </div>
   );
 }

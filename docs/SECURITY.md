@@ -37,3 +37,9 @@ To reduce attack surface and prevent targeted exploitation:
 ## Firestore Rules
 
 Deploy rules from `firebase-rules.txt` via Firebase Console. The rules file contains the actual collection paths required for Firebase to function; keep it out of public-facing documentation and do not link to it from public sites.
+
+---
+
+## Application architecture
+
+For **layers, DDD-style modules, data-access targets, and Cursor rules**, see **[ARCHITECTURE.md](./ARCHITECTURE.md)**.

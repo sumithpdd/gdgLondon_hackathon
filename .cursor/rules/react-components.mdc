@@ -1,0 +1,15 @@
+---
+description: React and Next.js App Router practices for components and pages
+globs: "**/*.{tsx,ts}"
+alwaysApply: false
+---
+
+# React & Next.js
+
+- Prefer **functional components** and **hooks** for state and effects; extract reusable logic into `hooks/` or colocated `useX.ts`.
+- Add **`"use client"`** only where required (browser APIs, event handlers on interactive subtrees). Keep server components default when adding new routes without client needs.
+- **Composition over inheritance**; small props surfaces; avoid prop drilling with context only for truly cross-cutting auth/theme.
+- **Lists and keys:** stable keys (`id`), not array index, for mutable lists.
+- **Effects:** declare complete dependency arrays; avoid stale closures; cancel async work on unmount where applicable.
+- **Accessibility:** associate `<Label>` with controls (`htmlFor` / `id`); preserve visible focus styles (`focus-visible:`); don’t strip focus rings for aesthetics.
+- **Performance:** `useMemo`/`useCallback` only when profiling or clear expensive work; prefer derived state during render when cheap.

@@ -9,7 +9,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "migrate:iwd-archive": "node scripts/migrate-to-iwd-archive.mjs",
+    "seed:io2026": "node scripts/seed-io2026-admin-and-settings.mjs"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",

@@ -1,14 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { User, onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { createOrUpdateUserProfile, getUserProfile, UserProfile } from "@/lib/auth";
+import { recordHackathonParticipationIfNeeded } from "@/lib/participation";
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const refreshProfile = useCallback(async () => {
+    const firebaseUser = auth.currentUser;
+    if (!firebaseUser) {
+      setUserProfile(null);
+      return;
+    }
+    const profile = await getUserProfile(firebaseUser.uid);
+    setUserProfile(profile);
+    if (profile) {
+      void recordHackathonParticipationIfNeeded(firebaseUser.uid).catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     // Set a timeout to prevent infinite loading
@@ -31,11 +45,15 @@ export function useAuth() {
           
           if (profile) {
             setUserProfile(profile);
+            void recordHackathonParticipationIfNeeded(firebaseUser.uid).catch(() => {});
           } else {
             // Retry once after a short delay
             await new Promise(resolve => setTimeout(resolve, 1000));
             const retryProfile = await getUserProfile(firebaseUser.uid);
             setUserProfile(retryProfile);
+            if (retryProfile) {
+              void recordHackathonParticipationIfNeeded(firebaseUser.uid).catch(() => {});
+            }
           }
         } catch (error) {
           console.error('Error in auth state change:', error);
@@ -63,6 +81,7 @@ export function useAuth() {
     userProfile,
     loading,
     isAuthenticated: !!user,
+    refreshProfile,
   };
 }
 

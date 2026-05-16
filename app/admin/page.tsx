@@ -11,10 +11,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Trophy, Github, Linkedin, Twitter, Facebook, Instagram, Globe, Trash2, ChevronLeft, ChevronRight, Users, Shield, Tag } from "lucide-react";
+import { Trophy, Github, Linkedin, Twitter, Trash2, ChevronLeft, ChevronRight, Tag } from "lucide-react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AdminShell } from "@/components/AdminShell";
 import {
   Select,
   SelectContent,
@@ -176,12 +176,19 @@ export default function AdminPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
+      <ProtectedRoute requireAdmin={true}>
+        <AdminShell
+          title="Admin dashboard"
+          subtitle="Loading submissions…"
+        >
+          <div className="flex items-center justify-center py-24">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-2 border-emerald-500/30 border-t-emerald-400 mx-auto" />
+              <p className="mt-4 text-gray-400">Loading…</p>
+            </div>
+          </div>
+        </AdminShell>
+      </ProtectedRoute>
     );
   }
 
@@ -193,77 +200,32 @@ export default function AdminPage() {
 
   return (
     <ProtectedRoute requireAdmin={true}>
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="inline-block">
-              <Image 
-                src="/gdg-london-logo.png" 
-                alt="GDG London" 
-                width={180}
-                height={60}
-                className="h-12 w-auto"
-              />
-            </Link>
-            <Badge variant="secondary" className="text-sm bg-red-100 text-red-700">
-              <Shield className="w-3 h-3 mr-1" />
-              Admin Panel
-            </Badge>
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-8 flex justify-between items-center">
-          <Link href="/">
-            <Button variant="ghost" className="text-gray-700 hover:text-gray-900">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Home
-            </Button>
-          </Link>
-          <div className="flex gap-2">
-            <Button 
-              onClick={() => router.push('/admin/users')}
-              variant="outline"
-              className="border-blue-600 text-blue-600 hover:bg-blue-50"
-            >
-              <Users className="w-4 h-4 mr-2" />
-              Manage User Roles
-            </Button>
-            <Button 
-              onClick={() => router.push('/admin/tags')}
-              variant="outline"
-              className="border-purple-600 text-purple-600 hover:bg-purple-50"
-            >
-              <Tag className="w-4 h-4 mr-2" />
-              Manage Tags
-            </Button>
-          </div>
-        </div>
-
-        <div className="space-y-6">
+    <AdminShell
+      title="Admin dashboard"
+      subtitle="Review project submissions, assign winner places, and manage the competition."
+    >
+        <div className="space-y-8">
             {/* Winners Section */}
-            <Card className="bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200">
+            <Card className="border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-[#1a1528]/80 to-[#1a1528]/90 shadow-lg shadow-amber-900/10">
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <Trophy className="w-6 h-6 text-yellow-600" />
-                  <CardTitle className="text-gray-900">Competition Winners</CardTitle>
+                  <Trophy className="w-6 h-6 text-amber-400" />
+                  <CardTitle className="text-white">Competition winners</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="grid md:grid-cols-3 gap-4">
                   {['first', 'second', 'third'].map((place) => (
-                    <div key={place} className="bg-white p-4 rounded-lg border border-gray-200">
-                      <h4 className="font-semibold text-gray-900 mb-2">
-                        {place === 'first' && '🥇 First Place'}
-                        {place === 'second' && '🥈 Second Place'}
-                        {place === 'third' && '🥉 Third Place'}
+                    <div key={place} className="rounded-xl border border-white/10 bg-[#0f0a18]/80 p-4">
+                      <h4 className="font-semibold text-white mb-2">
+                        {place === 'first' && '🥇 First place'}
+                        {place === 'second' && '🥈 Second place'}
+                        {place === 'third' && '🥉 Third place'}
                       </h4>
                       {winners[place as keyof typeof winners] ? (
-                        <p className="text-sm text-gray-600">{winners[place as keyof typeof winners]?.fullName}</p>
+                        <p className="text-sm text-gray-300">{winners[place as keyof typeof winners]?.fullName}</p>
                       ) : (
-                        <p className="text-sm text-gray-400 italic">Not selected yet</p>
+                        <p className="text-sm text-gray-500 italic">Not selected yet</p>
                       )}
                     </div>
                   ))}
@@ -272,42 +234,42 @@ export default function AdminPage() {
             </Card>
 
             {/* Stats */}
-            <div className="grid md:grid-cols-4 gap-4">
-              <Card>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="border-white/10 bg-[#1a1528]/70">
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <p className="text-3xl font-bold text-blue-600">{submissions.length}</p>
-                    <p className="text-sm text-gray-600">Total Submissions</p>
+                    <p className="text-3xl font-bold text-violet-300">{submissions.length}</p>
+                    <p className="text-sm text-gray-400">Total submissions</p>
                   </div>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="border-white/10 bg-[#1a1528]/70">
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <p className="text-3xl font-bold text-green-600">
+                    <p className="text-3xl font-bold text-emerald-400">
                       {submissions.filter(s => s.status === "submitted").length}
                     </p>
-                    <p className="text-sm text-gray-600">Submitted</p>
+                    <p className="text-sm text-gray-400">Submitted</p>
                   </div>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="border-white/10 bg-[#1a1528]/70">
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <p className="text-3xl font-bold text-yellow-600">
+                    <p className="text-3xl font-bold text-amber-300">
                       {submissions.filter(s => s.status === "draft").length}
                     </p>
-                    <p className="text-sm text-gray-600">Drafts</p>
+                    <p className="text-sm text-gray-400">Drafts</p>
                   </div>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="border-white/10 bg-[#1a1528]/70">
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <p className="text-3xl font-bold text-purple-600">
+                    <p className="text-3xl font-bold text-fuchsia-300">
                       {submissions.filter(s => s.place).length}
                     </p>
-                    <p className="text-sm text-gray-600">Winners Selected</p>
+                    <p className="text-sm text-gray-400">Winners selected</p>
                   </div>
                 </CardContent>
               </Card>
@@ -315,8 +277,23 @@ export default function AdminPage() {
 
             {/* Submissions */}
             <div className="space-y-4">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <Tag className="h-5 w-5 text-violet-400" />
+                  All submissions
+                </h2>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="border-white/20 text-white hover:bg-white/10"
+                  onClick={() => router.push("/admin/tags")}
+                >
+                  Manage tags
+                </Button>
+              </div>
               {submissions.map((submission) => (
-                <Card key={submission.id} className="bg-white hover:shadow-lg transition-shadow">
+                <Card key={submission.id} className="border-white/10 bg-[#1a1528]/80 hover:border-violet-500/30 transition-colors">
                   <CardContent className="p-6">
                     <div className="flex flex-col md:flex-row gap-6">
                       {/* Screenshots */}
@@ -324,7 +301,7 @@ export default function AdminPage() {
                         {submission.screenshots && submission.screenshots.length > 0 && (
                           <div className="space-y-2">
                             <div 
-                              className="relative h-48 rounded-lg overflow-hidden bg-gray-100 cursor-pointer hover:opacity-90 transition"
+                              className="relative h-48 rounded-lg overflow-hidden bg-black/40 cursor-pointer hover:opacity-90 transition ring-1 ring-white/10"
                               onClick={() => openScreenshotDialog(submission.screenshots!, 0)}
                             >
                               <Image
@@ -347,7 +324,7 @@ export default function AdminPage() {
                                 {submission.screenshots.slice(0, 4).map((screenshot, idx) => (
                                   <div
                                     key={idx}
-                                    className="relative h-16 rounded overflow-hidden cursor-pointer hover:opacity-75 transition bg-gray-100"
+                                    className="relative h-16 rounded overflow-hidden cursor-pointer hover:opacity-75 transition bg-black/40 ring-1 ring-white/10"
                                     onClick={() => openScreenshotDialog(submission.screenshots!, idx)}
                                   >
                                     <Image
@@ -367,34 +344,34 @@ export default function AdminPage() {
 
                       {/* Content */}
                       <div className="md:w-2/3 space-y-4">
-                        <div className="flex justify-between items-start">
+                        <div className="flex justify-between items-start gap-4">
                           <div>
-                            <h3 className="text-xl font-bold text-gray-900">{submission.fullName}</h3>
-                            <p className="text-sm text-gray-500">
-                              {submission.status === "submitted" ? "Submitted" : "Draft"} • 
+                            <h3 className="text-xl font-bold text-white">{submission.fullName}</h3>
+                            <p className="text-sm text-gray-400">
+                              {submission.status === "submitted" ? "Submitted" : "Draft"} •{" "}
                               {submission.createdAt?.toLocaleDateString()}
                             </p>
                           </div>
                           {submission.place && (
                             <Badge className={
-                              submission.place === 'first' ? 'bg-yellow-500' :
-                              submission.place === 'second' ? 'bg-gray-400' :
-                              'bg-orange-600'
+                              submission.place === 'first' ? 'bg-amber-500 text-black' :
+                              submission.place === 'second' ? 'bg-slate-300 text-black' :
+                              'bg-orange-600 text-white'
                             }>
                               {submission.place === 'first' && '🥇 Winner'}
-                              {submission.place === 'second' && '🥈 2nd Place'}
-                              {submission.place === 'third' && '🥉 3rd Place'}
+                              {submission.place === 'second' && '🥈 2nd place'}
+                              {submission.place === 'third' && '🥉 3rd place'}
                             </Badge>
                           )}
                         </div>
 
-                        <p className="text-gray-700">{submission.appPurpose}</p>
+                        <p className="text-gray-300">{submission.appPurpose}</p>
 
                         {/* Interests */}
                         {submission.interests && submission.interests.length > 0 && (
                           <div className="flex flex-wrap gap-2">
                             {submission.interests.map((interest, idx) => (
-                              <Badge key={idx} variant="secondary" className="bg-blue-100 text-blue-700">
+                              <Badge key={idx} variant="secondary" className="bg-violet-500/20 text-violet-200 border border-violet-500/30">
                                 {interest}
                               </Badge>
                             ))}
@@ -405,21 +382,21 @@ export default function AdminPage() {
                         <div className="flex gap-3 flex-wrap">
                           {submission.githubUrl && (
                             <a href={submission.githubUrl} target="_blank" rel="noopener noreferrer"
-                               className="flex items-center gap-1 text-sm text-gray-600 hover:text-blue-600">
+                               className="flex items-center gap-1 text-sm text-gray-400 hover:text-emerald-400">
                               <Github className="w-4 h-4" />
                               GitHub
                             </a>
                           )}
                           {submission.linkedinUrl && (
                             <a href={submission.linkedinUrl} target="_blank" rel="noopener noreferrer"
-                               className="flex items-center gap-1 text-sm text-gray-600 hover:text-blue-600">
+                               className="flex items-center gap-1 text-sm text-gray-400 hover:text-emerald-400">
                               <Linkedin className="w-4 h-4" />
                               LinkedIn
                             </a>
                           )}
                           {submission.twitterUrl && (
                             <a href={submission.twitterUrl} target="_blank" rel="noopener noreferrer"
-                               className="flex items-center gap-1 text-sm text-gray-600 hover:text-blue-600">
+                               className="flex items-center gap-1 text-sm text-gray-400 hover:text-emerald-400">
                               <Twitter className="w-4 h-4" />
                               Twitter
                             </a>
@@ -427,21 +404,21 @@ export default function AdminPage() {
                         </div>
 
                         {/* Admin Actions */}
-                        <div className="flex gap-4 pt-4 border-t border-gray-200">
+                        <div className="flex gap-4 pt-4 border-t border-white/10">
                           <div className="flex-1">
-                            <label className="text-sm text-gray-600 mb-1 block">Select Winner</label>
+                            <label className="text-sm text-gray-400 mb-1 block">Select winner</label>
                             <Select
                               value={submission.place || "none"}
                               onValueChange={(value) => handlePlaceChange(submission.id!, value)}
                             >
-                              <SelectTrigger className="w-full">
+                              <SelectTrigger className="w-full border-white/15 bg-black/20 text-white">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="none">No Place</SelectItem>
-                                <SelectItem value="first">🥇 First Place</SelectItem>
-                                <SelectItem value="second">🥈 Second Place</SelectItem>
-                                <SelectItem value="third">🥉 Third Place</SelectItem>
+                                <SelectItem value="none">No place</SelectItem>
+                                <SelectItem value="first">🥇 First place</SelectItem>
+                                <SelectItem value="second">🥈 Second place</SelectItem>
+                                <SelectItem value="third">🥉 Third place</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -466,11 +443,10 @@ export default function AdminPage() {
               ))}
             </div>
         </div>
-      </main>
 
       {/* Screenshot Dialog */}
       <Dialog open={showScreenshotDialog} onOpenChange={setShowScreenshotDialog}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-4xl border-white/10 bg-[#13131c] text-white">
           <DialogHeader>
             <DialogTitle>
               Screenshot {currentScreenshotIndex + 1} of {selectedScreenshots.length}
@@ -522,7 +498,7 @@ export default function AdminPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </AdminShell>
     </ProtectedRoute>
   );
 }

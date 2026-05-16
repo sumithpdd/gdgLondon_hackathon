@@ -28,7 +28,7 @@ export default function NotFound() {
           <div className="pt-4 border-t border-slate-700">
             <p className="text-sm text-slate-400 text-center">Quick Links:</p>
             <div className="flex gap-2 justify-center mt-2">
-              <Link href="/submit" className="text-sm text-blue-400 hover:underline">
+              <Link href="/hackathon/my-projects?project=1" className="text-sm text-blue-400 hover:underline">
                 Submit
               </Link>
               <span className="text-slate-600">•</span>

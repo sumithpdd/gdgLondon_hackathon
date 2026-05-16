@@ -1,14 +1,14 @@
 import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 
+const PROJECTS_COLLECTION = process.env.PROJECTS_COLLECTION || "hackatonProjects";
+const USERS_COLLECTION = process.env.USERS_COLLECTION || "hackatonUsers";
+const JOIN_REQUESTS_COLLECTION = process.env.JOIN_REQUESTS_COLLECTION || "hackatonJoinRequests";
+const CONFIG_COLLECTION = process.env.CONFIG_COLLECTION || "hackatonConfig";
+const CONFIG_DOC = process.env.CONFIG_DOC || "settings";
+
 admin.initializeApp();
 const db = admin.firestore();
-
-const PROJECTS_COLLECTION = "hackatonProjects";
-const USERS_COLLECTION = "hackatonUsers";
-const JOIN_REQUESTS_COLLECTION = "hackatonJoinRequests";
-const CONFIG_COLLECTION = "hackatonConfig";
-const CONFIG_DOC = "settings";
 
 // ── helpers ──────────────────────────────────────────────
 
