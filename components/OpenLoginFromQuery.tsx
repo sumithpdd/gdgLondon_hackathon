@@ -19,8 +19,8 @@ export function OpenLoginFromQuery({
     if (searchParams.get("login") !== "1") return;
     handled.current = true;
     const redirect = searchParams.get("redirect")?.trim() || undefined;
-    if (redirect && typeof sessionStorage !== "undefined") {
-      sessionStorage.setItem(REDIRECT_KEY, redirect);
+    if (redirect) {
+      savePostLoginRedirect(redirect);
     }
     onOpen({ forgot: searchParams.get("reset") === "1", redirect });
     if (typeof window !== "undefined") {

@@ -9,6 +9,7 @@ import { handleGoogleRedirectResultOnce } from "@/lib/googleRedirectResult";
 import { useToast } from "@/hooks/use-toast";
 
 export function useAuth() {
+  const { toast } = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
