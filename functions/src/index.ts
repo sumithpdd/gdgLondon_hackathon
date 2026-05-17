@@ -1,4 +1,5 @@
 import * as admin from "firebase-admin";
+import { createHash, randomInt } from "crypto";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 
 const PROJECTS_COLLECTION = process.env.PROJECTS_COLLECTION || "hackatonProjects";
@@ -9,8 +10,11 @@ const CONFIG_DOC = process.env.CONFIG_DOC || "settings";
 const VOTES_COLLECTION = process.env.VOTES_COLLECTION || "io2026Hackathon_votes";
 const ATTENDANCE_COLLECTION = process.env.ATTENDANCE_COLLECTION || "io2026Hackathon_attendance";
 const ACTIVE_HACKATHON_ID = process.env.ACTIVE_HACKATHON_ID || "io2026Hackathon";
+const ACTIVE_HACKATHON_NAME = process.env.ACTIVE_HACKATHON_NAME || "GDG London Hackathon";
 const LIVE_STATS_COLLECTION = process.env.LIVE_STATS_COLLECTION || "io2026Hackathon_liveStats";
 const LIVE_STATS_DOC = "summary";
+const CHECKIN_PUBLIC_DOC = "checkInPublic";
+const CHECKIN_SECRETS_DOC = "checkInSecrets";
 
 const VOTE_BUDGET_ORGANISER = 10;
 const VOTE_BUDGET_PARTICIPANT = 5;
@@ -21,10 +25,81 @@ const db = admin.firestore();
 
 // ── helpers ──────────────────────────────────────────────
 
+async function getActorRole(uid: string): Promise<string | undefined> {
+  const collections = [...new Set([USERS_COLLECTION, "io2026Hackathon_users", "hackatonUsers"])];
+  for (const col of collections) {
+    const snap = await db.collection(col).doc(uid).get();
+    if (snap.exists) return snap.data()?.role as string | undefined;
+  }
+  return undefined;
+}
+
 async function assertAdmin(uid: string): Promise<void> {
-  const snap = await db.collection(USERS_COLLECTION).doc(uid).get();
-  if (!snap.exists || snap.data()?.role !== "admin") {
-    throw new HttpsError("permission-denied", "Admin access required.");
+  const role = await getActorRole(uid);
+  if (role === "admin") return;
+  throw new HttpsError("permission-denied", "Admin access required.");
+}
+
+async function assertOrganiser(uid: string): Promise<void> {
+  const role = await getActorRole(uid);
+  if (role === "admin" || role === "moderator") return;
+  throw new HttpsError("permission-denied", "Organiser access required.");
+}
+
+function hashCheckInCode(code: string): string {
+  return createHash("sha256").update(code).digest("hex");
+}
+
+function normalizeCheckInCode(raw: string): string {
+  return String(raw || "").replace(/\s/g, "").trim();
+}
+
+function randomSixDigitCode(): string {
+  return String(randomInt(100000, 1000000));
+}
+
+async function fetchCheckInPublic(): Promise<Record<string, unknown>> {
+  const snap = await db.collection(CONFIG_COLLECTION).doc(CHECKIN_PUBLIC_DOC).get();
+  return snap.exists ? snap.data() || {} : {};
+}
+
+function assertSelfCheckInWindow(publicCfg: Record<string, unknown>): void {
+  if (publicCfg.selfCheckInEnabled !== true) {
+    throw new HttpsError("failed-precondition", "Self check-in is not enabled.");
+  }
+  const now = Date.now();
+  const opens = (publicCfg.windowOpensAt as admin.firestore.Timestamp | undefined)?.toMillis?.();
+  const closes = (publicCfg.windowClosesAt as admin.firestore.Timestamp | undefined)?.toMillis?.();
+  if (opens != null && now < opens) {
+    throw new HttpsError("failed-precondition", "Check-in is not open yet.");
+  }
+  if (closes != null && now > closes) {
+    throw new HttpsError("failed-precondition", "Check-in has closed.");
+  }
+}
+
+async function writeAttendance(params: {
+  targetUid: string;
+  actorUid: string;
+  method: "self" | "staff";
+  cohort?: string | null;
+}): Promise<void> {
+  const now = admin.firestore.FieldValue.serverTimestamp();
+  const payload: Record<string, unknown> = {
+    userId: params.targetUid,
+    checkedInAt: now,
+    checkedInByUid: params.actorUid,
+    method: params.method,
+    attendanceVerified: true,
+  };
+  if (params.method === "staff" && params.cohort) {
+    payload.cohort = params.cohort;
+  }
+  await db.collection(ATTENDANCE_COLLECTION).doc(params.targetUid).set(payload, { merge: true });
+  try {
+    await rebuildLiveStats();
+  } catch {
+    /* non-fatal */
   }
 }
 
@@ -107,6 +182,7 @@ async function getUserProject(
   const ownerSnap = await db
     .collection(PROJECTS_COLLECTION)
     .where("userId", "==", userId)
+    .where("hackathonId", "==", ACTIVE_HACKATHON_ID)
     .limit(1)
     .get();
   if (!ownerSnap.empty) {
@@ -117,10 +193,15 @@ async function getUserProject(
     .collection(JOIN_REQUESTS_COLLECTION)
     .where("userId", "==", userId)
     .where("status", "==", "approved")
-    .limit(1)
     .get();
-  if (!memberSnap.empty) {
-    return { projectId: memberSnap.docs[0].data().projectId, role: "member" };
+  for (const memberDoc of memberSnap.docs) {
+    const projectId = memberDoc.data().projectId as string;
+    if (!projectId) continue;
+    const projectSnap = await db.collection(PROJECTS_COLLECTION).doc(projectId).get();
+    const h = projectSnap.data()?.hackathonId as string | undefined;
+    if (projectSnap.exists && (!h || h === ACTIVE_HACKATHON_ID)) {
+      return { projectId, role: "member" };
+    }
   }
 
   return null;
@@ -233,6 +314,7 @@ export const createProject = onCall(async (request) => {
     userId: uid,
     userEmail: request.auth?.token.email || "",
     hackathonId: ACTIVE_HACKATHON_ID,
+    hackathonName: ACTIVE_HACKATHON_NAME,
     createdAt: now,
     createdBy: uid,
     createdDate: now,
@@ -246,6 +328,399 @@ export const createProject = onCall(async (request) => {
   });
 
   return { projectId: ref.id };
+});
+
+// ── 3b. ensureUserProfile ─────────────────────────────────
+// Upserts io2026Hackathon_users/{uid} on every sign-in (copies hackatonUsers if needed).
+
+const IO_USERS_COLLECTION = "io2026Hackathon_users";
+const LEGACY_USERS_COLLECTION = "hackatonUsers";
+
+const PROFILE_COPY_KEYS = [
+  "hackathonBio",
+  "hackathonLinkedinUrl",
+  "skills",
+  "interests",
+  "expertise",
+  "techStack",
+  "twitterUrl",
+  "facebookUrl",
+  "instagramUrl",
+  "teamPreference",
+  "inPersonAttendance",
+  "profileCompletionPercent",
+  "profileDisplayName",
+  "city",
+  "country",
+  "experienceLevel",
+  "programmingSkills",
+  "domainExpertise",
+  "wantToLearnTags",
+  "canOfferTags",
+  "githubUrl",
+  "websiteUrl",
+  "buddiesVisibleInDirectory",
+] as const;
+
+export const ensureUserProfile = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+  const email = (request.auth?.token.email as string) || "";
+  const displayName = (request.auth?.token.name as string) || email.split("@")[0] || "User";
+  const hackathonId = ACTIVE_HACKATHON_ID;
+
+  const ioRef = db.collection(IO_USERS_COLLECTION).doc(uid);
+  const ioSnap = await ioRef.get();
+  const now = admin.firestore.FieldValue.serverTimestamp();
+
+  let seed: Record<string, unknown> = ioSnap.exists ? ioSnap.data() || {} : {};
+  if (!ioSnap.exists) {
+    const legacySnap = await db.collection(LEGACY_USERS_COLLECTION).doc(uid).get();
+    if (legacySnap.exists) {
+      seed = { ...legacySnap.data(), ...seed };
+    }
+  }
+
+  const participations: Record<string, unknown> = {
+    ...(typeof seed.hackathonParticipations === "object" && seed.hackathonParticipations
+      ? (seed.hackathonParticipations as Record<string, unknown>)
+      : {}),
+  };
+  if (!participations[hackathonId]) {
+    participations[hackathonId] = { joinedAt: now };
+  }
+
+  const payload: Record<string, unknown> = {
+    uid,
+    email: email || seed.email || null,
+    displayName: displayName || seed.displayName || "User",
+    role: seed.role || "user",
+    hackathonParticipations: participations,
+    profileStatus: "active",
+    updatedAt: now,
+    updatedBy: uid,
+    updatedDate: now,
+  };
+
+  for (const key of PROFILE_COPY_KEYS) {
+    if (seed[key] !== undefined) payload[key] = seed[key];
+  }
+
+  if (!ioSnap.exists) {
+    payload.createdAt = seed.createdAt || now;
+    payload.createdBy = seed.createdBy || uid;
+    payload.createdDate = seed.createdDate || now;
+    const legacySnap = await db.collection(LEGACY_USERS_COLLECTION).doc(uid).get();
+    if (legacySnap.exists) {
+      payload.migratedFromLegacyAt = now;
+      payload.migratedFrom = LEGACY_USERS_COLLECTION;
+    }
+  }
+
+  await ioRef.set(payload, { merge: true });
+  return { ok: true, collection: IO_USERS_COLLECTION };
+});
+
+// ── 3c. adminProvisionHackathonUser ───────────────────────
+// Admin: add Firebase Auth user (by email) to io2026Hackathon_users for the active hackathon.
+
+async function resolveUidForEmail(normalizedEmail: string): Promise<{
+  uid: string;
+  source: string;
+  seed?: Record<string, unknown>;
+}> {
+  try {
+    const authUser = await admin.auth().getUserByEmail(normalizedEmail);
+    const uid = authUser.uid;
+    const legacySnap = await db.collection(LEGACY_USERS_COLLECTION).doc(uid).get();
+    const authSeed: Record<string, unknown> = {
+      email: authUser.email || normalizedEmail,
+      displayName: authUser.displayName || undefined,
+    };
+    return {
+      uid,
+      source: "firebase-auth",
+      seed: legacySnap.exists
+        ? { ...legacySnap.data(), ...authSeed }
+        : authSeed,
+    };
+  } catch (e: unknown) {
+    const code =
+      e && typeof e === "object" && "code" in e ? String((e as { code: string }).code) : "";
+    if (code !== "auth/user-not-found") throw e;
+  }
+
+  for (const col of [IO_USERS_COLLECTION, LEGACY_USERS_COLLECTION] as const) {
+    const snap = await db.collection(col).where("email", "==", normalizedEmail).limit(1).get();
+    if (!snap.empty) {
+      const doc = snap.docs[0];
+      return { uid: doc.id, source: `firestore:${col}`, seed: doc.data() };
+    }
+  }
+
+  throw new HttpsError(
+    "not-found",
+    "No account with this email. Ask them to register or sign in once, then try again."
+  );
+}
+
+export const adminLookupUserByEmail = onCall(async (request) => {
+  const adminUid = request.auth?.uid;
+  if (!adminUid) throw new HttpsError("unauthenticated", "Sign in required.");
+  await assertAdmin(adminUid);
+
+  const { email } = request.data as { email?: string };
+  const normalizedEmail = (email || "").trim().toLowerCase();
+  if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    throw new HttpsError("invalid-argument", "A valid email is required.");
+  }
+
+  let userId: string | undefined;
+  let displayName: string | null | undefined;
+  let foundInAuth = false;
+
+  try {
+    const authUser = await admin.auth().getUserByEmail(normalizedEmail);
+    foundInAuth = true;
+    userId = authUser.uid;
+    displayName = authUser.displayName ?? null;
+  } catch (e: unknown) {
+    const code =
+      e && typeof e === "object" && "code" in e ? String((e as { code: string }).code) : "";
+    if (code !== "auth/user-not-found") throw e;
+  }
+
+  if (!userId) {
+    for (const col of [IO_USERS_COLLECTION, LEGACY_USERS_COLLECTION] as const) {
+      const snap = await db.collection(col).where("email", "==", normalizedEmail).limit(1).get();
+      if (!snap.empty) {
+        userId = snap.docs[0].id;
+        const data = snap.docs[0].data();
+        displayName = (data.displayName as string) ?? null;
+        break;
+      }
+    }
+  }
+
+  let inActiveUsers = false;
+  let inLegacyUsers = false;
+  if (userId) {
+    const [activeSnap, legacySnap] = await Promise.all([
+      db.collection(IO_USERS_COLLECTION).doc(userId).get(),
+      db.collection(LEGACY_USERS_COLLECTION).doc(userId).get(),
+    ]);
+    inActiveUsers = activeSnap.exists;
+    inLegacyUsers = legacySnap.exists;
+    if (!displayName) {
+      displayName =
+        (activeSnap.data()?.displayName as string) ||
+        (legacySnap.data()?.displayName as string) ||
+        null;
+    }
+  }
+
+  return {
+    email: normalizedEmail,
+    foundInAuth,
+    userId,
+    inActiveUsers,
+    inLegacyUsers,
+    displayName: displayName ?? null,
+    canProvision: foundInAuth,
+  };
+});
+
+export const adminProvisionHackathonUser = onCall(async (request) => {
+  const adminUid = request.auth?.uid;
+  if (!adminUid) throw new HttpsError("unauthenticated", "Sign in required.");
+  await assertAdmin(adminUid);
+
+  const { email, displayName, role } = request.data as {
+    email?: string;
+    displayName?: string;
+    role?: string;
+  };
+
+  const normalizedEmail = (email || "").trim().toLowerCase();
+  if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    throw new HttpsError("invalid-argument", "A valid email is required.");
+  }
+
+  const resolvedRole =
+    role && ["admin", "moderator", "user"].includes(role) ? role : "user";
+
+  const { uid, source, seed = {} } = await resolveUidForEmail(normalizedEmail);
+  const hackathonId = ACTIVE_HACKATHON_ID;
+  const ioRef = db.collection(IO_USERS_COLLECTION).doc(uid);
+  const ioSnap = await ioRef.get();
+  const now = admin.firestore.FieldValue.serverTimestamp();
+  const created = !ioSnap.exists;
+
+  const participations: Record<string, unknown> = {
+    ...(typeof seed.hackathonParticipations === "object" && seed.hackathonParticipations
+      ? (seed.hackathonParticipations as Record<string, unknown>)
+      : {}),
+  };
+  if (!participations[hackathonId]) {
+    participations[hackathonId] = { joinedAt: now };
+  }
+
+  const payload: Record<string, unknown> = {
+    uid,
+    email: normalizedEmail,
+    displayName:
+      (displayName || "").trim() ||
+      (seed.displayName as string) ||
+      normalizedEmail.split("@")[0] ||
+      "User",
+    role: created ? resolvedRole : (ioSnap.data()?.role as string) || resolvedRole,
+    hackathonParticipations: participations,
+    adminProvisioned: true,
+    profileStatus: "provisioned",
+    provisionedBy: adminUid,
+    provisionedAt: now,
+    updatedAt: now,
+    updatedBy: adminUid,
+    updatedDate: now,
+  };
+
+  for (const key of PROFILE_COPY_KEYS) {
+    if (seed[key] !== undefined) payload[key] = seed[key];
+  }
+
+  if (created) {
+    payload.createdAt = seed.createdAt || now;
+    payload.createdBy = adminUid;
+    payload.createdDate = now;
+    if (source === "firestore:hackatonUsers") {
+      payload.migratedFromLegacyAt = now;
+      payload.migratedFrom = LEGACY_USERS_COLLECTION;
+    }
+  }
+
+  await ioRef.set(payload, { merge: true });
+
+  return {
+    success: true,
+    userId: uid,
+    created,
+    email: normalizedEmail,
+  };
+});
+
+// ── 3d. Check-in code & attendance (organiser desk) ───────
+
+export const updateCheckInConfig = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+  await assertOrganiser(uid);
+
+  const { selfCheckInEnabled, windowOpensAt, windowClosesAt } = request.data as {
+    selfCheckInEnabled?: boolean;
+    windowOpensAt?: string | null;
+    windowClosesAt?: string | null;
+  };
+
+  const now = admin.firestore.FieldValue.serverTimestamp();
+  const payload: Record<string, unknown> = {
+    selfCheckInEnabled: selfCheckInEnabled === true,
+    updatedAt: now,
+    updatedBy: uid,
+  };
+
+  if (windowOpensAt === null) {
+    payload.windowOpensAt = admin.firestore.FieldValue.delete();
+  } else if (windowOpensAt) {
+    payload.windowOpensAt = admin.firestore.Timestamp.fromDate(new Date(windowOpensAt));
+  }
+  if (windowClosesAt === null) {
+    payload.windowClosesAt = admin.firestore.FieldValue.delete();
+  } else if (windowClosesAt) {
+    payload.windowClosesAt = admin.firestore.Timestamp.fromDate(new Date(windowClosesAt));
+  }
+
+  await db.collection(CONFIG_COLLECTION).doc(CHECKIN_PUBLIC_DOC).set(payload, { merge: true });
+  return { success: true };
+});
+
+export const generateCheckInCode = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+  await assertOrganiser(uid);
+
+  const code = randomSixDigitCode();
+  const now = admin.firestore.FieldValue.serverTimestamp();
+  await db
+    .collection(CONFIG_COLLECTION)
+    .doc(CHECKIN_SECRETS_DOC)
+    .set(
+      {
+        codeHash: hashCheckInCode(code),
+        generatedAt: now,
+        generatedBy: uid,
+      },
+      { merge: true }
+    );
+
+  return { code };
+});
+
+export const selfCheckInWithCode = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+  const { code } = request.data as { code?: string };
+  const normalized = normalizeCheckInCode(code || "");
+  if (!/^\d{6}$/.test(normalized)) {
+    throw new HttpsError("invalid-argument", "Enter the 6-digit check-in code.");
+  }
+
+  const publicCfg = await fetchCheckInPublic();
+  assertSelfCheckInWindow(publicCfg);
+
+  const secretsSnap = await db.collection(CONFIG_COLLECTION).doc(CHECKIN_SECRETS_DOC).get();
+  const storedHash = secretsSnap.data()?.codeHash as string | undefined;
+  if (!storedHash || storedHash !== hashCheckInCode(normalized)) {
+    throw new HttpsError("permission-denied", "Incorrect check-in code.");
+  }
+
+  await writeAttendance({ targetUid: uid, actorUid: uid, method: "self" });
+  return { success: true };
+});
+
+export const staffCheckInUser = onCall(async (request) => {
+  const actorUid = request.auth?.uid;
+  if (!actorUid) throw new HttpsError("unauthenticated", "Sign in required.");
+  await assertOrganiser(actorUid);
+
+  const { targetUserId, email, cohort } = request.data as {
+    targetUserId?: string;
+    email?: string;
+    cohort?: string | null;
+  };
+
+  let uid = (targetUserId || "").trim();
+  if (!uid && email) {
+    const resolved = await resolveUidForEmail(email.trim().toLowerCase());
+    uid = resolved.uid;
+  }
+  if (!uid) {
+    throw new HttpsError("invalid-argument", "targetUserId or email is required.");
+  }
+
+  if (cohort != null && cohort !== "" && cohort !== "aidevcamp_flat") {
+    throw new HttpsError("invalid-argument", "Invalid cohort.");
+  }
+  const cohortValue = cohort === "aidevcamp_flat" ? "aidevcamp_flat" : null;
+
+  await writeAttendance({
+    targetUid: uid,
+    actorUid,
+    method: "staff",
+    cohort: cohortValue,
+  });
+  return { success: true, userId: uid };
 });
 
 // ── 4. createJoinRequest ─────────────────────────────────
@@ -366,6 +841,203 @@ export const handleJoinRequest = onCall(async (request) => {
   return { success: true };
 });
 
+// ── 5b. setUserRole ──────────────────────────────────────
+
+export const setUserRole = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+  await assertAdmin(uid);
+
+  const { targetUserId, role } = request.data as { targetUserId?: string; role?: string };
+  if (!targetUserId) throw new HttpsError("invalid-argument", "targetUserId is required.");
+  if (!role || !["admin", "moderator", "user"].includes(role)) {
+    throw new HttpsError("invalid-argument", "role must be admin, moderator, or user.");
+  }
+
+  const collections = [...new Set([USERS_COLLECTION, "io2026Hackathon_users", "hackatonUsers"])];
+  const now = admin.firestore.FieldValue.serverTimestamp();
+  let updated = false;
+
+  for (const col of collections) {
+    const ref = db.collection(col).doc(targetUserId);
+    const snap = await ref.get();
+    if (snap.exists) {
+      await ref.update({
+        role,
+        updatedAt: now,
+        updatedBy: uid,
+        updatedDate: now,
+      });
+      updated = true;
+    }
+  }
+
+  if (!updated) {
+    throw new HttpsError("not-found", "User profile not found.");
+  }
+
+  return { success: true };
+});
+
+// ── 5c. adminUpdateUser ──────────────────────────────────
+
+const ADMIN_USER_PATCH_KEYS = [
+  "displayName",
+  "profileDisplayName",
+  "email",
+  "hackathonBio",
+  "city",
+  "country",
+  "experienceLevel",
+  "programmingSkills",
+  "domainExpertise",
+  "interests",
+  "expertise",
+  "techStack",
+  "wantToLearnTags",
+  "canOfferTags",
+  "skills",
+  "hackathonLinkedinUrl",
+  "githubUrl",
+  "websiteUrl",
+  "twitterUrl",
+  "facebookUrl",
+  "instagramUrl",
+  "teamPreference",
+  "inPersonAttendance",
+  "buddiesVisibleInDirectory",
+  "profileCompletionPercent",
+] as const;
+
+export const adminUpdateUser = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+  await assertAdmin(uid);
+
+  const { targetUserId, patch } = request.data as {
+    targetUserId?: string;
+    patch?: Record<string, unknown>;
+  };
+  if (!targetUserId) throw new HttpsError("invalid-argument", "targetUserId is required.");
+  if (!patch || typeof patch !== "object") {
+    throw new HttpsError("invalid-argument", "patch object is required.");
+  }
+
+  const data: Record<string, unknown> = {};
+  for (const key of ADMIN_USER_PATCH_KEYS) {
+    if (key in patch) data[key] = patch[key];
+  }
+
+  const now = admin.firestore.FieldValue.serverTimestamp();
+  data.updatedAt = now;
+  data.updatedBy = uid;
+  data.updatedDate = now;
+
+  const collections = [...new Set([USERS_COLLECTION, "io2026Hackathon_users", "hackatonUsers"])];
+  let updated = false;
+
+  for (const col of collections) {
+    const ref = db.collection(col).doc(targetUserId);
+    const snap = await ref.get();
+    if (snap.exists) {
+      await ref.update(data);
+      updated = true;
+    }
+  }
+
+  if (!updated) {
+    throw new HttpsError("not-found", "User profile not found.");
+  }
+
+  return { success: true };
+});
+
+// ── 5d. adminSetUserDeleted ──────────────────────────────
+
+export const adminSetUserDeleted = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+  await assertAdmin(uid);
+
+  const { targetUserId, restore } = request.data as {
+    targetUserId?: string;
+    restore?: boolean;
+  };
+  if (!targetUserId) throw new HttpsError("invalid-argument", "targetUserId is required.");
+  if (targetUserId === uid && !restore) {
+    throw new HttpsError("failed-precondition", "You cannot delete your own account.");
+  }
+
+  const now = admin.firestore.FieldValue.serverTimestamp();
+  const payload = restore
+    ? {
+        deletedAt: admin.firestore.FieldValue.delete(),
+        deletedBy: admin.firestore.FieldValue.delete(),
+        updatedAt: now,
+        updatedBy: uid,
+        updatedDate: now,
+      }
+    : {
+        deletedAt: now,
+        deletedBy: uid,
+        buddiesVisibleInDirectory: false,
+        updatedAt: now,
+        updatedBy: uid,
+        updatedDate: now,
+      };
+
+  const collections = [...new Set([USERS_COLLECTION, "io2026Hackathon_users", "hackatonUsers"])];
+  let updated = false;
+  for (const col of collections) {
+    const ref = db.collection(col).doc(targetUserId);
+    const snap = await ref.get();
+    if (snap.exists) {
+      await ref.update(payload);
+      updated = true;
+    }
+  }
+
+  if (!updated) throw new HttpsError("not-found", "User profile not found.");
+  return { success: true };
+});
+
+// ── 5b. deleteArchivedProject ────────────────────────────
+
+const IWD_ARCHIVE_PROJECTS = "iwd2026Hackathon_projects";
+const IWD_ARCHIVE_WINNERS = "iwd2026Hackathon_winners";
+
+export const deleteArchivedProject = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+  await assertAdmin(uid);
+
+  const { projectId } = request.data as { projectId?: string };
+  if (!projectId) throw new HttpsError("invalid-argument", "projectId is required.");
+
+  const projectRef = db.collection(IWD_ARCHIVE_PROJECTS).doc(projectId);
+  const projectSnap = await projectRef.get();
+  if (!projectSnap.exists) {
+    throw new HttpsError("not-found", "Archived project not found.");
+  }
+
+  const commentsSnap = await projectRef.collection("comments").get();
+  const winnerSnap = await db
+    .collection(IWD_ARCHIVE_WINNERS)
+    .where("projectId", "==", projectId)
+    .get();
+
+  const batch = db.batch();
+  commentsSnap.docs.forEach((d) => batch.delete(d.ref));
+  winnerSnap.docs.forEach((d) => batch.delete(d.ref));
+  batch.delete(projectRef);
+  await batch.commit();
+
+  return { success: true };
+});
+
 // ── 6. deleteProject ─────────────────────────────────────
 
 export const deleteProject = onCall(async (request) => {
@@ -383,13 +1055,16 @@ export const deleteProject = onCall(async (request) => {
     throw new HttpsError("not-found", "Project not found.");
   }
 
-  // Delete all join requests for this project
   const joinRequests = await db
     .collection(JOIN_REQUESTS_COLLECTION)
     .where("projectId", "==", projectId)
     .get();
+
+  const commentsSnap = await projectRef.collection("comments").get();
+
   const batch = db.batch();
   joinRequests.docs.forEach((d) => batch.delete(d.ref));
+  commentsSnap.docs.forEach((d) => batch.delete(d.ref));
   batch.delete(projectRef);
   await batch.commit();
 

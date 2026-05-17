@@ -45,8 +45,13 @@ We follow a **component-based** front end with **domain-driven** naming: modules
 |--------|------|
 | `lib/hackathon-collections.ts` | `io2026` vs legacy vs `iwd2026` archive collection names |
 | `lib/hackathons-registry.ts` | CRUD for global `hackathons` registry |
-| `lib/active-hackathon.ts` | `getActiveHackathonId()` from env |
+| `lib/active-hackathon.ts` | `getActiveHackathonId()`, event description from `hackathons` registry |
 | `lib/participation.ts` | `hackathonParticipations` on user sign-in |
+| `lib/admin-users.ts` | Admin user list/filter, provision-by-email, edit/soft-delete via Cloud Functions |
+| `components/admin/AdminUserBadges.tsx` | Reusable role + status badges for admin user UI |
+| `components/admin/AdminProvisionUserDialog.tsx` | Add Auth user to active hackathon (callable) |
+| `lib/hackathon-projects.ts` | Filter projects by active `hackathonId` (ideas gallery) |
+| `lib/profile-completion.ts` | Team join score (80% threshold) |
 | `lib/prizes.ts` | Read/seed prize array on `settings/main` |
 | `components/HackathonAuthShell.tsx` | Sign-in modal + `?login=1` query handling |
 | `components/HackathonResultsSummary.tsx` | Winners + stats (admin + `/past-projects`) |
@@ -58,11 +63,25 @@ We follow a **component-based** front end with **domain-driven** naming: modules
 ---
 
 
+## Component-based admin pattern
+
+Admin screens should stay thin:
+
+1. **Page** (`app/admin/users/page.tsx`) — layout, filters state, pagination.
+2. **`lib/admin-users.ts`** — `listUsersForAdmin`, `filterAdminUsers`, `sortAdminUsers`, callable wrappers.
+3. **`components/admin/*`** — dialogs and presentational badges; no Firestore imports in new admin components.
+
+Do not show raw Firestore collection names in user-facing copy; use edition labels (`getActiveHackathonId()`) or generic “hackathon profile”.
+
+---
+
 ## Security (summary)
 
 - Never commit **`.env.local`**, service accounts, or API secrets.
 - **Do not** trust client-only checks for admin or moderation; mirror constraints in rules or Functions.
-- See **[SECURITY.md](./SECURITY.md)** for documentation hygiene and **[FIRESTORE_RULES.md](./FIRESTORE_RULES.md)** for rules.
+- **Do not** leak collection paths or keys in UI, logs, or public docs — see **[SECURITY.md](./SECURITY.md)**.
+- Internal schema detail: **[DATA_MODEL.md](./DATA_MODEL.md)** (contributors only).
+- Rules reference: **[FIRESTORE_RULES.md](./FIRESTORE_RULES.md)** and repo `firestore.rules`.
 
 ---
 
@@ -74,7 +93,26 @@ We follow a **component-based** front end with **domain-driven** naming: modules
 
 ---
 
+## Cloud Functions (privileged)
+
+| Callable | Purpose |
+|----------|---------|
+| `createProject` | New submission; sets `hackathonId` / `hackathonName` |
+| `castVotes` | Audience voting with caps + check-in |
+| `setWinnerPlace` / `assignWinnersFromVotes` | Winner assignment |
+| `deleteProject` | Admin delete project + join requests |
+| `setUserRole` | Admin role on all user collections |
+| `adminUpdateUser` | Admin profile field updates |
+| `adminSetUserDeleted` | Soft delete / restore user |
+| `adminProvisionHackathonUser` | Admin: add Auth user to active hackathon users + audit fields |
+| `ensureUserProfile` | Sign-in: ensure `io2026Hackathon_users` doc; activate provisioned profiles |
+
+Deploy: `firebase deploy --only functions`
+
+---
+
 ## Related docs
 
+- [JUNIOR_ONBOARDING.md](./JUNIOR_ONBOARDING.md) — **start here for new developers**
 - [IO2026_HACKATHON_SPEC.md](./IO2026_HACKATHON_SPEC.md) — collections, routes, timelines.
 - [USER_FLOW.md](./USER_FLOW.md) — participant journey including profile + submission.

@@ -19,6 +19,7 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import {
+  AI_CATEGORIES,
   BUILT_WITH_OPTIONS,
   PROJECTS_COLLECTION,
   FIREBASE_STORAGE_FOLDER,
@@ -26,7 +27,14 @@ import {
   HACKATHON_IDEA_SUBMISSION_OPENS,
   HACKATHON_DISPLAY_NAME,
 } from "@/lib/constants";
-import { getActiveHackathonId } from "@/lib/active-hackathon";
+import { ChipPickList } from "@/components/ChipPickList";
+import {
+  AI_CATEGORY_LABELS,
+  RECRUITMENT_TAG_OPTIONS,
+  PROJECT_STAGE_LABELS,
+} from "@/lib/idea-gallery";
+import type { AICategory, ProjectStage } from "@/types/submission";
+import { getActiveHackathonId, getActiveHackathonName } from "@/lib/active-hackathon";
 import { isAfterDeadline, isBeforeIdeaSubmissionOpens } from "@/lib/deadline";
 import { getProfileCompletion } from "@/lib/profile-completion";
 
@@ -55,6 +63,10 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
   const [pastDeadline, setPastDeadline] = useState(false);
   const [beforeOpens, setBeforeOpens] = useState(false);
   const [lookingForMembers, setLookingForMembers] = useState(false);
+  const [pitchLine, setPitchLine] = useState("");
+  const [aiCategory, setAiCategory] = useState<AICategory | "">("");
+  const [projectStage, setProjectStage] = useState<ProjectStage>("building");
+  const [recruitmentTags, setRecruitmentTags] = useState<string[]>([]);
   const [existingStatus, setExistingStatus] = useState<"draft" | "submitted" | null>(null);
 
   const [formData, setFormData] = useState<FormShape>({
@@ -127,6 +139,12 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
           }
           if (data.lookingForMembers !== undefined) {
             setLookingForMembers(!!data.lookingForMembers);
+          }
+          if (typeof data.pitchLine === "string") setPitchLine(data.pitchLine);
+          if (data.aiCategory) setAiCategory(data.aiCategory as AICategory);
+          if (data.projectStage) setProjectStage(data.projectStage as ProjectStage);
+          if (Array.isArray(data.recruitmentTags)) {
+            setRecruitmentTags(data.recruitmentTags as string[]);
           }
           if (data.builtWith && Array.isArray(data.builtWith) && data.builtWith.length > 0) {
             setBuiltWith(data.builtWith as string[]);
@@ -212,7 +230,18 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
     instagramUrl: (userProfile?.instagramUrl || "").trim(),
     interests: userProfile?.interests ?? userProfile?.wantToLearnTags ?? [],
     expertise: userProfile?.expertise ?? userProfile?.domainExpertise ?? [],
-    techStack: userProfile?.techStack ?? [],
+    techStack:
+      userProfile?.techStack?.length
+        ? userProfile.techStack
+        : userProfile?.programmingSkills ?? userProfile?.skills ?? [],
+    ownerPhotoUrl: user?.photoURL || undefined,
+  });
+
+  const buildGalleryPayload = () => ({
+    pitchLine: pitchLine.trim() || undefined,
+    aiCategory: aiCategory || undefined,
+    projectStage,
+    recruitmentTags: recruitmentTags.length > 0 ? recruitmentTags : undefined,
   });
 
   const saveDraft = async () => {
@@ -266,6 +295,7 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
       const baseData = {
         ...formData,
         ...buildContactPayload(),
+        ...buildGalleryPayload(),
         teamMembers: formData.projectType === "team" ? teamMembers : [],
         builtWith,
         lookingForMembers,
@@ -273,6 +303,7 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
         userId: user.uid,
         userEmail: user.email,
         hackathonId: getActiveHackathonId(),
+        hackathonName: getActiveHackathonName(),
         updatedAt: now,
         status: newStatus,
         updatedBy: user.uid,
@@ -397,6 +428,7 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
       const submissionData = {
         ...formData,
         ...buildContactPayload(),
+        ...buildGalleryPayload(),
         teamMembers: formData.projectType === "team" ? teamMembers : [],
         builtWith,
         lookingForMembers,
@@ -404,6 +436,7 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
         userId: user.uid,
         userEmail: user.email,
         hackathonId: getActiveHackathonId(),
+        hackathonName: getActiveHackathonName(),
         updatedAt: now,
         status: "submitted",
         place: null,
@@ -685,6 +718,79 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
                 </div>
               </label>
             </div>
+
+            {lookingForMembers && (
+              <div className="space-y-4 rounded-xl border border-pink-500/25 bg-pink-500/[0.06] p-4">
+                <p className="text-sm font-medium text-pink-100">Idea gallery appearance</p>
+                <p className="text-xs text-gray-500 -mt-2">
+                  Shown on <span className="text-gray-400">/hackathon/ideas</span> when recruiting teammates.
+                </p>
+
+                <div className="space-y-2">
+                  <Label htmlFor="pitchLine" className="text-gray-200">
+                    One-line pitch
+                  </Label>
+                  <Input
+                    id="pitchLine"
+                    maxLength={120}
+                    placeholder="e.g. AI agent for tax filing with SCITT & AAT"
+                    value={pitchLine}
+                    onChange={(e) => setPitchLine(e.target.value)}
+                    className={fieldClass}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-gray-200">Category</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {AI_CATEGORIES.map((cat) => (
+                      <Badge
+                        key={cat}
+                        variant={aiCategory === cat ? "default" : "outline"}
+                        className={
+                          aiCategory === cat
+                            ? "cursor-pointer bg-pink-600 hover:bg-pink-500 border-0"
+                            : "cursor-pointer border-white/20 text-gray-300 bg-transparent hover:bg-white/10"
+                        }
+                        onClick={() => setAiCategory(aiCategory === cat ? "" : cat)}
+                      >
+                        {AI_CATEGORY_LABELS[cat]}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-gray-200">Project stage</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {(Object.keys(PROJECT_STAGE_LABELS) as ProjectStage[]).map((stage) => (
+                      <Badge
+                        key={stage}
+                        variant={projectStage === stage ? "default" : "outline"}
+                        className={
+                          projectStage === stage
+                            ? "cursor-pointer bg-white/15 text-white border-white/30"
+                            : "cursor-pointer border-white/20 text-gray-400 bg-transparent hover:bg-white/10"
+                        }
+                        onClick={() => setProjectStage(stage)}
+                      >
+                        {PROJECT_STAGE_LABELS[stage]}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                <ChipPickList
+                  label="Open asks"
+                  sublabel="What you need from collaborators"
+                  options={[...RECRUITMENT_TAG_OPTIONS]}
+                  selected={recruitmentTags}
+                  onChange={setRecruitmentTags}
+                  accentSelected="bg-pink-600/90 text-white border-pink-500/50"
+                  accentRing="ring-pink-500/50"
+                />
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="demoVideoUrl" className="text-gray-200">

@@ -15,6 +15,39 @@ export const PROGRAMMING_SKILL_OPTIONS = [
   "Linux",
 ] as const;
 
+/** Suggestions for combined programming skills + technology stack (profile). */
+export const SKILLS_AND_STACK_OPTIONS = [
+  ...PROGRAMMING_SKILL_OPTIONS,
+  "Next.js",
+  ".NET",
+  "C#",
+  "Java",
+  "Kotlin",
+  "Flutter",
+  "TensorFlow",
+  "PyTorch",
+  "MongoDB",
+  "PostgreSQL",
+  "Kubernetes",
+  "Firebase",
+  "Go",
+  "Rust",
+] as const;
+
+export function mergeSkillTags(programming?: string[], techStack?: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const tag of [...(programming ?? []), ...(techStack ?? [])]) {
+    const t = tag.trim();
+    if (!t) continue;
+    const key = t.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(t);
+  }
+  return out;
+}
+
 export const DOMAIN_EXPERTISE_OPTIONS = [
   "Machine Learning",
   "Deep Learning",

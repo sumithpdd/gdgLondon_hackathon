@@ -12,6 +12,8 @@ import { getUserProject } from "@/lib/join-requests";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { PROJECTS_COLLECTION, HACKATHON_EVENT_TAGLINE, HACKATHON_EVENT_SHORT } from "@/lib/constants";
+import { getActiveHackathonEvent } from "@/lib/active-hackathon";
+import { belongsToActiveHackathon } from "@/lib/hackathon-projects";
 import { Submission } from "@/types/submission";
 import { getHackathonConfig } from "@/lib/hackathon-config";
 import confetti from "canvas-confetti";
@@ -66,6 +68,7 @@ export default function HackathonOverviewPage() {
   const [userProjectRole, setUserProjectRole] = useState<"owner" | "member" | null>(null);
   const [winnersAnnounced, setWinnersAnnounced] = useState(false);
   const [confettiFired, setConfettiFired] = useState(false);
+  const [activeEventName, setActiveEventName] = useState<string | null>(null);
   const { user, isAuthenticated } = useAuthContext();
   const { openSignIn } = useHackathonAuth();
   const router = useRouter();
@@ -89,9 +92,19 @@ export default function HackathonOverviewPage() {
       if (existing) {
         setUserProjectRole(existing.role);
         const projectDoc = await getDoc(doc(db, PROJECTS_COLLECTION, existing.projectId));
-        if (projectDoc.exists()) {
-          setUserProject({ id: projectDoc.id, ...projectDoc.data() } as Submission);
+        if (projectDoc.exists() && belongsToActiveHackathon(projectDoc.data())) {
+          setUserProject({
+            id: projectDoc.id,
+            ...projectDoc.data(),
+            createdAt: projectDoc.data().createdAt?.toDate?.(),
+          } as Submission);
+        } else {
+          setUserProject(null);
+          setUserProjectRole(null);
         }
+      } else {
+        setUserProject(null);
+        setUserProjectRole(null);
       }
     };
     fetchUserProject();
@@ -99,6 +112,7 @@ export default function HackathonOverviewPage() {
 
   useEffect(() => {
     getHackathonConfig().then((config) => setWinnersAnnounced(config.winnersAnnounced));
+    getActiveHackathonEvent().then((event) => setActiveEventName(event.displayName));
   }, []);
 
   // Fire confetti when a winner visits
@@ -217,6 +231,12 @@ export default function HackathonOverviewPage() {
                 <h3 className="font-bold text-foreground text-lg">{userProject.projectTitle || userProject.teamName}</h3>
                 <p className="text-sm text-muted-foreground mt-1">
                   {userProjectRole === "owner" ? "Project Owner" : "Team Member"} · {userProject.teamName}
+                  {(userProject.hackathonName || activeEventName) && (
+                    <span className="text-violet-400/90">
+                      {" "}
+                      · {userProject.hackathonName || activeEventName}
+                    </span>
+                  )}
                 </p>
               </div>
               <span className={`px-3 py-1 text-xs font-bold rounded-full ${
@@ -356,7 +376,7 @@ export default function HackathonOverviewPage() {
         <p className="text-foreground font-bold text-lg mb-1">Got questions? Join the conversation.</p>
         <p className="text-muted-foreground text-sm mb-4">Hackathon Q&amp;A and community support.</p>
         <a
-          href="https://discord.com/invite/QujDVuNJ"
+          href="https://discord.gg/EsE9VBTA"
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#5865F2] hover:bg-[#4752C4] text-white font-semibold transition-colors shadow-lg shadow-[#5865F2]/25"

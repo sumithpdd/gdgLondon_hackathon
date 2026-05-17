@@ -57,7 +57,7 @@ Click **Publish** → Wait 10 seconds → Try again
 **Fix**:
 1. Clear browser cookies
 2. Try incognito mode
-3. Check Clerk dashboard is working
+3. Check Firebase Authentication is enabled (Email/Password + Google)
 
 ---
 

@@ -6,16 +6,17 @@ GDG London Hackathon platform — IWD archive + IO 2026 live dataset. **Buddies*
 
 ## 🚀 Quick Navigation
 
-### For New Users
+### For New Users & junior developers
 
 Start here if you're new to the project:
 
-1. **[IO2026_HACKATHON_SPEC.md](./IO2026_HACKATHON_SPEC.md)** — IO 2026 dataset, **multi-hackathon registry**, migration, prizes, routes, voting/attendance roadmap
-2. **[DATA_MODEL.md](./DATA_MODEL.md)** — Collections, participation map, settings/prizes, archive
-3. **[USER_FLOW.md](./USER_FLOW.md)** — Overview → sign in / register → profile, ideas, past projects
-3. **[START_HERE.md](./START_HERE.md)** - Complete beginner's guide
-4. **[FEATURES_SIMPLE.md](./FEATURES_SIMPLE.md)** - What the app does
-5. **Admin setup** - See [DEPLOYMENT.md](./DEPLOYMENT.md) Step 4 (Firestore active `users` collection → set `role: "admin"`)
+1. **[JUNIOR_ONBOARDING.md](./JUNIOR_ONBOARDING.md)** — **Start here:** flows, schema cheat sheet, repo map, `motionDiv` typo explained, safe first tasks
+2. **[IO2026_HACKATHON_SPEC.md](./IO2026_HACKATHON_SPEC.md)** — IO 2026 dataset, **multi-hackathon registry**, migration, prizes, routes, voting/attendance roadmap
+3. **[DATA_MODEL.md](./DATA_MODEL.md)** — Collections, participation map, settings/prizes, archive
+4. **[USER_FLOW.md](./USER_FLOW.md)** — Overview → sign in / register → profile, ideas, past projects
+5. **[START_HERE.md](./START_HERE.md)** - Older beginner guide (partially outdated — prefer JUNIOR_ONBOARDING for auth/stack)
+6. **[FEATURES_SIMPLE.md](./FEATURES_SIMPLE.md)** - What the app does
+7. **Admin setup** - See [DEPLOYMENT.md](./DEPLOYMENT.md) Step 4 (Firestore active `users` collection → set `role: "admin"`)
 
 ### For Deployment
 
@@ -64,7 +65,8 @@ Having issues? Check here:
 
 | Document | Purpose | Audience |
 |----------|---------|----------|
-| **START_HERE.md** | Introduction for beginners | New users |
+| **JUNIOR_ONBOARDING.md** | Onboarding for junior devs (flows, schema, pitfalls) | New developers |
+| **START_HERE.md** | Older introduction (check JUNIOR_ONBOARDING first) | New users |
 | **GETTING_STARTED.md** | Technical setup guide | Developers |
 | **FIREBASE_SETUP.md** | Firebase configuration | Developers |
 | **ENVIRONMENT_VARIABLES.md** | Environment variables | Developers |

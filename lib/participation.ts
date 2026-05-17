@@ -3,6 +3,18 @@ import { db } from "@/lib/firebase";
 import { USERS_COLLECTION } from "@/lib/constants";
 import { getActiveHackathonId } from "@/lib/active-hackathon";
 
+export type ParticipationProfile = {
+  hackathonParticipations?: Record<string, { joinedAt?: Date }>;
+};
+
+/** True when the user is registered for the active hackathon edition (io2026Hackathon by default). */
+export function hasHackathonParticipation(
+  profile: ParticipationProfile | null | undefined,
+  hackathonId: string = getActiveHackathonId()
+): boolean {
+  return Boolean(profile?.hackathonParticipations?.[hackathonId]?.joinedAt);
+}
+
 /**
  * Marks the user as participating in the active hackathon (metadata only).
  * Merges into `hackathonParticipations` map: { [hackathonId]: { joinedAt } }.

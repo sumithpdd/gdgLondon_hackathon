@@ -17,15 +17,19 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { getProfileCompletion, getExtendedProfileSteps } from "@/lib/profile-completion";
-import { getAttendanceForUser } from "@/lib/attendance";
+import {
+  getProfileCompletion,
+  getExtendedProfileSteps,
+  JOIN_PROFILE_MIN_PERCENT,
+} from "@/lib/profile-completion";
 import { countrySelectOptions, resolveCountryForSelect } from "@/lib/countries";
 import { ChipPickList } from "@/components/ChipPickList";
 import { TagSelector } from "@/components/TagSelector";
 import { CopyableField, CopyableValueBar } from "@/components/CopyableField";
 import {
-  PROGRAMMING_SKILL_OPTIONS,
+  SKILLS_AND_STACK_OPTIONS,
   CAN_OFFER_OPTIONS,
+  mergeSkillTags,
 } from "@/lib/profile-buddy-options";
 import { cn } from "@/lib/utils";
 import {
@@ -39,7 +43,6 @@ import {
   Sparkles,
   Link2,
   Users,
-  ClipboardCheck,
 } from "lucide-react";
 
 const fieldClass =
@@ -115,10 +118,9 @@ export default function HackathonProfilePage() {
   const [city, setCity] = useState("");
   const [country, setCountry] = useState("");
   const [experienceLevel, setExperienceLevel] = useState<"beginner" | "intermediate" | "advanced" | "">("");
-  const [programmingSkills, setProgrammingSkills] = useState<string[]>([]);
+  const [skillsAndStack, setSkillsAndStack] = useState<string[]>([]);
   const [interestTags, setInterestTags] = useState<string[]>([]);
   const [expertiseTags, setExpertiseTags] = useState<string[]>([]);
-  const [techStackTags, setTechStackTags] = useState<string[]>([]);
   const [canOfferTags, setCanOfferTags] = useState<string[]>([]);
   const [linkedin, setLinkedin] = useState("");
   const [githubUrl, setGithubUrl] = useState("");
@@ -127,11 +129,7 @@ export default function HackathonProfilePage() {
   const [facebookUrl, setFacebookUrl] = useState("");
   const [instagramUrl, setInstagramUrl] = useState("");
   const [teamPreference, setTeamPreference] = useState("");
-  const [attendance, setAttendance] = useState<string>("");
-  const [eventCheckedIn, setEventCheckedIn] = useState<boolean | null>(null);
   const [buddiesVisible, setBuddiesVisible] = useState(false);
-
-  const isAdmin = userProfile?.role === "admin";
 
   useEffect(() => {
     if (!userProfile) return;
@@ -140,10 +138,11 @@ export default function HackathonProfilePage() {
     setCity(userProfile.city ?? "");
     setCountry(resolveCountryForSelect(userProfile.country));
     setExperienceLevel(userProfile.experienceLevel ?? "");
-    setProgrammingSkills(userProfile.programmingSkills ?? userProfile.skills ?? []);
+    setSkillsAndStack(
+      mergeSkillTags(userProfile.programmingSkills ?? userProfile.skills, userProfile.techStack)
+    );
     setInterestTags(userProfile.interests ?? userProfile.wantToLearnTags ?? []);
     setExpertiseTags(userProfile.expertise ?? userProfile.domainExpertise ?? []);
-    setTechStackTags(userProfile.techStack ?? []);
     setCanOfferTags(userProfile.canOfferTags ?? []);
     setLinkedin(userProfile.hackathonLinkedinUrl ?? "");
     setGithubUrl(userProfile.githubUrl ?? "");
@@ -152,28 +151,10 @@ export default function HackathonProfilePage() {
     setFacebookUrl(userProfile.facebookUrl ?? "");
     setInstagramUrl(userProfile.instagramUrl ?? "");
     setTeamPreference(userProfile.teamPreference ?? "");
-    if (userProfile.inPersonAttendance === true) setAttendance("yes");
-    else if (userProfile.inPersonAttendance === false) setAttendance("no");
-    else if (userProfile.inPersonAttendance === null) setAttendance("unsure");
-    else setAttendance("");
     setBuddiesVisible(!!userProfile.buddiesVisibleInDirectory);
   }, [userProfile]);
 
-  useEffect(() => {
-    if (!user) {
-      setEventCheckedIn(null);
-      return;
-    }
-    let cancelled = false;
-    void getAttendanceForUser(user.uid).then((a) => {
-      if (!cancelled) setEventCheckedIn(!!a?.attendanceVerified);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
-
-  const completion = getProfileCompletion(userProfile, { eventCheckedIn: eventCheckedIn ?? false });
+  const completion = getProfileCompletion(userProfile);
   const ext = getExtendedProfileSteps({
     ...userProfile,
     profileDisplayName,
@@ -181,10 +162,10 @@ export default function HackathonProfilePage() {
     city,
     country,
     experienceLevel: experienceLevel || undefined,
-    programmingSkills,
+    programmingSkills: skillsAndStack,
     interests: interestTags,
     expertise: expertiseTags,
-    techStack: techStackTags,
+    techStack: skillsAndStack,
     wantToLearnTags: interestTags,
     domainExpertise: expertiseTags,
     canOfferTags,
@@ -205,44 +186,25 @@ export default function HackathonProfilePage() {
 
   const locationLine = [city, country].filter(Boolean).join(", ");
   const teamPrefLabel = teamPreference ? TEAM_PREF_LABELS[teamPreference] ?? teamPreference : "";
-  const attendanceDisplay = isAdmin
-    ? attendance === "yes"
-      ? "Yes — in person"
-      : attendance === "no"
-        ? "No — remote only"
-        : attendance === "unsure"
-          ? "Not sure yet"
-          : ""
-    : eventCheckedIn
-      ? "Checked in at the event"
-      : "Not checked in yet";
 
   const handleSave = async () => {
     if (!user) return;
     setSaving(true);
     try {
-      let inPersonAttendance: boolean | null | undefined;
-      if (isAdmin) {
-        if (attendance === "yes") inPersonAttendance = true;
-        else if (attendance === "no") inPersonAttendance = false;
-        else if (attendance === "unsure") inPersonAttendance = null;
-        else inPersonAttendance = undefined;
-      }
-
       const draft = {
         profileDisplayName: profileDisplayName.trim() || user.displayName || user.email?.split("@")[0],
         hackathonBio: bio.trim(),
         city: city.trim(),
         country: country.trim(),
         experienceLevel: experienceLevel || undefined,
-        programmingSkills,
+        programmingSkills: skillsAndStack,
         domainExpertise: expertiseTags,
         interests: interestTags,
         expertise: expertiseTags,
-        techStack: techStackTags,
+        techStack: skillsAndStack,
         wantToLearnTags: interestTags,
         canOfferTags,
-        skills: programmingSkills,
+        skills: skillsAndStack,
         hackathonLinkedinUrl: linkedin.trim(),
         githubUrl: githubUrl.trim(),
         websiteUrl: websiteUrl.trim(),
@@ -251,22 +213,18 @@ export default function HackathonProfilePage() {
         instagramUrl: instagramUrl.trim(),
         teamPreference: teamPreference.trim(),
         buddiesVisibleInDirectory: buddiesVisible,
-        ...(isAdmin && attendance !== "" ? { inPersonAttendance } : {}),
       };
 
-      const { percent } = getProfileCompletion(
-        {
-          ...userProfile,
-          ...draft,
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          role: userProfile?.role ?? "user",
-          createdAt: userProfile?.createdAt ?? new Date(),
-          updatedAt: userProfile?.updatedAt ?? new Date(),
-        },
-        { eventCheckedIn: eventCheckedIn ?? false }
-      );
+      const { percent } = getProfileCompletion({
+        ...userProfile,
+        ...draft,
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        role: userProfile?.role ?? "user",
+        createdAt: userProfile?.createdAt ?? new Date(),
+        updatedAt: userProfile?.updatedAt ?? new Date(),
+      });
 
       const now = new Date();
       await updateDoc(doc(db, USERS_COLLECTION, user.uid), {
@@ -362,7 +320,9 @@ export default function HackathonProfilePage() {
                       <Check className="h-3 w-3" /> Ready to join teams
                     </p>
                   ) : (
-                    <p className="text-[10px] text-gray-500 mt-1">Complete gaps below</p>
+                    <p className="text-[10px] text-gray-500 mt-1">
+                      {JOIN_PROFILE_MIN_PERCENT}% needed to join teams
+                    </p>
                   )}
                 </div>
               </div>
@@ -425,7 +385,9 @@ export default function HackathonProfilePage() {
 
         {!completion.complete && (
           <div className="rounded-xl border border-amber-500/35 bg-gradient-to-r from-amber-950/40 to-amber-900/10 px-4 py-3 text-sm text-amber-100">
-            <p className="font-medium mb-1">For idea gallery join requests:</p>
+            <p className="font-medium mb-1">
+              For idea gallery join requests (reach {JOIN_PROFILE_MIN_PERCENT}% team join score):
+            </p>
             <ul className="list-disc list-inside space-y-0.5 text-amber-100/90">
               {completion.missing.map((m) => (
                 <li key={m}>{m}</li>
@@ -496,10 +458,11 @@ export default function HackathonProfilePage() {
             accent="violet"
           >
             <ChipPickList
-              label="My programming skills"
-              options={[...PROGRAMMING_SKILL_OPTIONS]}
-              selected={programmingSkills}
-              onChange={setProgrammingSkills}
+              label="Programming skills & technology stack"
+              sublabel="Languages, frameworks, and tools you use"
+              options={[...SKILLS_AND_STACK_OPTIONS]}
+              selected={skillsAndStack}
+              onChange={setSkillsAndStack}
               accentSelected="bg-violet-600/30 border-violet-400 text-violet-100"
               accentRing="ring-violet-400/50"
             />
@@ -518,16 +481,6 @@ export default function HackathonProfilePage() {
               selectedTags={expertiseTags}
               onChange={setExpertiseTags}
               label="Your expertise"
-              theme="hackathon"
-              required={false}
-              allowCreate
-              createScope="profile"
-            />
-            <TagSelector
-              category="techStack"
-              selectedTags={techStackTags}
-              onChange={setTechStackTags}
-              label="Technology stack"
               theme="hackathon"
               required={false}
               allowCreate
@@ -559,7 +512,7 @@ export default function HackathonProfilePage() {
             </div>
           </ProfileSection>
 
-          <ProfileSection title="Preferences" description="Teams and event day" icon={Users} accent="amber">
+          <ProfileSection title="Preferences" description="How you want to team up" icon={Users} accent="amber">
             <CopyableValueBar label="Team preference (idea gallery)" value={teamPrefLabel}>
               <Select value={teamPreference || undefined} onValueChange={setTeamPreference}>
                 <SelectTrigger className={fieldClass}>
@@ -572,42 +525,13 @@ export default function HackathonProfilePage() {
                 </SelectContent>
               </Select>
             </CopyableValueBar>
-
-            <CopyableValueBar label="In-person attendance (London)" value={attendanceDisplay}>
-              {isAdmin ? (
-                <Select value={attendance || undefined} onValueChange={setAttendance}>
-                  <SelectTrigger className={fieldClass}>
-                    <SelectValue placeholder="Select (admin planning)" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#1a1625] border-white/10 text-gray-100">
-                    <SelectItem value="yes">Yes</SelectItem>
-                    <SelectItem value="no">No (remote only)</SelectItem>
-                    <SelectItem value="unsure">Not sure yet</SelectItem>
-                  </SelectContent>
-                </Select>
-              ) : (
-                <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm">
-                  {eventCheckedIn === null ? (
-                    <p className="text-gray-500 flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Loading check-in status…
-                    </p>
-                  ) : eventCheckedIn ? (
-                    <p className="text-emerald-300 font-medium flex items-center gap-2">
-                      <ClipboardCheck className="h-4 w-4" />
-                      Checked in at the event
-                    </p>
-                  ) : (
-                    <p className="text-gray-300">
-                      Not checked in yet — on event day enter the room code at{" "}
-                      <Link href="/checkin" className="text-violet-300 underline hover:text-violet-200 font-medium">
-                        Check-in
-                      </Link>
-                    </p>
-                  )}
-                </div>
-              )}
-            </CopyableValueBar>
+            <p className="text-xs text-gray-500">
+              Event day check-in is on the{" "}
+              <Link href="/checkin" className="text-violet-300 underline hover:text-violet-200">
+                Check-in
+              </Link>{" "}
+              page (room code) — not part of your profile score.
+            </p>
           </ProfileSection>
         </div>
 

@@ -10,6 +10,7 @@ import {
   DEFAULT_RESOURCES_INTRO,
 } from "@/lib/hackathon-content-defaults";
 import { HackathonRulesFromSettings } from "@/components/HackathonRulesFromSettings";
+import { RegisteredParticipantResources } from "@/components/hackathon/RegisteredParticipantResources";
 
 export function HackathonResourcesFromSettings() {
   const [intro, setIntro] = useState(DEFAULT_RESOURCES_INTRO);
@@ -51,6 +52,8 @@ export function HackathonResourcesFromSettings() {
               </a>
             ))}
           </div>
+
+          <RegisteredParticipantResources />
 
           <div className="mt-10 pt-8 border-t border-border text-center">
             <p className="text-foreground font-bold text-lg mb-1">Need help? Have questions?</p>

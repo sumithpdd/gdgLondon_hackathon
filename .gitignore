@@ -35,5 +35,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-scripts/seed-io2026-admin-and-settings.mjs
-scripts/migrate-to-iwd-archive.mjs
+
+# Firebase Admin SDK keys (never commit)
+*serviceAccount*.json
+*firebase-adminsdk*.json
+firebase-debug.log

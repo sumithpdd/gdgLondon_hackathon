@@ -46,6 +46,11 @@ export const PARTICIPANT_NAV: AppNavItem[] = [
   { href: "/past-projects", label: "Past", icon: Archive, matchPrefix: true },
 ];
 
+/** Check-in desk — admin and moderator. */
+export const ORGANISER_NAV: AppNavItem[] = [
+  { href: "/admin/checkin", label: "Check-in desk", icon: Ticket },
+];
+
 /** Extra items for admins only (appended after participant links). */
 export const ADMIN_NAV: AppNavItem[] = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -72,8 +77,13 @@ export function isNavItemActive(pathname: string, item: AppNavItem): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function navItemsForUser(isAuthenticated: boolean, isAdmin: boolean): AppNavItem[] {
+export function navItemsForUser(
+  isAuthenticated: boolean,
+  isAdmin: boolean,
+  isOrganiser = false
+): AppNavItem[] {
   if (!isAuthenticated) return PUBLIC_NAV;
-  if (isAdmin) return [...PARTICIPANT_NAV, ...ADMIN_NAV];
+  if (isAdmin) return [...PARTICIPANT_NAV, ...ORGANISER_NAV, ...ADMIN_NAV];
+  if (isOrganiser) return [...PARTICIPANT_NAV, ...ORGANISER_NAV];
   return PARTICIPANT_NAV;
 }

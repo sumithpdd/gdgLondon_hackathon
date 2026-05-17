@@ -56,8 +56,13 @@ export function useAuth() {
             }
           }
         } catch (error) {
-          console.error('Error in auth state change:', error);
+          console.error("Error in auth state change:", error);
           setUserProfile(null);
+          if (typeof window !== "undefined") {
+            console.error(
+              "Profile sync failed. Deploy Cloud Function ensureUserProfile and check Firestore rules."
+            );
+          }
         }
       } else {
         setUserProfile(null);

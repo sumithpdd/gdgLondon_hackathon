@@ -5,6 +5,7 @@
 
 export type ProjectType = "solo" | "team";
 export type AICategory = "agents" | "ai-apps" | "devtools" | "ai-for-good" | "other";
+export type ProjectStage = "building" | "mvp" | "live";
 export type LabelType = "winner" | "finalist" | "featured" | null;
 
 export interface TeamMember {
@@ -38,10 +39,20 @@ export interface Submission {
   projectStartDate?: Date; // Did they begin after hackathon start?
   pitchFinalist?: boolean; // Event day: teams presenting on stage
   lookingForMembers?: boolean; // Show in Idea Gallery for team recruitment
+  /** One-line pitch for idea gallery cards */
+  pitchLine?: string;
+  /** What the team is looking for (idea gallery OPEN ASKS) */
+  recruitmentTags?: string[];
+  /** Gallery badge: building / mvp / live */
+  projectStage?: ProjectStage;
+  /** Owner avatar URL (denormalized on save) */
+  ownerPhotoUrl?: string;
   // Labels (applied after judging)
   label?: LabelType;
   place?: "first" | "second" | "third" | null;
   hackathonId?: string;
+  /** Display name of the hackathon edition (e.g. GDG London Hackathon). */
+  hackathonName?: string;
   voteTotal?: number;
   // Engagement (denormalized for performance)
   likes?: number;

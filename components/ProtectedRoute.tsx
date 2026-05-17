@@ -3,16 +3,22 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthContext } from "@/lib/AuthContext";
-import { isUserDeleted } from "@/lib/auth";
+import { isOrganiserRole, isUserDeleted } from "@/lib/auth";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requireAdmin?: boolean;
+  /** Admin or moderator (check-in desk, etc.). */
+  requireOrganiser?: boolean;
 }
 
-export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
+export function ProtectedRoute({
+  children,
+  requireAdmin = false,
+  requireOrganiser = false,
+}: ProtectedRouteProps) {
   const { user, userProfile, loading } = useAuthContext();
   const router = useRouter();
   useEffect(() => {
@@ -43,6 +49,10 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
   }
 
   if (requireAdmin && userProfile?.role !== "admin") {
+    return null;
+  }
+
+  if (requireOrganiser && !isOrganiserRole(userProfile?.role)) {
     return null;
   }
 

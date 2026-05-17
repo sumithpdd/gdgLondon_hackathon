@@ -11,3 +11,5 @@ alwaysApply: true
 - **Configuration:** `lib/constants.ts`, `lib/hackathon-collections.ts` — collection names and env switches; do not hardcode collection strings in new code.
 - **Data access target:** **No new** direct `firebase/firestore` or `firebase/storage` imports in `components/**`. Prefer `lib/<domain>.ts`, Route Handlers, or **HTTPS Callable** Cloud Functions for privileged writes. **Legacy:** existing pages/components still use the client SDK behind security rules — migrate when touching that area, not drive-by refactors.
 - **DDD hint:** name modules after **verbs/use-cases** or **bounded contexts** (e.g. `join-requests`, `bookmarks`), not after frameworks.
+- **Reusable admin UI:** `components/admin/*` for dialogs and badges; list/query logic in `lib/admin-users.ts` (or sibling domain modules).
+- **UI copy:** do not display raw Firestore collection names or secrets to end users.

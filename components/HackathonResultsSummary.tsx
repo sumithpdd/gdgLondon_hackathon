@@ -51,10 +51,10 @@ export function HackathonResultsSummary({
   projects: ResultsSummaryProject[];
   title?: string;
 }) {
-  const winners = {
-    first: projects.find((p) => p.place === "first"),
-    second: projects.find((p) => p.place === "second"),
-    third: projects.find((p) => p.place === "third"),
+  const byPlace = {
+    first: projects.filter((p) => p.place === "first"),
+    second: projects.filter((p) => p.place === "second"),
+    third: projects.filter((p) => p.place === "third"),
   };
   const stats = computeStats(projects);
 
@@ -70,18 +70,36 @@ export function HackathonResultsSummary({
         <CardContent>
           <div className="grid md:grid-cols-3 gap-4">
             {(["first", "second", "third"] as const).map((place) => {
-              const row = winners[place];
-              const name = winnerDisplayName(row);
+              const rows = byPlace[place];
+              const count = rows.length;
               return (
                 <div
                   key={place}
                   className="rounded-xl border border-white/10 bg-[#0f0a18]/80 p-4"
                 >
-                  <h4 className="font-semibold text-white mb-2">{PLACE_LABELS[place]}</h4>
-                  {name ? (
-                    <p className="text-sm text-gray-300">{name}</p>
-                  ) : (
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <h4 className="font-semibold text-white">{PLACE_LABELS[place]}</h4>
+                    <span className="text-xs font-mono text-amber-300/90 tabular-nums">
+                      {count} {count === 1 ? "project" : "projects"}
+                    </span>
+                  </div>
+                  {count === 0 ? (
                     <p className="text-sm text-gray-500 italic">Not recorded</p>
+                  ) : (
+                    <ul className="space-y-1">
+                      {rows.map((row, i) => {
+                        const name = winnerDisplayName(row);
+                        const title = row.projectTitle?.trim();
+                        return (
+                          <li key={i} className="text-sm text-gray-300">
+                            {name || title || "Untitled"}
+                            {title && name && title !== name ? (
+                              <span className="block text-xs text-gray-500 truncate">{title}</span>
+                            ) : null}
+                          </li>
+                        );
+                      })}
+                    </ul>
                   )}
                 </div>
               );
@@ -94,7 +112,11 @@ export function HackathonResultsSummary({
         <StatCard value={stats.total} label="Total submissions" valueClass="text-violet-300" />
         <StatCard value={stats.submitted} label="Submitted" valueClass="text-emerald-400" />
         <StatCard value={stats.drafts} label="Drafts" valueClass="text-amber-300" />
-        <StatCard value={stats.winnersSelected} label="Winners selected" valueClass="text-fuchsia-300" />
+        <StatCard
+          value={byPlace.first.length + byPlace.second.length + byPlace.third.length}
+          label="Podium (1st+2nd+3rd)"
+          valueClass="text-fuchsia-300"
+        />
       </div>
     </div>
   );

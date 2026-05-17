@@ -33,7 +33,9 @@ description: Guides refactors and new features toward DDD-style modules, thin Re
 | `prizes.ts` / `hackathon-settings.ts` | Settings doc: prizes, voting windows, judging criteria |
 | `voting.ts` | Vote UI helpers; **writes via `castVotes` callable only** |
 | `attendance.ts` | Check-in docs (`attendanceVerified`) |
-| `auth.ts` | Profile, roles (`admin` \| `moderator` \| `user`) |
+| `auth.ts` | Profile types, `getUserProfile`, sign-in hooks |
+| `admin-users.ts` | `listUsersForAdmin`, filter/sort, provision-by-email, admin callables |
+| `user-profile-sync.ts` | Sign-in → active users collection + legacy migration |
 | `join-requests.ts`, `buddies.ts`, … | Other use-cases |
 
 ## Voting (authoritative server rules)
@@ -70,6 +72,8 @@ Implemented in Cloud Functions — **never trust client caps**.
 - **Votes:** client read own ballots + admin audit; writes **only** via `castVotes` (Admin SDK in Functions).
 - **Projects:** clients cannot set `place` or `voteTotal` (Firestore rules).
 - **Roles:** clients cannot elevate `role`; admin actions use `assertAdmin` in Functions or rules `isAdmin()`.
+- **Admin provision:** `adminProvisionHackathonUser` only; do not expose collection names in UI/toasts; callable returns `{ success, userId, email, created }` only.
+- **Admin UI:** reusable `components/admin/*`; Firestore list reads via `lib/admin-users.ts`, not new inline `getDocs` in components.
 - Storage: fixed folder prefixes; validate upload size/type.
 - Do not commit `.env`, service accounts, or log tokens/PII.
 

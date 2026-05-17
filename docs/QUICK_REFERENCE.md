@@ -2,6 +2,8 @@
 
 > **One-page guide to find everything you need**
 
+**New to the repo?** → **[JUNIOR_ONBOARDING.md](./JUNIOR_ONBOARDING.md)** (flows, schema, repo map, common pitfalls).
+
 ---
 
 ## 🎯 I Want To...

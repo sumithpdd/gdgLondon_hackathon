@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { PROJECTS_COLLECTION } from "@/lib/constants";
 import { Submission } from "@/types/submission";
@@ -77,31 +77,21 @@ export default function MyProjectPage() {
 
         setUserRole(userProjectInfo.role);
 
+        const projSnap = await getDoc(
+          doc(db, PROJECTS_COLLECTION, userProjectInfo.projectId)
+        );
+        if (!projSnap.exists()) return;
+
+        const submission = {
+          id: projSnap.id,
+          ...projSnap.data(),
+          createdAt: projSnap.data().createdAt?.toDate?.(),
+        } as Submission;
+
         if (userProjectInfo.role === "owner") {
-          const q = query(
-            collection(db, PROJECTS_COLLECTION),
-            where("userId", "==", user.uid)
-          );
-          const snapshot = await getDocs(q);
-          if (!snapshot.empty) {
-            const doc = snapshot.docs[0];
-            setProject({
-              id: doc.id,
-              ...doc.data(),
-              createdAt: doc.data().createdAt?.toDate?.(),
-            } as Submission);
-          }
+          setProject(submission);
         } else {
-          // Member — fetch the project they belong to
-          const { doc: getDocById, getDoc } = await import("firebase/firestore");
-          const projSnap = await getDoc(getDocById(db, PROJECTS_COLLECTION, userProjectInfo.projectId));
-          if (projSnap.exists()) {
-            setMemberProject({
-              id: projSnap.id,
-              ...projSnap.data(),
-              createdAt: projSnap.data().createdAt?.toDate?.(),
-            } as Submission);
-          }
+          setMemberProject(submission);
         }
       } catch (error) {
         console.error("Error fetching project:", error);

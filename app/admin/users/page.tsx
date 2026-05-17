@@ -4,12 +4,26 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuthContext } from "@/lib/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminShell } from "@/components/AdminShell";
-import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { USERS_COLLECTION } from "@/lib/constants";
 import { UserProfile, UserRole, isUserDeleted } from "@/lib/auth";
-import { parseUserProfileDoc, softDeleteUser, restoreUser } from "@/lib/admin-users";
+import {
+  listUsersForAdmin,
+  filterAdminUsers,
+  sortAdminUsers,
+  softDeleteUser,
+  restoreUser,
+  setUserRoleAsAdmin,
+  userParticipatesInHackathon,
+  formatUserDate,
+  formatParticipationSummary,
+  callableErrorMessage,
+  looksLikeEmailQuery,
+  type AdminUserSortMode,
+  type AdminListedUser,
+} from "@/lib/admin-users";
+import { AdminUserRoleBadge, AdminUserMetaBadges } from "@/components/admin/AdminUserBadges";
+import { getActiveHackathonId } from "@/lib/active-hackathon";
 import { AdminUserEditDialog } from "@/components/admin/AdminUserEditDialog";
+import { AdminProvisionUserDialog } from "@/components/admin/AdminProvisionUserDialog";
 import { getProfileCompletion } from "@/lib/profile-completion";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,7 +32,6 @@ import {
   Users,
   Shield,
   UserCog,
-  User,
   Search,
   LayoutGrid,
   List,
@@ -27,6 +40,7 @@ import {
   Pencil,
   Trash2,
   RotateCcw,
+  UserPlus,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -52,49 +66,31 @@ import { cn } from "@/lib/utils";
 
 type RoleFilter = "all" | UserRole;
 type StatusFilter = "active" | "deleted" | "all";
-type SortMode = "newest" | "oldest" | "name";
-
 const PAGE_SIZE_OPTIONS = [12, 24, 48] as const;
-
-function matchesSearch(u: UserProfile, q: string): boolean {
-  if (!q.trim()) return true;
-  const s = q.toLowerCase();
-  const partKeys = u.hackathonParticipations ? Object.keys(u.hackathonParticipations) : [];
-  return (
-    (u.email?.toLowerCase().includes(s) ?? false) ||
-    (u.displayName?.toLowerCase().includes(s) ?? false) ||
-    (u.profileDisplayName?.toLowerCase().includes(s) ?? false) ||
-    u.uid.toLowerCase().includes(s) ||
-    partKeys.some((k) => k.toLowerCase().includes(s))
-  );
-}
-
-function participationSummary(u: UserProfile): string {
-  const p = u.hackathonParticipations;
-  if (!p || !Object.keys(p).length) return "—";
-  return Object.keys(p).join(", ");
-}
 
 export default function AdminUsersPage() {
   const { user } = useAuthContext();
   const { toast } = useToast();
-  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [users, setUsers] = useState<AdminListedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [incompleteOnly, setIncompleteOnly] = useState(false);
+  const [currentHackathonOnly, setCurrentHackathonOnly] = useState(true);
+  const activeHackathonId = getActiveHackathonId();
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
-  const [sortMode, setSortMode] = useState<SortMode>("newest");
+  const [sortMode, setSortMode] = useState<AdminUserSortMode>("newest");
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(12);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
   const [editUser, setEditUser] = useState<UserProfile | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<UserProfile | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [provisionOpen, setProvisionOpen] = useState(false);
+  const [provisionEmail, setProvisionEmail] = useState("");
 
   const fetchUsers = useCallback(async () => {
     try {
-      const usersSnapshot = await getDocs(collection(db, USERS_COLLECTION));
-      const usersList = usersSnapshot.docs.map((d) => parseUserProfileDoc(d.id, d.data()));
+      const usersList = await listUsersForAdmin();
       setUsers(usersList);
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -113,31 +109,16 @@ export default function AdminUsersPage() {
   }, [fetchUsers]);
 
   const filteredSorted = useMemo(() => {
-    let list = users.filter((u) => matchesSearch(u, searchQuery));
-    if (incompleteOnly) {
-      list = list.filter((u) => !getProfileCompletion(u).complete);
-    }
-    if (roleFilter !== "all") {
-      list = list.filter((u) => (u.role || "user") === roleFilter);
-    }
-    if (statusFilter === "active") {
-      list = list.filter((u) => !isUserDeleted(u));
-    } else if (statusFilter === "deleted") {
-      list = list.filter((u) => isUserDeleted(u));
-    }
-    const out = [...list];
-    out.sort((a, b) => {
-      if (sortMode === "name") {
-        const an = (a.displayName || a.email || a.uid).toLowerCase();
-        const bn = (b.displayName || b.email || b.uid).toLowerCase();
-        return an.localeCompare(bn);
-      }
-      const at = a.createdAt?.getTime() ?? 0;
-      const bt = b.createdAt?.getTime() ?? 0;
-      return sortMode === "newest" ? bt - at : at - bt;
+    const list = filterAdminUsers(users, {
+      searchQuery,
+      hackathonId: activeHackathonId,
+      currentHackathonOnly,
+      incompleteOnly,
+      roleFilter,
+      statusFilter,
     });
-    return out;
-  }, [users, searchQuery, incompleteOnly, roleFilter, statusFilter, sortMode]);
+    return sortAdminUsers(list, sortMode);
+  }, [users, searchQuery, currentHackathonOnly, activeHackathonId, incompleteOnly, roleFilter, statusFilter, sortMode]);
 
   const totalPages = Math.max(1, Math.ceil(filteredSorted.length / pageSize));
 
@@ -186,54 +167,23 @@ export default function AdminUsersPage() {
 
   const updateUserRole = async (userId: string, newRole: UserRole) => {
     if (!user) return;
-    const now = new Date();
     try {
-      await updateDoc(doc(db, USERS_COLLECTION, userId), {
-        role: newRole,
-        updatedAt: now,
-        updatedBy: user.uid,
-        updatedDate: now,
-      });
-
+      await setUserRoleAsAdmin(userId, newRole);
+      setUsers((prev) =>
+        prev.map((u) => (u.uid === userId ? { ...u, role: newRole, updatedAt: new Date() } : u))
+      );
       toast({
         title: "Success",
         description: `User role updated to ${newRole}`,
       });
-
-      void fetchUsers();
     } catch (error) {
       console.error("Error updating role:", error);
       toast({
         title: "Error",
-        description: "Failed to update user role",
+        description: callableErrorMessage(error) || "Failed to update user role",
         variant: "destructive",
       });
     }
-  };
-
-  const getRoleBadge = (role: string) => {
-    if (role === "admin") {
-      return (
-        <Badge className="bg-red-600/90 text-white border-0">
-          <Shield className="w-3 h-3 mr-1" />
-          Admin
-        </Badge>
-      );
-    }
-    if (role === "moderator") {
-      return (
-        <Badge className="bg-blue-600/90 text-white border-0">
-          <UserCog className="w-3 h-3 mr-1" />
-          Moderator
-        </Badge>
-      );
-    }
-    return (
-      <Badge variant="secondary" className="bg-white/10 text-gray-200 border border-white/10">
-        <User className="w-3 h-3 mr-1" />
-        User
-      </Badge>
-    );
   };
 
   const UserManageActions = ({ rowUser, compact }: { rowUser: UserProfile; compact?: boolean }) => {
@@ -363,7 +313,9 @@ export default function AdminUsersPage() {
               User directory
             </CardTitle>
             <CardDescription className="text-gray-400">
-              {filteredSorted.length} of {users.length} users match the current filters.
+              {filteredSorted.length} of {users.length} users match the current filters
+              {currentHackathonOnly ? ` (${activeHackathonId} only)` : ""}. Includes legacy profiles not yet
+              in the current hackathon list (violet badge). Search by email to add Auth-only users.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -433,6 +385,29 @@ export default function AdminUsersPage() {
                 </Select>
               </div>
               <div className="flex flex-wrap items-center gap-4">
+                <Button
+                  type="button"
+                  className="bg-emerald-600 hover:bg-emerald-500 gap-2"
+                  onClick={() => {
+                    setProvisionEmail("");
+                    setProvisionOpen(true);
+                  }}
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Add user to hackathon
+                </Button>
+                <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={currentHackathonOnly}
+                    onChange={(e) => {
+                      setCurrentHackathonOnly(e.target.checked);
+                      setPage(0);
+                    }}
+                    className="rounded border-white/30 bg-black/30 text-emerald-500 focus:ring-emerald-500/50"
+                  />
+                  Current hackathon only
+                </label>
                 <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -489,7 +464,13 @@ export default function AdminUsersPage() {
 
               <TabsContent value="grid" className="mt-6">
                 {pageSlice.length === 0 ? (
-                  <EmptyState searchQuery={searchQuery} />
+                  <EmptyState
+                    searchQuery={searchQuery}
+                    onAddByEmail={(email) => {
+                      setProvisionEmail(email);
+                      setProvisionOpen(true);
+                    }}
+                  />
                 ) : (
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                     {pageSlice.map((u) => {
@@ -513,25 +494,25 @@ export default function AdminUsersPage() {
                               </div>
                             </div>
                             <div className="flex flex-wrap gap-2">
-                              {getRoleBadge(currentRole)}
-                              {isUserDeleted(u) && (
-                                <Badge className="bg-amber-900/60 text-amber-200 border border-amber-500/40">
-                                  Deleted
-                                </Badge>
-                              )}
-                              <Badge
-                                variant="outline"
-                                className={
-                                  complete
-                                    ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-200"
-                                    : "border-amber-500/40 bg-amber-500/10 text-amber-200"
-                                }
-                              >
-                                Profile {percent}%
-                              </Badge>
+                              <AdminUserRoleBadge role={currentRole} />
+                              <AdminUserMetaBadges
+                                user={u}
+                                profilePercent={percent}
+                                profileComplete={complete}
+                                listedFromLegacy={u.listedFromLegacy}
+                              />
                             </div>
-                            <p className="text-[11px] text-violet-300/90 font-mono break-all" title={participationSummary(u)}>
-                              Hackathons: {participationSummary(u)}
+                            <p className="text-[11px] text-gray-400">
+                              Registered: {formatUserDate(u.createdAt)}
+                            </p>
+                            {userParticipatesInHackathon(u, activeHackathonId) && (
+                              <p className="text-[11px] text-gray-400">
+                                Joined event:{" "}
+                                {formatUserDate(u.hackathonParticipations?.[activeHackathonId]?.joinedAt)}
+                              </p>
+                            )}
+                            <p className="text-[11px] text-violet-300/90 font-mono break-all" title={formatParticipationSummary(u)}>
+                              Hackathons: {formatParticipationSummary(u)}
                             </p>
                             <UserManageActions rowUser={u} />
                             <RoleActions rowUser={u} />
@@ -545,14 +526,21 @@ export default function AdminUsersPage() {
 
               <TabsContent value="table" className="mt-6">
                 {pageSlice.length === 0 ? (
-                  <EmptyState searchQuery={searchQuery} />
+                  <EmptyState
+                    searchQuery={searchQuery}
+                    onAddByEmail={(email) => {
+                      setProvisionEmail(email);
+                      setProvisionOpen(true);
+                    }}
+                  />
                 ) : (
                   <div className="overflow-x-auto rounded-xl border border-white/10">
-                    <table className="w-full min-w-[880px] text-left text-sm">
+                    <table className="w-full min-w-[1020px] text-left text-sm">
                       <thead className="border-b border-white/10 bg-black/30 text-gray-400">
                         <tr>
                           <th className="px-4 py-3 font-medium">Name</th>
                           <th className="px-4 py-3 font-medium">Email</th>
+                          <th className="px-4 py-3 font-medium">Registered</th>
                           <th className="px-4 py-3 font-medium">User ID</th>
                           <th className="px-4 py-3 font-medium">Role</th>
                           <th className="px-4 py-3 font-medium">Status</th>
@@ -573,10 +561,15 @@ export default function AdminUsersPage() {
                               <td className="px-4 py-3 text-gray-300 max-w-[200px] truncate" title={u.email || ""}>
                                 {u.email || "—"}
                               </td>
+                              <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
+                                {formatUserDate(u.createdAt)}
+                              </td>
                               <td className="px-4 py-3 font-mono text-xs text-gray-500 max-w-[120px] truncate" title={u.uid}>
                                 {u.uid}
                               </td>
-                              <td className="px-4 py-3">{getRoleBadge(currentRole)}</td>
+                              <td className="px-4 py-3">
+                                <AdminUserRoleBadge role={currentRole} />
+                              </td>
                               <td className="px-4 py-3">
                                 {isUserDeleted(u) ? (
                                   <Badge className="bg-amber-900/50 text-amber-200 border-amber-500/30">Deleted</Badge>
@@ -672,6 +665,13 @@ export default function AdminUsersPage() {
           onSaved={() => void fetchUsers()}
         />
 
+        <AdminProvisionUserDialog
+          open={provisionOpen}
+          onOpenChange={setProvisionOpen}
+          initialEmail={provisionEmail}
+          onProvisioned={() => void fetchUsers()}
+        />
+
         <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
           <AlertDialogContent className="border-white/10 bg-[#14101f] text-gray-100">
             <AlertDialogHeader>
@@ -703,14 +703,45 @@ export default function AdminUsersPage() {
   );
 }
 
-function EmptyState({ searchQuery }: { searchQuery: string }) {
+function EmptyState({
+  searchQuery,
+  onAddByEmail,
+}: {
+  searchQuery: string;
+  onAddByEmail: (email: string) => void;
+}) {
+  const trimmed = searchQuery.trim();
+  const emailSearch = looksLikeEmailQuery(trimmed);
+
   return (
-    <div className="text-center py-16 rounded-xl border border-dashed border-white/15 bg-black/20">
+    <div className="text-center py-16 rounded-xl border border-dashed border-white/15 bg-black/20 px-4">
       <Users className="w-12 h-12 text-gray-500 mx-auto mb-3" />
       <p className="text-gray-300">
-        {searchQuery.trim() ? `No users match “${searchQuery}”.` : "No users match these filters."}
+        {trimmed ? `No users match “${trimmed}”.` : "No users match these filters."}
       </p>
-      <p className="text-sm text-gray-500 mt-2">Try clearing search or changing role filters.</p>
+      {emailSearch ? (
+        <div className="mt-4 space-y-3 max-w-md mx-auto">
+          <p className="text-sm text-gray-400">
+            They may only exist in Firebase Auth or the legacy user list. Add them to the current hackathon, or
+            clear search to browse legacy profiles (violet badge).
+          </p>
+          <Button
+            type="button"
+            className="bg-emerald-600 hover:bg-emerald-500 gap-2"
+            onClick={() => onAddByEmail(trimmed.toLowerCase())}
+          >
+            <UserPlus className="h-4 w-4" />
+            Add {trimmed} to hackathon
+          </Button>
+          <p className="text-xs text-gray-500">
+            Requires a Firebase sign-in at least once. Deploy Cloud Functions if this button errors.
+          </p>
+        </div>
+      ) : (
+        <p className="text-sm text-gray-500 mt-2">
+          Try clearing search, uncheck “Current hackathon only”, or search by full email to add someone.
+        </p>
+      )}
     </div>
   );
 }

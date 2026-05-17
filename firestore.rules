@@ -12,8 +12,24 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    /** Admin if either user collection marks the signed-in uid as admin (IO doc must not shadow legacy admin). */
     function isAdmin() {
-      return isAuthenticated() && getUserRole(request.auth.uid) == "admin";
+      return isAuthenticated() && (
+        (exists(/databases/$(database)/documents/io2026Hackathon_users/$(request.auth.uid))
+          && get(/databases/$(database)/documents/io2026Hackathon_users/$(request.auth.uid)).data.role == "admin")
+        || (exists(/databases/$(database)/documents/hackatonUsers/$(request.auth.uid))
+          && get(/databases/$(database)/documents/hackatonUsers/$(request.auth.uid)).data.role == "admin")
+      );
+    }
+
+    /** Admin or moderator — check-in desk, staff attendance. */
+    function isOrganiser() {
+      return isAuthenticated() && (
+        (exists(/databases/$(database)/documents/io2026Hackathon_users/$(request.auth.uid))
+          && get(/databases/$(database)/documents/io2026Hackathon_users/$(request.auth.uid)).data.role in ["admin", "moderator"])
+        || (exists(/databases/$(database)/documents/hackatonUsers/$(request.auth.uid))
+          && get(/databases/$(database)/documents/hackatonUsers/$(request.auth.uid)).data.role in ["admin", "moderator"])
+      );
     }
 
     function isOwner(userId) {
@@ -27,7 +43,6 @@ service cloud.firestore {
     match /hackatonUsers/{userId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && request.auth.uid == userId;
-      // Users can update their own doc but NOT role or soft-delete fields
       allow update: if isAdmin()
         || (isOwner(userId)
           && !("role" in request.resource.data && request.resource.data.role != resource.data.role)
@@ -216,18 +231,15 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
     match /io2026Hackathon_attendance/{attendanceId} {
-      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
-      allow create: if isAuthenticated() && request.resource.data.userId is string
-        && (request.resource.data.userId == request.auth.uid || isAdmin());
-      allow update: if isAuthenticated() && (
-        isAdmin() ||
-        (resource.data.userId == request.auth.uid && request.resource.data.userId == resource.data.userId)
-      );
+      allow read: if isAuthenticated() && (isOrganiser() || resource.data.userId == request.auth.uid);
+      allow create: if false;
+      allow update: if false;
       allow delete: if isAdmin();
     }
     match /io2026Hackathon_settings/{docId} {
-      allow read: if true;
-      allow create, update: if isAdmin() && docId in ["main", "liveSlide"];
+      allow read: if docId == "checkInPublic" || docId == "main" || docId == "liveSlide";
+      allow create, update: if isAdmin() && docId in ["main", "liveSlide"]
+        || isOrganiser() && docId == "checkInPublic";
       allow delete: if false;
     }
     match /io2026Hackathon_liveStats/{docId} {
@@ -280,10 +292,12 @@ service cloud.firestore {
     }
     match /iwd2026Hackathon_projects/{projectId} {
       allow read: if true;
-      allow write: if false;
+      allow create, update: if false;
+      allow delete: if isAdmin();
       match /comments/{commentId} {
         allow read: if true;
-        allow write: if false;
+        allow create, update: if false;
+        allow delete: if isAdmin();
       }
     }
     match /iwd2026Hackathon_joinRequests/{requestId} {
@@ -304,7 +318,8 @@ service cloud.firestore {
     }
     match /iwd2026Hackathon_winners/{winnerId} {
       allow read: if true;
-      allow write: if false;
+      allow create, update: if false;
+      allow delete: if isAdmin();
     }
     match /iwd2026Hackathon_discussions/{docId} {
       allow read: if true;

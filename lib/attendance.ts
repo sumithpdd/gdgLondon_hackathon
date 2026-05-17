@@ -8,7 +8,7 @@ export type AttendanceDoc = {
   userId: string;
   checkedInAt: unknown;
   checkedInByUid: string;
-  method: "self" | "admin";
+  method: "self" | "admin" | "staff";
   attendanceVerified: boolean;
   cohort?: AttendanceCohort;
 };

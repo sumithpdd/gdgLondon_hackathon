@@ -7,7 +7,8 @@ import { useAuthContext } from "@/lib/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminShell } from "@/components/AdminShell";
 import { listHackathons, createHackathon, type HackathonRegistryRecord } from "@/lib/hackathons-registry";
-import { getActiveHackathonId } from "@/lib/active-hackathon";
+import { ensureActiveHackathonRegistry, getActiveHackathonId } from "@/lib/active-hackathon";
+import { BUILD_WITH_AI_EVENT_DESCRIPTION } from "@/lib/constants";
 import { DEFAULT_IO2026_PRIZES } from "@/lib/prizes";
 import { db } from "@/lib/firebase";
 import { SETTINGS_COLLECTION, SETTINGS_DOC_ID } from "@/lib/constants";
@@ -33,6 +34,7 @@ export default function AdminHackathonsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [seedingPrizes, setSeedingPrizes] = useState(false);
+  const [seedingEvent, setSeedingEvent] = useState(false);
   const [id, setId] = useState("");
   const [slug, setSlug] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -53,6 +55,8 @@ export default function AdminHackathonsPage() {
 
   useEffect(() => {
     void load();
+    setId(getActiveHackathonId());
+    setDescription(BUILD_WITH_AI_EVENT_DESCRIPTION);
   }, [load]);
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -144,6 +148,47 @@ export default function AdminHackathonsPage() {
                 <strong className="text-foreground">{getActiveHackathonId()}</strong>
               </CardDescription>
             </CardHeader>
+          </Card>
+
+          <Card className="border-border bg-card">
+            <CardHeader>
+              <CardTitle className="text-foreground">Active event (home page copy)</CardTitle>
+              <CardDescription>
+                Writes the Build with AI description to{" "}
+                <code className="text-xs bg-muted px-1 rounded">hackathons/{getActiveHackathonId()}</code> for the hub
+                hero.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={seedingEvent || !user}
+                onClick={async () => {
+                  if (!user) return;
+                  setSeedingEvent(true);
+                  try {
+                    await ensureActiveHackathonRegistry(user.uid);
+                    toast({ title: "Saved", description: "Active hackathon event doc updated." });
+                    await load();
+                  } catch (e) {
+                    console.error(e);
+                    toast({ title: "Error", description: "Could not save event doc.", variant: "destructive" });
+                  } finally {
+                    setSeedingEvent(false);
+                  }
+                }}
+              >
+                {seedingEvent ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Saving…
+                  </>
+                ) : (
+                  "Seed active event description"
+                )}
+              </Button>
+            </CardContent>
           </Card>
 
           <Card className="border-border bg-card">
@@ -250,9 +295,11 @@ export default function AdminHackathonsPage() {
                 </ul>
               )}
               <p className="text-xs text-muted-foreground mt-6">
-                Tip: run{" "}
-                <code className="bg-muted px-1 rounded">node scripts/seed-io2026-admin-and-settings.mjs --uid=…</code> to
-                seed the default IO registry doc and settings if needed.
+                Use the buttons above to seed prizes and registry metadata, or edit settings in{" "}
+                <Link href="/admin/content" className="text-violet-600 dark:text-violet-400 underline">
+                  Content
+                </Link>
+                .
               </p>
             </CardContent>
           </Card>

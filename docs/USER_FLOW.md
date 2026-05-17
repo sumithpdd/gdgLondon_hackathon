@@ -87,9 +87,10 @@ Bio, location, tags, Buddies directory opt-in, in-person attendance — used by 
 
 **Route:** `/hackathon/ideas` (`/ideas` redirects)
 
-- Projects with **looking for members**
-- **Request to join** requires complete hackathon profile
+- Projects with **looking for members** for the **active** `hackathonId` only (not past editions)
+- **Request to join** requires **≥ 80%** team join score (bio, LinkedIn, team preference) — see `lib/profile-completion.ts`
 - Guests: **Sign in to Request to Join** → opens sign-in with redirect
+- Past ideas and winners: **`/past-projects`** (IWD 2026 archive)
 
 ### Option C: Create / submit project
 
@@ -132,7 +133,10 @@ Bio, location, tags, Buddies directory opt-in, in-person attendance — used by 
 |-------|---------|
 | `/admin` | Submissions, winner places, results summary |
 | `/admin/hackathons` | Registry CRUD, seed prizes to settings |
-| `/admin/users` | Roles; **Hackathons** column = `hackathonParticipations` keys |
+| `/admin/users` | Edit profiles (full fields like participant profile), roles, soft delete; filter **current hackathon**; **Registered** date shown |
+| `/admin/hackathons` | Seed **Build with AI** description on `hackathons/{activeId}` |
+
+**Admin saves:** profile/role changes use Cloud Functions (`adminUpdateUser`, `setUserRole`) — see [JUNIOR_ONBOARDING.md](./JUNIOR_ONBOARDING.md).
 
 ---
 
@@ -197,6 +201,7 @@ Past editions → /past-projects
 
 ## Related docs
 
+- [JUNIOR_ONBOARDING.md](./JUNIOR_ONBOARDING.md) — onboarding for new developers
 - [DATA_MODEL.md](./DATA_MODEL.md) — collections, participation, prizes
 - [IO2026_HACKATHON_SPEC.md](./IO2026_HACKATHON_SPEC.md) — env switches, migration
 - [FIREBASE_AUTH.md](./FIREBASE_AUTH.md) — auth implementation details

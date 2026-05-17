@@ -75,13 +75,12 @@ Use this checklist before deploying to production.
 - [ ] All API keys in environment variables
 - [ ] `.env.local` in `.gitignore`
 - [ ] Firebase rules properly configured
-- [ ] Clerk authentication working
+- [ ] Firebase authentication working (email + Google)
 - [ ] No hardcoded secrets in code
 
 ### Recommended
 
-- [ ] Enable Clerk MFA (Multi-Factor Authentication)
-- [ ] Set up Firebase Auth (in addition to Clerk)
+- [ ] Enable MFA in Firebase Auth (optional)
 - [ ] Configure rate limiting in Vercel
 - [ ] Enable Vercel password protection (if needed)
 - [ ] Set up monitoring/analytics
@@ -131,7 +130,7 @@ Use this checklist before deploying to production.
 
 - [ ] Check Vercel analytics
 - [ ] Monitor Firebase usage
-- [ ] Monitor Clerk usage
+- [ ] Monitor Firebase Auth usage
 - [ ] Check for errors in logs
 - [ ] Test from different devices
 
@@ -160,8 +159,8 @@ Use this checklist before deploying to production.
 
 ### Authentication Error
 
-**Issue**: Clerk domain not whitelisted  
-**Fix**: Add production URL to Clerk allowed origins
+**Issue**: Google sign-in blocked on production domain
+**Fix**: Add production URL to Firebase Auth → Settings → Authorized domains
 
 ### Upload Error
 
@@ -179,7 +178,7 @@ Use this checklist before deploying to production.
 
 - **Vercel**: [vercel.com/docs](https://vercel.com/docs)
 - **Firebase**: [firebase.google.com/docs](https://firebase.google.com/docs)
-- **Clerk**: [clerk.com/docs](https://clerk.com/docs)
+- **Firebase Auth**: [firebase.google.com/docs/auth](https://firebase.google.com/docs/auth)
 - **Next.js**: [nextjs.org/docs](https://nextjs.org/docs)
 
 ---

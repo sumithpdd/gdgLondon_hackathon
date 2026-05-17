@@ -12,6 +12,7 @@ import {
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import { USERS_COLLECTION } from "./constants";
+import { syncUserProfileOnAuth } from "./user-profile-sync";
 
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: "select_account" });
@@ -125,10 +126,19 @@ export interface UserProfile {
   /** Soft-delete: set by admin; user doc remains for audit. */
   deletedAt?: Date | null;
   deletedBy?: string | null;
+  /** Admin created profile before user completed sign-in / profile. */
+  adminProvisioned?: boolean;
+  profileStatus?: "provisioned" | "active";
+  provisionedBy?: string;
+  provisionedAt?: Date;
 }
 
 export function isUserDeleted(profile: Pick<UserProfile, "deletedAt"> | null | undefined): boolean {
   return profile?.deletedAt != null;
+}
+
+export function isOrganiserRole(role: UserRole | string | undefined | null): boolean {
+  return role === "admin" || role === "moderator";
 }
 
 /**
@@ -176,6 +186,10 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
         hackathonParticipations: parseParticipations(data.hackathonParticipations),
         deletedAt: data.deletedAt?.toDate?.() ?? undefined,
         deletedBy: (data.deletedBy as string) ?? undefined,
+        adminProvisioned: data.adminProvisioned === true,
+        profileStatus: data.profileStatus as UserProfile["profileStatus"],
+        provisionedBy: data.provisionedBy as string | undefined,
+        provisionedAt: data.provisionedAt?.toDate?.(),
       };
     }
     return null;
@@ -190,46 +204,21 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
  * This is called automatically when a user signs in or signs up
  */
 export async function createOrUpdateUserProfile(user: User): Promise<void> {
-  if (!user || !user.uid) {
-    console.error('Cannot create profile: Invalid user object');
+  if (!user?.uid) {
+    console.error("Cannot create profile: Invalid user object");
     return;
   }
 
   try {
-    const userRef = doc(db, USERS_COLLECTION, user.uid);
-    const userDoc = await getDoc(userRef);
-    
-    const now = new Date();
-    if (!userDoc.exists()) {
-      // Create new user profile with default role
-      const newUserData = {
-        uid: user.uid,
-        email: user.email || null,
-        displayName: user.displayName || user.email?.split('@')[0] || 'User',
-        role: "user",
-        createdAt: now,
-        updatedAt: now,
-        createdBy: user.uid,
-        updatedBy: user.uid,
-        createdDate: now,
-        updatedDate: now,
-      };
-      
-      await setDoc(userRef, newUserData);
-    } else {
-      // Update existing user profile
-      const updates = {
-        email: user.email,
-        displayName: user.displayName || userDoc.data().displayName,
-        updatedAt: now,
-        updatedBy: user.uid,
-        updatedDate: now,
-      };
-      
-      await setDoc(userRef, updates, { merge: true });
-    }
-  } catch (error: any) {
-    console.error("Error creating/updating user profile:", error.code || error.message);
+    await syncUserProfileOnAuth(user);
+  } catch (error: unknown) {
+    const code =
+      error && typeof error === "object" && "code" in error
+        ? String((error as { code: string }).code)
+        : "";
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("Error creating/updating user profile:", code || message);
+    throw error;
   }
 }
 

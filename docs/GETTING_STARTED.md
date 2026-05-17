@@ -21,24 +21,17 @@ npm install
 Create `.env.local` file in the project root:
 
 ```env
-# Clerk (Get from clerk.com - free account)
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_key
-CLERK_SECRET_KEY=sk_test_your_key
-
-# Firebase (Get from firebase.google.com - free account)
+# Firebase (firebase.google.com — Auth, Firestore, Storage)
 NEXT_PUBLIC_FIREBASE_API_KEY=your_key
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789
 NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abc123
+# NEXT_PUBLIC_HACKATHON_DATASET=io2026
 ```
 
-**Get Clerk Keys:**
-1. Visit [clerk.com](https://clerk.com) → Sign up
-2. Create app → Copy API keys
-
-**Get Firebase Keys:**
+**Get Firebase keys:**
 1. Visit [firebase.google.com](https://firebase.google.com) → Sign in
 2. Create project → Enable Firestore & Storage
 3. Project Settings → Web app → Copy config
@@ -101,8 +94,8 @@ types/                # TypeScript types
 ## What's Included
 
 ✅ Next.js 14 + TypeScript
-✅ Clerk authentication
-✅ Firebase (Firestore + Storage)
+✅ Firebase Auth (email/password + Google)
+✅ Firebase (Firestore + Storage + Cloud Functions)
 ✅ shadcn/ui components
 ✅ Dark mode by default
 ✅ Poppins font

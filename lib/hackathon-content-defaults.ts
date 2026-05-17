@@ -1,5 +1,8 @@
 import type { ContentLink, HackathonContentDoc, RulesSection } from "./hackathon-content";
 
+/** Bump when default rules change; fetch merges new defaults until Firestore is updated. */
+export const RULES_CONTENT_VERSION = 2;
+
 export const DEFAULT_RESOURCE_LINKS: ContentLink[] = [
   { href: "https://huggingface.co/docs", label: "Hugging Face Docs" },
   { href: "https://platform.openai.com/docs", label: "OpenAI API Docs" },
@@ -10,20 +13,20 @@ export const DEFAULT_RESOURCE_LINKS: ContentLink[] = [
 export const DEFAULT_RESOURCES_INTRO =
   "Explore tools and APIs to help you build with AI — use any AI technology you prefer";
 
-export const DEFAULT_DISCORD_URL = "https://discord.com/invite/QujDVuNJ";
+export const DEFAULT_DISCORD_URL = "https://discord.gg/EsE9VBTA";
 
-export const DEFAULT_RULES_TITLE = "Rules & requirements";
+export const DEFAULT_RULES_TITLE = "Rules";
 
 export const DEFAULT_RULES_SECTIONS: RulesSection[] = [
   {
     id: "ticket",
     kind: "card",
-    title: "Event ticket required",
+    title: "Event Ticket Required",
     body: "You need a valid ticket for the event to participate in this hackathon.",
     variant: "violet",
     icon: "ticket",
     linkHref: "https://luma.com/urm40pjn",
-    linkLabel: "Get your ticket on Luma (I/O Watch Party + hack night) →",
+    linkLabel: "Get your ticket at Luma (I/O Watch Party + hack night) →",
     sortOrder: 0,
   },
   {
@@ -48,16 +51,23 @@ export const DEFAULT_RULES_SECTIONS: RulesSection[] = [
   {
     id: "ideas",
     kind: "card",
-    title: "Create or join a project idea",
+    title: "Create or Join a Project Idea",
     body: "When registering your idea, you will provide:",
-    items: ["Project Title", "Team Name", "Solo or Group project", "Team members (optional)", "LinkedIn profile"],
+    items: [
+      "Project Title",
+      "Team Name",
+      "Solo or Group project",
+      "Team members (optional)",
+      "LinkedIn profile",
+      "You can also browse the Idea Gallery and join an existing project.",
+    ],
     icon: "lightbulb",
     sortOrder: 3,
   },
   {
     id: "avoid",
     kind: "warning",
-    title: "Avoid these project types",
+    title: "Avoid These Project Types",
     body: "In the Action Era, if a single prompt can solve it, it's not an application.",
     items: [
       "Baseline RAG — Simple data retrieval is now a baseline feature",
@@ -71,13 +81,14 @@ export const DEFAULT_RULES_SECTIONS: RulesSection[] = [
   {
     id: "submit",
     kind: "numbered",
-    title: "What to submit",
+    title: "What to Submit",
     body: "Each submission must include:",
     items: [
       "A working project",
       "A demo video (max 3 minutes) — Show the app in action and explain what it does.",
       "Project description — Explain the problem, the idea, and how the solution works.",
       "Code repository link (GitHub or similar). If private, provide read access to the judges.",
+      "Optional: Screenshots, design mockups, technical documentation",
     ],
     icon: "upload",
     sortOrder: 5,
@@ -85,16 +96,15 @@ export const DEFAULT_RULES_SECTIONS: RulesSection[] = [
   {
     id: "judging",
     kind: "judging",
-    title: "Judging criteria",
-    body: "Audience voting picks winners by total votes. Use these lenses when deciding where to allocate yours (max 2 per project).",
+    title: "Judging Criteria",
     icon: "award",
     sortOrder: 6,
   },
   {
     id: "prizes",
     kind: "card",
-    title: "Winning prizes — important",
-    body: "🎉 Prizes are handed out live on event day — be there in person to claim your glory.\n\nShow up, win big! No mail, no exceptions. See the current prize pool on the Prizes page (synced from the database).\n\nTeam projects — prize goes to the project leader. How you share it with your team is entirely up to you.",
+    title: "Winning Prizes — Important",
+    body: "🎉 Prizes are handed out live on event day — be there in person to claim your glory.\n\nShow up, win big! No mail, no exceptions. Your moment in the spotlight awaits.\n\nTeam projects — prize goes to the project leader. The prize is awarded to the project leader only. How you share it with your team is entirely up to you — organisers do not decide, influence, or get involved in prize splitting. Your team, your call.",
     variant: "amber",
     icon: "gift",
     sortOrder: 7,
@@ -102,7 +112,7 @@ export const DEFAULT_RULES_SECTIONS: RulesSection[] = [
   {
     id: "data",
     kind: "card",
-    title: "Your data",
+    title: "Your Data",
     body: "Your submission data is stored for 30 days after the event and is not shared outside the competition. We keep it simple: your info stays in-house for judging and event purposes only.",
     variant: "emerald",
     icon: "database",
@@ -111,8 +121,8 @@ export const DEFAULT_RULES_SECTIONS: RulesSection[] = [
   {
     id: "deadline",
     kind: "card",
-    title: "Submission deadline",
-    body: "Friday, 13 March 2026 — 23:59",
+    title: "Submission Deadline",
+    body: "Friday, 19 May 2026 — 18:00",
     variant: "violet",
     icon: "clock",
     sortOrder: 9,

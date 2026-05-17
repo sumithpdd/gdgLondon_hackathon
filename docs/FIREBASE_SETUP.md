@@ -88,7 +88,7 @@ Use the Firestore rules from `firebase-rules.txt` in the project root. Do not co
 
 ### Error: "Authentication required"
 
-**Cause**: Not signed in to Clerk
+**Cause**: Not signed in (Firebase Auth)
 
 **Fix**:
 1. Click "Sign In" button

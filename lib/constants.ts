@@ -15,6 +15,10 @@ export const HACKATHON_DISPLAY_NAME = HACKATHON_BRAND_NAME;
 export const HACKATHON_EVENT_TAGLINE = "Build with AI × Google I/O 2026 — GDG London";
 export const HACKATHON_EVENT_SHORT = "Google I/O 2026";
 
+/** Default event blurb stored on `hackathons/{activeId}` (Build with AI program). */
+export const BUILD_WITH_AI_EVENT_DESCRIPTION =
+  "Build with AI are community-led technical workshops and hackathons hosted by GDGs and GDG on Campus. Use any AI technology—from open models to cloud APIs—to build something real. Google tools like Gemini and AI Studio are optional.";
+
 /** Logged-in networking: directory, requests, accepted buddies (not the overall event title). */
 export const BUDDIES_FEATURE_LABEL = "Buddies";
 
@@ -32,6 +36,8 @@ export const SETTINGS_DOC_ID = c.settingsDocId;
 export const LIVE_STATS_COLLECTION = c.liveStats ?? "io2026Hackathon_liveStats";
 export const LIVE_STATS_DOC_ID = "summary";
 export const LIVE_SLIDE_DOC_ID = "liveSlide";
+/** Public check-in window flags (no code — validated server-side). */
+export const CHECKIN_PUBLIC_DOC_ID = "checkInPublic";
 
 export const FIREBASE_STORAGE_FOLDER = "hackathon_uploads";
 export const COMMENTS_SUBCOLLECTION = "comments";
@@ -65,13 +71,6 @@ export const AI_CATEGORIES = ["agents", "ai-apps", "devtools", "ai-for-good", "o
 export const MAX_SCREENSHOTS = 5;
 export const MAX_FILE_SIZE_MB = 10;
 export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-
-export const ADMIN_SESSION_DURATION_HOURS = 24;
-
-export const ADMIN_CREDENTIALS = {
-  username: "admin",
-  password: "admin",
-} as const;
 
 export const SUBMISSION_STATUS = {
   DRAFT: "draft",

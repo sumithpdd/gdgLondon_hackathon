@@ -2,9 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useAuthContext } from "@/lib/AuthContext";
-import { collection, getDocs, doc, updateDoc, deleteDoc, query, orderBy } from "firebase/firestore";
-import { ref, deleteObject } from "firebase/storage";
-import { db, storage } from "@/lib/firebase";
+import { collection, getDocs, query, orderBy } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import {
+  deleteProjectAsAdmin,
+  setProjectWinnerPlace,
+  callableErrorMessage,
+} from "@/lib/admin-projects";
 import { PROJECTS_COLLECTION } from "@/lib/constants";
 import { Submission } from "@/types/submission";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -87,17 +91,10 @@ export default function AdminPage() {
   const handlePlaceChange = async (submissionId: string, place: string) => {
     if (!user) return;
     try {
-      const submissionRef = doc(db, PROJECTS_COLLECTION, submissionId);
       const newPlace = place === "none" ? null : (place as "first" | "second" | "third");
-      const now = new Date();
-      await updateDoc(submissionRef, {
-        place: newPlace,
-        updatedBy: user.uid,
-        updatedDate: now,
-        updatedAt: now,
-      });
-      
-      setSubmissions(submissions.map(sub => 
+      await setProjectWinnerPlace(submissionId, newPlace);
+
+      setSubmissions(submissions.map(sub =>
         sub.id === submissionId ? { ...sub, place: newPlace } : sub
       ));
 
@@ -109,7 +106,7 @@ export default function AdminPage() {
       console.error("Error updating place:", error);
       toast({
         title: "Error",
-        description: "Failed to update winner place",
+        description: callableErrorMessage(error) || "Failed to update winner place",
         variant: "destructive",
       });
     }
@@ -117,28 +114,13 @@ export default function AdminPage() {
 
   const handleDeleteSubmission = async () => {
     if (!submissionToDelete) return;
-    
+
     setDeleting(true);
     try {
-      const submission = submissions.find(s => s.id === submissionToDelete);
-      
-      // Delete screenshots from storage
-      if (submission?.screenshots) {
-        for (const screenshotUrl of submission.screenshots) {
-          try {
-            const storageRef = ref(storage, screenshotUrl);
-            await deleteObject(storageRef);
-          } catch (error) {
-            console.error("Error deleting screenshot:", error);
-          }
-        }
-      }
-      
-      // Delete submission document
-      await deleteDoc(doc(db, PROJECTS_COLLECTION, submissionToDelete));
-      
+      await deleteProjectAsAdmin(submissionToDelete);
+
       setSubmissions(submissions.filter(s => s.id !== submissionToDelete));
-      
+
       toast({
         title: "Success",
         description: "Submission deleted successfully",
@@ -147,7 +129,7 @@ export default function AdminPage() {
       console.error("Error deleting submission:", error);
       toast({
         title: "Error",
-        description: "Failed to delete submission",
+        description: callableErrorMessage(error) || "Failed to delete submission",
         variant: "destructive",
       });
     } finally {

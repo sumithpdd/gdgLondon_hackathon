@@ -1,6 +1,8 @@
 # 🚀 Start Here - Complete Beginner's Guide
 
-Welcome! This guide is for developers new to React, Next.js, Clerk, and Firebase.
+> **Updated onboarding:** Prefer **[JUNIOR_ONBOARDING.md](./JUNIOR_ONBOARDING.md)** for current flows, Firestore schema, admin Cloud Functions, and stack (Firebase Auth — not Clerk). This page is kept for general React/Next concepts but some sections below are outdated.
+
+Welcome! This guide is for developers new to React, Next.js, and Firebase.
 
 ---
 
@@ -29,14 +31,14 @@ A competition submission platform for DevFest 2025 London AI Innovation Lab wher
 
 **You'll see**: `app/` folder with `page.tsx` files for each route
 
-### Clerk 🔐
-**What it is**: Authentication service (login/signup)  
+### Firebase Auth 🔐
+**What it is**: Google’s authentication for the app (email/password + Google sign-in)  
 **What it does here**:
-- Manages user accounts (sign up, sign in, sign out)
-- Provides user information (name, email)
-- Handles user roles (admin, moderator, user)  
+- Manages sign up, sign in, sign out, password reset
+- User id (`uid`) matches Firestore profile document id
+- Roles (`admin`, `moderator`, `user`) live on the user profile in Firestore  
 
-**You'll see**: `<SignInButton>`, `useUser()`, `auth()` in code
+**You'll see**: `AuthModal`, `useAuthContext()`, `lib/auth.ts`
 
 ### Firebase 🔥
 **What it is**: Google's backend platform  
@@ -107,7 +109,7 @@ DevfestCompetitionForm/
 ```
 1. Visit Homepage (/)
    ↓
-2. Click "Sign In" (Clerk handles this)
+2. Click "Sign In" (Firebase Auth modal)
    ↓
 3. Click "Submit Your Project"
    ↓
@@ -187,17 +189,7 @@ npm install
 
 ### Step 4: Get Your API Keys
 
-#### Clerk Keys (Authentication):
-1. Go to [Clerk Dashboard](https://dashboard.clerk.com)
-2. Sign up/login
-3. Create new application (or select existing)
-4. Go to "API Keys" in sidebar
-5. Copy:
-   - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
-   - `CLERK_SECRET_KEY`
-6. Paste into `.env.local`
-
-#### Firebase Keys (Database & Storage):
+#### Firebase keys (Auth, Firestore, Storage):
 1. Go to [Firebase Console](https://console.firebase.google.com)
 2. Sign up/login with Google account
 3. Click "Create Project" (or select existing)
@@ -225,18 +217,11 @@ npm install
 7. Copy rules from `firebase-rules.txt` (Storage section)
 8. Paste and Publish
 
-### Step 6: Configure Clerk Session Token
+### Step 6: Enable Firebase Authentication
 
-1. Go to Clerk Dashboard
-2. Click "Sessions" in sidebar
-3. Scroll to "Customize session token"
-4. In the editor, add:
-   ```json
-   {
-     "metadata": "{{user.public_metadata}}"
-   }
-   ```
-5. Click "Save"
+1. Firebase Console → **Authentication** → Sign-in method
+2. Enable **Email/Password** and **Google**
+3. Add `localhost` and your production domain under **Authorized domains**
 
 ### Step 7: Run the App!
 
@@ -253,7 +238,7 @@ Open browser and go to: `http://localhost:3000`
 After setup, test these:
 
 - [ ] Home page loads
-- [ ] Click "Sign In" opens Clerk modal
+- [ ] Click "Sign In" opens Firebase auth modal
 - [ ] Sign up with email
 - [ ] See "User" badge in header
 - [ ] Navigate to `/hackathon/my-projects?project=1` (or `/submit`)
@@ -315,10 +300,10 @@ Hooks are special React functions that start with `use`:
   }, [])
   ```
 
-- **`useUser`** (Clerk): Get current user info
+- **`useAuthContext`**: Get current user + Firestore profile
   ```typescript
-  const { user } = useUser()
-  console.log(user?.emailAddress)
+  const { user, userProfile, isAuthenticated } = useAuthContext()
+  console.log(user?.email, userProfile?.role)
   ```
 
 ### What is TypeScript?
@@ -387,8 +372,8 @@ greet(123)  // ❌ TypeScript catches this error!
 **Learning Resources**:
 - [React Docs](https://react.dev) - Official React documentation
 - [Next.js Docs](https://nextjs.org/docs) - Official Next.js docs
-- [Clerk Docs](https://clerk.com/docs) - Clerk authentication guides
-- [Firebase Docs](https://firebase.google.com/docs) - Firebase guides
+- [Firebase Auth](https://firebase.google.com/docs/auth) - Authentication
+- [Firebase Docs](https://firebase.google.com/docs) - Firestore, Storage, Functions
 
 ---
 

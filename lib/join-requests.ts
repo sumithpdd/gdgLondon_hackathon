@@ -10,6 +10,8 @@ import {
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "./firebase";
 import { JOIN_REQUESTS_COLLECTION, PROJECTS_COLLECTION } from "./constants";
+import { getActiveHackathonId } from "./active-hackathon";
+import { belongsToActiveHackathon } from "./hackathon-projects";
 import type { JoinRequest } from "@/types/join-request";
 
 /**
@@ -19,13 +21,28 @@ import type { JoinRequest } from "@/types/join-request";
 export async function getUserProject(
   userId: string
 ): Promise<{ projectId: string; role: "owner" | "member" } | null> {
-  const ownerQuery = query(
-    collection(db, PROJECTS_COLLECTION),
-    where("userId", "==", userId)
-  );
-  const ownerSnapshot = await getDocs(ownerQuery);
-  if (!ownerSnapshot.empty) {
-    return { projectId: ownerSnapshot.docs[0].id, role: "owner" };
+  const activeId = getActiveHackathonId();
+
+  try {
+    const ownerQuery = query(
+      collection(db, PROJECTS_COLLECTION),
+      where("userId", "==", userId),
+      where("hackathonId", "==", activeId)
+    );
+    const ownerSnapshot = await getDocs(ownerQuery);
+    if (!ownerSnapshot.empty) {
+      return { projectId: ownerSnapshot.docs[0].id, role: "owner" };
+    }
+  } catch {
+    const ownerSnapshot = await getDocs(
+      query(collection(db, PROJECTS_COLLECTION), where("userId", "==", userId))
+    );
+    const ownerDoc = ownerSnapshot.docs.find((d) =>
+      belongsToActiveHackathon(d.data() as { hackathonId?: string })
+    );
+    if (ownerDoc) {
+      return { projectId: ownerDoc.id, role: "owner" };
+    }
   }
 
   const memberQuery = query(
@@ -34,9 +51,14 @@ export async function getUserProject(
     where("status", "==", "approved")
   );
   const memberSnapshot = await getDocs(memberQuery);
-  if (!memberSnapshot.empty) {
-    const data = memberSnapshot.docs[0].data();
-    return { projectId: data.projectId, role: "member" };
+  for (const memberDoc of memberSnapshot.docs) {
+    const projectId = memberDoc.data().projectId as string;
+    if (!projectId) continue;
+    const { getDoc: getDocFn } = await import("firebase/firestore");
+    const projectSnap = await getDocFn(doc(db, PROJECTS_COLLECTION, projectId));
+    if (projectSnap.exists() && belongsToActiveHackathon(projectSnap.data())) {
+      return { projectId, role: "member" };
+    }
   }
 
   return null;

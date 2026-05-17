@@ -156,8 +156,8 @@ Create a test page that checks `process.env.NEXT_PUBLIC_*` variables are set (wi
 
 ## 📚 Related Documentation
 
-- [Clerk Environment Variables](https://clerk.com/docs/deployments/clerk-environment-variables)
 - [Firebase Web Setup](https://firebase.google.com/docs/web/setup)
+- [Firebase Auth](https://firebase.google.com/docs/auth)
 - [Next.js Environment Variables](https://nextjs.org/docs/app/building-your-application/configuring/environment-variables)
 - [Vercel Environment Variables](https://vercel.com/docs/projects/environment-variables)
 
@@ -168,9 +168,7 @@ Create a test page that checks `process.env.NEXT_PUBLIC_*` variables are set (wi
 Before running the app:
 
 - [ ] Created `.env.local` from `.env.example`
-- [ ] Added Clerk publishable key
-- [ ] Added Clerk secret key
-- [ ] Added all 6 Firebase config values
+- [ ] Added all Firebase `NEXT_PUBLIC_FIREBASE_*` values
 - [ ] No placeholder text remaining
 - [ ] Restarted dev server
 - [ ] App runs without env errors

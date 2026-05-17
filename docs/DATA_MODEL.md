@@ -107,7 +107,14 @@ Used by **`/past-projects`**: winners + stats (`HackathonResultsSummary`) and pr
 
 ## User profiles (active `users` collection)
 
-Document ID = Firebase Auth UID. Created/updated on sign-in via `lib/auth.ts` → `createOrUpdateUserProfile`.
+Document ID = Firebase Auth UID.
+
+**Creation paths:**
+
+| Path | When | Module / Function |
+|------|------|-------------------|
+| Self sign-in | User registers or signs in | `lib/user-profile-sync.ts` → `syncUserProfileOnAuth`; backup `ensureUserProfile` callable |
+| Admin provision | Admin adds email before/without full profile | `adminProvisionHackathonUser` callable via `/admin/users` |
 
 ```typescript
 {
@@ -117,6 +124,20 @@ Document ID = Firebase Auth UID. Created/updated on sign-in via `lib/auth.ts` �
   role: "admin" | "moderator" | "user";
   createdAt: Timestamp;
   updatedAt: Timestamp;
+
+  // Audit (admin provision + server writes)
+  createdBy?: string;      // admin uid when provisioned; else often self uid
+  updatedBy?: string;
+  createdDate?: Timestamp;
+  updatedDate?: Timestamp;
+
+  // Admin-provisioned placeholder profile (until user signs in)
+  adminProvisioned?: boolean;
+  profileStatus?: "provisioned" | "active";
+  provisionedBy?: string;   // admin uid
+  provisionedAt?: Timestamp;
+  migratedFromLegacyAt?: Timestamp;  // if copied from hackatonUsers
+  migratedFrom?: string;
 
   // Hackathon profile (Buddies / directory / join requests)
   hackathonBio?: string;
@@ -147,7 +168,11 @@ Document ID = Firebase Auth UID. Created/updated on sign-in via `lib/auth.ts` �
 
 **Participation:** On profile load, `recordHackathonParticipationIfNeeded(uid)` merges `hackathonParticipations.{NEXT_PUBLIC_ACTIVE_HACKATHON_ID}` (default `io2026Hackathon`) if missing. **Admin users** list shows participation keys.
 
-**To set admin:** Firestore Console → active **users** collection → `role: "admin"`.
+**To set admin:** Firestore Console → active **users** collection → `role: "admin"` (in `io2026Hackathon_users` and/or legacy `hackatonUsers` if both exist).
+
+**Admin profile edits:** use Cloud Functions `adminUpdateUser`, `setUserRole`, `adminSetUserDeleted` — not raw client `updateDoc` on another user’s document.
+
+**Admin add to hackathon:** `adminProvisionHackathonUser` — email must exist in Firebase Auth; merges `hackathonParticipations.{ACTIVE_HACKATHON_ID}`; sets audit fields; copies legacy `hackatonUsers` fields when present. UI: `components/admin/AdminProvisionUserDialog.tsx`, logic: `lib/admin-users.ts`.
 
 ---
 
@@ -211,6 +236,7 @@ Active path from `SETTINGS_COLLECTION` + `SETTINGS_DOC_ID` in `lib/constants.ts`
   label?: "winner" | "finalist" | "featured";
   place?: "first" | "second" | "third";
   hackathonId?: string;   // registry id, e.g. io2026Hackathon — set on createProject
+  hackathonName?: string; // display label, e.g. GDG London Hackathon
   voteTotal?: number;     // audience aggregate; only Functions may change
 
   likes?: number;

@@ -4,7 +4,7 @@ Complete overview of all features in the Devfest Competition Form.
 
 ---
 
-## 🔐 Authentication (Clerk)
+## 🔐 Authentication (Firebase Auth)
 
 **What**: Secure user authentication system
 
@@ -21,10 +21,10 @@ Complete overview of all features in the Devfest Competition Form.
 
 **For Developers**:
 ```typescript
-import { useUser } from "@clerk/nextjs";
+import { useAuthContext } from "@/lib/AuthContext";
 
-const { user } = useUser();
-// Access: user.id, user.fullName, user.emailAddresses
+const { user, userProfile, isAuthenticated } = useAuthContext();
+// user.uid, user.email — roles in userProfile.role (Firestore)
 ```
 
 ---

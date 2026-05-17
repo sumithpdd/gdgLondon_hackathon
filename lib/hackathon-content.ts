@@ -8,6 +8,7 @@ import {
   DEFAULT_RESOURCES_INTRO,
   DEFAULT_RULES_SECTIONS,
   DEFAULT_RULES_TITLE,
+  RULES_CONTENT_VERSION,
 } from "./hackathon-content-defaults";
 
 export type ContentLink = { href: string; label: string };
@@ -88,12 +89,15 @@ export async function fetchHackathonContent(): Promise<HackathonContentDoc> {
           .filter((l): l is ContentLink => l !== null)
       : DEFAULT_RESOURCE_LINKS;
 
-    const rulesSections = Array.isArray(data.rulesSections)
-      ? data.rulesSections
-          .map((s, i) => normalizeSection(s, i))
-          .filter((s): s is RulesSection => s !== null)
-          .sort((a, b) => a.sortOrder - b.sortOrder)
-      : DEFAULT_RULES_SECTIONS;
+    const rulesVersion =
+      typeof data.rulesContentVersion === "number" ? data.rulesContentVersion : 0;
+    const rulesSections =
+      rulesVersion >= RULES_CONTENT_VERSION && Array.isArray(data.rulesSections)
+        ? data.rulesSections
+            .map((s, i) => normalizeSection(s, i))
+            .filter((s): s is RulesSection => s !== null)
+            .sort((a, b) => a.sortOrder - b.sortOrder)
+        : DEFAULT_RULES_SECTIONS;
 
     return {
       resourcesIntro:
@@ -106,7 +110,9 @@ export async function fetchHackathonContent(): Promise<HackathonContentDoc> {
           ? data.discordUrl.trim()
           : DEFAULT_DISCORD_URL,
       rulesTitle:
-        typeof data.rulesTitle === "string" && data.rulesTitle.trim()
+        rulesVersion >= RULES_CONTENT_VERSION &&
+        typeof data.rulesTitle === "string" &&
+        data.rulesTitle.trim()
           ? data.rulesTitle.trim()
           : DEFAULT_RULES_TITLE,
       rulesSections: rulesSections.length > 0 ? rulesSections : DEFAULT_RULES_SECTIONS,
@@ -127,5 +133,9 @@ export async function updateHackathonContent(partial: Partial<HackathonContentDo
 }
 
 export async function seedDefaultHackathonContent(): Promise<void> {
-  await setDoc(doc(db, SETTINGS_COLLECTION, SETTINGS_DOC_ID), DEFAULT_HACKATHON_CONTENT, { merge: true });
+  await setDoc(
+    doc(db, SETTINGS_COLLECTION, SETTINGS_DOC_ID),
+    { ...DEFAULT_HACKATHON_CONTENT, rulesContentVersion: RULES_CONTENT_VERSION },
+    { merge: true }
+  );
 }

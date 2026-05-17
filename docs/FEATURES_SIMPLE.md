@@ -9,24 +9,22 @@ This document explains what the app can do and how each feature works.
 ### 1. Sign Up / Sign In 🔐
 
 **What it does**: Creates an account or logs you in  
-**How it works**: Uses Clerk (not built by us!)
+**How it works**: Firebase Authentication (email/password + Google)
 
 **Steps**:
-1. Click "Sign In" button
-2. Modal (popup) appears
-3. Enter email or use Google/GitHub
-4. Receive verification code via email
-5. Enter code
-6. You're logged in!
+1. Click "Sign In" (or register at `/register`)
+2. Auth modal opens (`AuthModal` / `HackathonAuthShell`)
+3. Sign in with email/password or Google
+4. Profile is created/updated in Firestore (`io2026Hackathon_users` when dataset=io2026)
 
 **Behind the scenes**:
-- Clerk stores your account securely
-- Your info is saved to their database
-- We get your name and email from Clerk
+- Firebase Auth stores credentials
+- `createOrUpdateUserProfile` syncs `io2026Hackathon_users/{uid}`
+- Roles (`admin` / `moderator` / `user`) live on the Firestore user doc
 
 **Files involved**:
-- `app/page.tsx` - Has the Sign In button
-- Clerk handles everything else!
+- `components/AuthModal.tsx`, `components/HackathonAuthShell.tsx`
+- `lib/auth.ts`, `lib/user-profile-sync.ts`, `hooks/useAuth.ts`
 
 ---
 
@@ -38,7 +36,7 @@ This document explains what the app can do and how each feature works.
 **Steps**:
 1. Click "Submit Your Project" from home
 2. Fill in:
-   - Your name (auto-filled from Clerk)
+   - Your name (from Firebase / hackathon profile)
    - Email (auto-filled)
    - GitHub URL
    - Project description
@@ -56,7 +54,7 @@ Fill Form → Upload Images to Firebase Storage → Save Data to Firestore
 - Images uploaded one by one to Firebase Storage
 - Each image gets a unique URL
 - All info saved to Firestore collection `hackatonProjects`
-- Submission linked to your Clerk user ID
+- Submission linked to your Firebase `userId`
 
 **Files involved**:
 - `components/ProjectSubmissionForm.tsx` - Project draft/final form (on `/hackathon/profile`)
@@ -234,40 +232,27 @@ await deleteDoc(doc(db, "hackatonProjects", submissionId))
 ### 8. User Role Management 👥
 
 **What it does**: Promote users to admin or moderator  
-**How it works**: Updates user metadata in Clerk
+**How it works**: Cloud Function `setUserRole` updates Firestore `role` on user docs
 
 **Steps**:
-1. Go to `/admin`
-2. Click "Manage User Roles"
-3. Search for user by name or email
-4. Click "Make Admin" or "Make Moderator"
-5. User must log out/in to see change
+1. Go to `/admin/users`
+2. Search for user by name or email
+3. Click **Admin** / **Moderator** / **User**
+4. User should refresh or sign in again to see nav changes
 
 **Behind the scenes**:
-```typescript
-// Server action that runs on server
-export async function setRole(formData: FormData) {
-  // Verify current user is admin
-  if (!(await checkRole('admin'))) {
-    return { message: 'Not Authorized' }
-  }
-  
-  // Update user metadata in Clerk
-  await clerkClient.users.updateUserMetadata(userId, {
-    publicMetadata: { role: "admin" }
-  })
-}
-```
+- `lib/admin-users.ts` → `setUserRole` callable
+- Updates `io2026Hackathon_users` (and legacy `hackatonUsers` if present)
+- Firestore rules enforce admin-only cross-user writes
 
 **Roles explained**:
-- **Admin**: Can do everything
-- **Moderator**: Can view, can't edit
-- **User**: Standard permissions
+- **Admin**: Full dashboard, users, voting, content
+- **Moderator**: Organiser vote budget (10 votes); limited admin UI
+- **User**: Standard participant
 
 **Files involved**:
-- `app/admin/users/page.tsx` - User search page
-- `app/admin/_actions.ts` - Server actions
-- `utils/roles.ts` - Role checking
+- `app/admin/users/page.tsx`
+- `lib/admin-users.ts`, `functions/src/index.ts` (`setUserRole`)
 
 ---
 
@@ -276,24 +261,15 @@ export async function setRole(formData: FormData) {
 ### 9. Role Badges 🏷️
 
 **What it does**: Shows your role in the header  
-**How it works**: Reads from Clerk metadata
+**How it works**: Reads `userProfile.role` from Firestore via `useAuthContext`
 
 **Displays**:
-- 🛡️ **Admin** - Red badge + "Admin Panel" button
-- ⚙️ **Moderator** - Blue badge + "View Panel" button
-- 👤 **User** - Gray badge (no button)
-
-**Code**:
-```typescript
-// Get role from Clerk
-const role = user.publicMetadata.role || 'user'
-
-// Show appropriate badge
-{role === 'admin' && <Badge>Admin</Badge>}
-```
+- **Admin** — admin nav + panel
+- **Moderator** — badge in app bar
+- **User** — standard participant
 
 **Files involved**:
-- `components/UserNav.tsx` - Role badge component
+- `components/HackathonAppBar.tsx`, `lib/AuthContext.tsx`
 
 ---
 
@@ -356,7 +332,7 @@ if (!(await checkRole('admin'))) {
 ```
 
 **Multiple layers**:
-1. **Clerk Middleware** - Checks if signed in
+1. **Firebase Auth** + client routes (`ProtectedRoute`, `useAuthContext`)
 2. **Client Component** - Shows/hides UI
 3. **Server Component** - Redirects unauthorized users
 4. **Server Actions** - Validates before database changes
@@ -502,7 +478,7 @@ Update UI (Toast, Redirect)
 | **UI Components** | React + shadcn/ui | Pre-built, beautiful components |
 | **Routing** | Next.js App Router | File-based routing (easy!) |
 | **Styling** | Tailwind CSS | Fast, utility-first styling |
-| **Authentication** | Clerk | No need to build login ourselves |
+| **Authentication** | Firebase Auth | Email/password + Google; roles in Firestore |
 | **Database** | Firestore | Real-time, NoSQL database |
 | **File Storage** | Firebase Storage | Store images in the cloud |
 | **Forms** | React Hooks | `useState`, `useForm` |
@@ -512,8 +488,8 @@ Update UI (Toast, Redirect)
 
 ## 💡 Key Takeaways
 
-1. **Clerk handles all auth** - We just use their components
-2. **Firebase stores everything** - Firestore (data) + Storage (files)
+1. **Firebase Auth** signs users in; **Firestore** stores profiles and roles
+2. **Firebase** stores project data (Firestore) + files (Storage); privileged writes via **Cloud Functions**
 3. **Next.js makes routing easy** - One folder = one page
 4. **Components are reusable** - Build once, use everywhere
 5. **Security is multi-layered** - Client + Server checks

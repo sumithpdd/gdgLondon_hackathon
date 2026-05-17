@@ -9,22 +9,30 @@ export type JudgingCriterion = {
 
 export const DEFAULT_JUDGING_CRITERIA: JudgingCriterion[] = [
   {
-    title: "Uniqueness",
-    description: "How original or distinctive is the idea compared to typical AI demos?",
+    title: "Innovation",
+    description: "How original or creative is the AI idea?",
   },
   {
-    title: "Completeness",
-    description: "Is the solution end-to-end functional, polished, and ready to demo?",
+    title: "Technical Execution & User Experience",
+    description: "Is the solution functional, well built, and easy to use?",
   },
   {
-    title: "Fresh idea",
-    description: "Does the project bring a new angle, use case, or creative twist?",
-  },
-  {
-    title: "Use of AI technology",
-    description: "Is AI used meaningfully—not just a thin wrapper around a single prompt?",
+    title: "Impact",
+    description:
+      "Does the project solve a real problem or improve user workflows in a meaningful way?",
   },
 ];
+
+const LEGACY_VOTING_CRITERIA_TITLES = new Set([
+  "Uniqueness",
+  "Completeness",
+  "Fresh idea",
+  "Use of AI technology",
+]);
+
+function isLegacyVotingCriteria(criteria: JudgingCriterion[]): boolean {
+  return criteria.some((c) => LEGACY_VOTING_CRITERIA_TITLES.has(c.title));
+}
 
 export type HackathonSettingsDoc = {
   votingOpensAt?: Date;
@@ -49,9 +57,12 @@ export async function fetchHackathonSettings(): Promise<HackathonSettingsDoc> {
     return { judgingCriteria: DEFAULT_JUDGING_CRITERIA };
   }
   const data = snap.data();
-  const criteria = Array.isArray(data.judgingCriteria)
+  let criteria = Array.isArray(data.judgingCriteria)
     ? (data.judgingCriteria as JudgingCriterion[]).filter((c) => c?.title && c?.description)
     : DEFAULT_JUDGING_CRITERIA;
+  if (criteria.length > 0 && isLegacyVotingCriteria(criteria)) {
+    criteria = DEFAULT_JUDGING_CRITERIA;
+  }
   const resourceLinks = Array.isArray(data.resourceLinks)
     ? (data.resourceLinks as { href?: string; label?: string }[])
         .filter((l) => l?.href && l?.label)

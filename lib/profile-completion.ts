@@ -2,29 +2,21 @@ import type { UserProfile } from "./auth";
 
 const MIN_BIO_LENGTH = 20;
 
+/** Minimum team-join profile score (%) to request joining a project in the idea gallery. */
+export const JOIN_PROFILE_MIN_PERCENT = 80;
+
 export type ProfileCompletionResult = {
   percent: number;
-  /** Required fields for idea-gallery join requests (team-join score); not required for project drafts on profile — see IO spec §6b */
+  /** Meets threshold for idea-gallery join requests. */
   complete: boolean;
-  /** Blocking gaps (bio, team preference, attendance). */
   missing: string[];
-  /** Non-blocking suggestions (e.g. LinkedIn). */
   recommendations: string[];
 };
 
 /**
- * Team-join profile score: bio, LinkedIn, team preference, attendance (used for idea-gallery join requests).
- * Used to encourage fuller profiles before join requests (soft gate).
+ * Team-join profile score: bio, LinkedIn, team preference (check-in is via /checkin on event day, not here).
  */
-export type ProfileCompletionOptions = {
-  /** Set when the user has checked in at `/checkin` (event day). */
-  eventCheckedIn?: boolean;
-};
-
-export function getProfileCompletion(
-  profile: Partial<UserProfile> | null,
-  options?: ProfileCompletionOptions
-): ProfileCompletionResult {
+export function getProfileCompletion(profile: Partial<UserProfile> | null): ProfileCompletionResult {
   if (!profile) {
     return {
       percent: 0,
@@ -34,8 +26,8 @@ export function getProfileCompletion(
     };
   }
 
+  const max = 3;
   let score = 0;
-  const max = 4;
   const recommendations: string[] = [];
 
   const bio = (profile.hackathonBio ?? "").trim();
@@ -46,44 +38,33 @@ export function getProfileCompletion(
 
   if ((profile.teamPreference ?? "").trim().length > 0) score += 1;
 
-  const checkedIn =
-    options?.eventCheckedIn === true ||
-    (options?.eventCheckedIn === undefined &&
-      profile.inPersonAttendance !== undefined &&
-      profile.inPersonAttendance !== null);
-
-  if (checkedIn) score += 1;
-
   const missing: string[] = [];
   if (bio.length < MIN_BIO_LENGTH) {
     missing.push(`Short bio (${MIN_BIO_LENGTH}+ characters)`);
   }
+  if (!(profile.hackathonLinkedinUrl ?? "").trim()) {
+    missing.push("LinkedIn URL");
+  }
   if (!(profile.teamPreference ?? "").trim()) {
     missing.push("Team preference (solo / team / flexible)");
   }
-  if (profile.inPersonAttendance === undefined || profile.inPersonAttendance === null) {
-    missing.push("In-person attendance (yes / no / unsure)");
-  }
 
   const percent = Math.round((score / max) * 100);
-  const complete = missing.length === 0;
+  const complete = percent >= JOIN_PROFILE_MIN_PERCENT;
 
   return { percent, complete, missing, recommendations };
 }
 
-export function isHackathonProfileComplete(
-  profile: Partial<UserProfile> | null,
-  options?: ProfileCompletionOptions
-): boolean {
-  return getProfileCompletion(profile, options).complete;
+export function isHackathonProfileComplete(profile: Partial<UserProfile> | null): boolean {
+  return getProfileCompletion(profile).complete;
 }
 
-/** Rich profile steps (0–10) for progress UI — bio, location, experience, tags, links. */
+/** Rich profile steps for progress UI — bio, location, experience, tags, links. */
 export function getExtendedProfileSteps(profile: Partial<UserProfile> | null): {
   done: number;
   total: number;
 } {
-  const total = 11;
+  const total = 10;
   if (!profile) return { done: 0, total };
 
   let done = 0;
@@ -91,10 +72,13 @@ export function getExtendedProfileSteps(profile: Partial<UserProfile> | null): {
   if ((profile.city ?? "").trim()) done += 1;
   if ((profile.country ?? "").trim()) done += 1;
   if (profile.experienceLevel) done += 1;
-  if ((profile.programmingSkills ?? []).length > 0) done += 1;
+  const skills = [
+    ...(profile.programmingSkills ?? profile.skills ?? []),
+    ...(profile.techStack ?? []),
+  ];
+  if (skills.length > 0) done += 1;
   if ((profile.expertise ?? profile.domainExpertise ?? []).length > 0) done += 1;
   if ((profile.interests ?? profile.wantToLearnTags ?? []).length > 0) done += 1;
-  if ((profile.techStack ?? []).length > 0) done += 1;
   if ((profile.canOfferTags ?? []).length > 0) done += 1;
   if ((profile.hackathonLinkedinUrl ?? "").trim()) done += 1;
   if (

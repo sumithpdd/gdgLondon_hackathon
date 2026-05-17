@@ -54,7 +54,8 @@ export function HackathonAppBar() {
 
   const isAdmin = userProfile?.role === "admin";
   const isModerator = userProfile?.role === "moderator";
-  const navItems = navItemsForUser(isAuthenticated, isAdmin);
+  const isOrganiser = isAdmin || isModerator;
+  const navItems = navItemsForUser(isAuthenticated, isAdmin, isOrganiser);
   const participantItems = isAuthenticated ? PARTICIPANT_NAV : navItems;
   const adminItems = isAdmin ? ADMIN_NAV : [];
 

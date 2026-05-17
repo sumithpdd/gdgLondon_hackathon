@@ -14,10 +14,11 @@ export const HACKATHON_BRAND_NAME = "GDG London Hackathon";
 export type HackathonDataset = "legacy" | "io2026";
 
 function dataset(): HackathonDataset {
-  if (typeof process !== "undefined" && process.env.NEXT_PUBLIC_HACKATHON_DATASET === "io2026") {
-    return "io2026";
+  // IO 2026 is the live app default. Set NEXT_PUBLIC_HACKATHON_DATASET=legacy only for old hackaton* tooling.
+  if (typeof process !== "undefined" && process.env.NEXT_PUBLIC_HACKATHON_DATASET === "legacy") {
+    return "legacy";
   }
-  return "legacy";
+  return "io2026";
 }
 
 /** Archived IWD / pre-IO data (read from /past-projects etc.) */
