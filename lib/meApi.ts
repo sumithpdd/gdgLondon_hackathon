@@ -2,7 +2,8 @@
  * Authenticated calls to /api/me/* (Firebase ID token).
  */
 
-import { auth } from "@/lib/firebase";
+import type { User } from "firebase/auth";
+import { getBearerAuthHeaders } from "@/lib/api/authHeaders";
 
 export type EventCheckInStatusResult = {
   eligible: boolean;
@@ -13,15 +14,13 @@ export type EventCheckInStatusResult = {
   closesAt: string | null;
 };
 
-async function authFetch(path: string, init?: RequestInit): Promise<Response> {
-  const user = auth.currentUser;
-  if (!user) throw new Error("Not signed in");
-  const token = await user.getIdToken();
+async function authFetch(path: string, init?: RequestInit, user?: User | null): Promise<Response> {
+  const headers = await getBearerAuthHeaders(user);
   return fetch(path, {
     ...init,
     headers: {
       ...(init?.headers as Record<string, string> | undefined),
-      Authorization: `Bearer ${token}`,
+      ...headers,
     },
   });
 }

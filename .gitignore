@@ -39,4 +39,6 @@ next-env.d.ts
 # Firebase Admin SDK keys (never commit)
 *serviceAccount*.json
 *firebase-adminsdk*.json
+devfestlondon.json
+*-firebase-adminsdk-*.json
 firebase-debug.log

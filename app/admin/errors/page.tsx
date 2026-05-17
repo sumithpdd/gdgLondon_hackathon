@@ -44,7 +44,7 @@ function sourceBadgeClass(source: string): string {
 }
 
 export default function AdminErrorLogsPage() {
-  const { userProfile } = useAuthContext();
+  const { user, userProfile, loading: authLoading } = useAuthContext();
   const { toast } = useToast();
   const [from, setFrom] = useState(defaultFrom);
   const [to, setTo] = useState(defaultTo);
@@ -62,12 +62,15 @@ export default function AdminErrorLogsPage() {
     try {
       const a = new Date(from + "T00:00:00.000Z");
       const b = new Date(to + "T23:59:59.999Z");
-      const res = await fetchErrorLogsFromServer({
-        from: a.toISOString(),
-        to: b.toISOString(),
-        q: q.trim() || undefined,
-        limit: 400,
-      });
+      const res = await fetchErrorLogsFromServer(
+        {
+          from: a.toISOString(),
+          to: b.toISOString(),
+          q: q.trim() || undefined,
+          limit: 400,
+        },
+        user
+      );
       setLogs(res.logs);
       setMeta({ scanned: res.scanned, returned: res.returned });
     } catch (e) {
@@ -77,19 +80,19 @@ export default function AdminErrorLogsPage() {
     } finally {
       setBusy(false);
     }
-  }, [from, to, q, toast]);
+  }, [from, to, q, toast, user]);
 
   useEffect(() => {
-    if (userProfile?.role === "admin") {
+    if (!authLoading && user && userProfile?.role === "admin") {
       void load();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- initial load only
-  }, [userProfile?.role]);
+  }, [authLoading, user?.uid, userProfile?.role]);
 
   const runTestLog = async () => {
     setTestPosting(true);
     try {
-      const id = await postTestErrorLogEntry();
+      const id = await postTestErrorLogEntry(user);
       toast({
         title: "Test log written",
         description: id ? `Document id: ${id}` : "Check Firestore error_logs",

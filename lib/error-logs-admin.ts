@@ -1,11 +1,6 @@
-import { auth } from "@/lib/firebase";
+import type { User } from "firebase/auth";
+import { getBearerAuthHeaders } from "@/lib/api/authHeaders";
 import type { ErrorLogsResponse } from "@/types/error-log";
-
-async function authHeaders(): Promise<HeadersInit> {
-  const token = await auth.currentUser?.getIdToken();
-  if (!token) throw new Error("Sign in required");
-  return { Authorization: `Bearer ${token}` };
-}
 
 export async function fetchErrorLogsFromServer(options: {
   from?: string;
@@ -19,7 +14,7 @@ export async function fetchErrorLogsFromServer(options: {
   if (options.q) p.set("q", options.q);
   if (options.limit) p.set("limit", String(options.limit));
   const res = await fetch(`/api/admin/error-logs?${p.toString()}`, {
-    headers: await authHeaders(),
+    headers: await getBearerAuthHeaders(user),
   });
   const json = await res.json().catch(() => ({}));
   if (!res.ok || !json?.ok) {
@@ -28,10 +23,10 @@ export async function fetchErrorLogsFromServer(options: {
   return json.data as ErrorLogsResponse;
 }
 
-export async function postTestErrorLogEntry(): Promise<string> {
+export async function postTestErrorLogEntry(user?: User | null): Promise<string> {
   const res = await fetch("/api/admin/error-logs/test", {
     method: "POST",
-    headers: await authHeaders(),
+    headers: await getBearerAuthHeaders(user),
   });
   const json = await res.json().catch(() => ({}));
   if (!res.ok || !json?.ok) {

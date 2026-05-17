@@ -43,8 +43,36 @@ export async function verifyAuth(request: NextRequest): Promise<AuthResult | Nex
     const decoded = await adminAuth().verifyIdToken(token);
     const role = await readRole(decoded.uid);
     return { uid: decoded.uid, email: decoded.email, role };
-  } catch {
-    return err("Invalid or expired token", 401);
+  } catch (e: unknown) {
+    const code =
+      e && typeof e === "object" && "code" in e ? String((e as { code: string }).code) : "";
+    console.error("verifyIdToken failed:", code || e);
+
+    if (code === "auth/id-token-expired") {
+      return err("Session expired — refresh the page or sign in again.", 401);
+    }
+
+    const clientProject = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim();
+    const adminProject =
+      process.env.FIREBASE_ADMIN_PROJECT_ID?.trim() || clientProject;
+    if (clientProject && adminProject && clientProject !== adminProject) {
+      return err(
+        "Server Firebase project mismatch. Set FIREBASE_ADMIN_PROJECT_ID to match NEXT_PUBLIC_FIREBASE_PROJECT_ID.",
+        500
+      );
+    }
+
+    const missingAdmin =
+      !process.env.FIREBASE_ADMIN_CLIENT_EMAIL?.trim() ||
+      !process.env.FIREBASE_ADMIN_PRIVATE_KEY?.trim();
+    if (missingAdmin) {
+      return err(
+        "Server auth not configured. Set FIREBASE_ADMIN_CLIENT_EMAIL and FIREBASE_ADMIN_PRIVATE_KEY on Vercel.",
+        503
+      );
+    }
+
+    return err("Invalid or expired token — try signing out and back in.", 401);
   }
 }
 
