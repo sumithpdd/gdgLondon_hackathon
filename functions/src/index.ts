@@ -87,6 +87,12 @@ function assertSelfCheckInWindow(publicCfg: Record<string, unknown>): void {
   }
 }
 
+function normalizeAttendanceCohort(cohort: string | null | undefined): string | null {
+  if (cohort == null || cohort === "") return null;
+  if (cohort === "aidevcamp2026" || cohort === "aidevcamp_flat") return "aidevcamp2026";
+  throw new HttpsError("invalid-argument", "Invalid cohort.");
+}
+
 async function writeAttendance(params: {
   targetUid: string;
   actorUid: string;
@@ -666,6 +672,7 @@ export const generateCheckInCode = onCall(async (request) => {
     .set(
       {
         codeHash: hashCheckInCode(code),
+        displayCode: code,
         generatedAt: now,
         generatedBy: uid,
       },
@@ -673,6 +680,21 @@ export const generateCheckInCode = onCall(async (request) => {
     );
 
   return { code };
+});
+
+export const getCheckInDeskCode = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+  await assertOrganiser(uid);
+
+  const secretsSnap = await db.collection(CONFIG_COLLECTION).doc(CHECKIN_SECRETS_DOC).get();
+  const data = secretsSnap.data();
+  const code = typeof data?.displayCode === "string" ? data.displayCode : null;
+  const generatedAt = data?.generatedAt as admin.firestore.Timestamp | undefined;
+  return {
+    code,
+    generatedAt: generatedAt?.toDate?.()?.toISOString() ?? null,
+  };
 });
 
 export const selfCheckInWithCode = onCall(async (request) => {
@@ -718,10 +740,7 @@ export const staffCheckInUser = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "targetUserId or email is required.");
   }
 
-  if (cohort != null && cohort !== "" && cohort !== "aidevcamp_flat") {
-    throw new HttpsError("invalid-argument", "Invalid cohort.");
-  }
-  const cohortValue = cohort === "aidevcamp_flat" ? "aidevcamp_flat" : null;
+  const cohortValue = normalizeAttendanceCohort(cohort);
 
   await writeAttendance({
     targetUid: uid,
@@ -729,6 +748,49 @@ export const staffCheckInUser = onCall(async (request) => {
     method: "staff",
     cohort: cohortValue,
   });
+  return { success: true, userId: uid };
+});
+
+export const setAttendeeSwag = onCall(async (request) => {
+  const actorUid = request.auth?.uid;
+  if (!actorUid) throw new HttpsError("unauthenticated", "Sign in required.");
+  await assertOrganiser(actorUid);
+
+  const { targetUserId, swagReceived } = request.data as {
+    targetUserId?: string;
+    swagReceived?: boolean;
+  };
+  const uid = (targetUserId || "").trim();
+  if (!uid) {
+    throw new HttpsError("invalid-argument", "targetUserId is required.");
+  }
+
+  const ref = db.collection(ATTENDANCE_COLLECTION).doc(uid);
+  const snap = await ref.get();
+  if (!snap.exists || snap.data()?.attendanceVerified !== true) {
+    throw new HttpsError("failed-precondition", "Check in the attendee before recording swag.");
+  }
+
+  const now = admin.firestore.FieldValue.serverTimestamp();
+  if (swagReceived === true) {
+    await ref.set(
+      {
+        swagReceived: true,
+        swagReceivedAt: now,
+        swagReceivedByUid: actorUid,
+      },
+      { merge: true }
+    );
+  } else {
+    await ref.set(
+      {
+        swagReceived: false,
+        swagReceivedAt: admin.firestore.FieldValue.delete(),
+        swagReceivedByUid: admin.firestore.FieldValue.delete(),
+      },
+      { merge: true }
+    );
+  }
   return { success: true, userId: uid };
 });
 

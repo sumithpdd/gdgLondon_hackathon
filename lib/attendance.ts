@@ -2,7 +2,8 @@ import { doc, getDoc, setDoc, serverTimestamp, deleteField } from "firebase/fire
 import { db } from "./firebase";
 import { ATTENDANCE_COLLECTION } from "./constants";
 
-export type AttendanceCohort = "aidevcamp_flat" | null;
+/** Legacy `aidevcamp_flat` is normalized to `aidevcamp2026` on new writes. */
+export type AttendanceCohort = "aidevcamp2026" | "aidevcamp_flat" | null;
 
 export type AttendanceDoc = {
   userId: string;
@@ -11,7 +12,14 @@ export type AttendanceDoc = {
   method: "self" | "admin" | "staff";
   attendanceVerified: boolean;
   cohort?: AttendanceCohort;
+  swagReceived?: boolean;
+  swagReceivedAt?: unknown;
+  swagReceivedByUid?: string;
 };
+
+export function isAidevcampCohort(cohort: string | undefined | null): boolean {
+  return cohort === "aidevcamp2026" || cohort === "aidevcamp_flat";
+}
 
 /** One attendance doc per attendee (`docId === userId`) for simple reads. */
 export async function getAttendanceForUser(uid: string): Promise<AttendanceDoc | null> {

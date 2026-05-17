@@ -9,10 +9,13 @@ import { Copy, Key, Loader2, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   callableCheckInError,
+  fetchCheckInDeskCode,
   fetchCheckInPublicConfig,
   formatCheckInCodeDisplay,
   formatCheckInWindow,
   generateCheckInCode,
+  persistOrganiserCheckInCode,
+  readOrganiserCheckInCodeSession,
   updateCheckInPublicConfig,
 } from "@/lib/check-in";
 
@@ -28,22 +31,40 @@ export function CheckInCodePanel() {
   const [opensAt, setOpensAt] = useState("");
   const [closesAt, setClosesAt] = useState("");
   const [displayCode, setDisplayCode] = useState("");
+  const [codeGeneratedAt, setCodeGeneratedAt] = useState<Date | null>(null);
   const [windowLabel, setWindowLabel] = useState("");
+
+  const applyCode = useCallback((raw: string | null | undefined, generatedAt?: Date) => {
+    if (!raw) return;
+    const normalized = raw.replace(/\s/g, "");
+    if (normalized.length === 6) {
+      setDisplayCode(formatCheckInCodeDisplay(normalized));
+      if (generatedAt) setCodeGeneratedAt(generatedAt);
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const cfg = await fetchCheckInPublicConfig();
+      const [cfg, desk] = await Promise.all([fetchCheckInPublicConfig(), fetchCheckInDeskCode()]);
       setEnabled(cfg.selfCheckInEnabled);
       setOpensAt(cfg.windowOpensAt ? cfg.windowOpensAt.toISOString().slice(0, 16) : "");
       setClosesAt(cfg.windowClosesAt ? cfg.windowClosesAt.toISOString().slice(0, 16) : "");
       setWindowLabel(formatCheckInWindow(cfg));
+
+      if (desk.code) {
+        applyCode(desk.code, desk.generatedAt);
+        persistOrganiserCheckInCode(desk.code);
+      } else {
+        const sessionCode = readOrganiserCheckInCodeSession();
+        if (sessionCode) applyCode(sessionCode);
+      }
     } catch {
       toast({ title: "Could not load check-in settings", variant: "destructive" });
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, applyCode]);
 
   useEffect(() => {
     void load();
@@ -74,10 +95,11 @@ export function CheckInCodePanel() {
     setGenerating(true);
     try {
       const { code } = await generateCheckInCode();
-      setDisplayCode(formatCheckInCodeDisplay(code));
+      persistOrganiserCheckInCode(code);
+      applyCode(code, new Date());
       toast({
         title: "New code generated",
-        description: "Share it with attendees during the window. Previous codes stop working.",
+        description: "Displayed below — previous codes stop working.",
       });
     } catch (e) {
       toast({
@@ -119,12 +141,48 @@ export function CheckInCodePanel() {
           Live attendance code
         </CardTitle>
         <CardDescription className="text-gray-400">
-          Attendees signed into the app enter this 6-digit code on{" "}
-          <span className="text-gray-300">/checkin</span> during the window below. The code is stored as a
-          hash on the server — not visible in the public settings document.
+          Attendees enter this 6-digit code on{" "}
+          <span className="text-gray-300">/checkin</span> during the window. Regenerating replaces the active code;
+          the current code stays visible here for the desk.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {displayCode ? (
+          <div className="rounded-xl border-2 border-cyan-500/45 bg-gradient-to-b from-cyan-950/60 to-black/40 px-4 py-6 text-center shadow-lg shadow-cyan-900/20">
+            <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-cyan-300/90 mb-3">
+              Room code — share with attendees
+            </p>
+            <p className="font-mono text-4xl sm:text-5xl font-bold tracking-[0.35em] text-white tabular-nums">
+              {displayCode}
+            </p>
+            {codeGeneratedAt ? (
+              <p className="mt-3 text-xs text-gray-500">
+                Generated{" "}
+                {codeGeneratedAt.toLocaleString("en-GB", {
+                  day: "numeric",
+                  month: "short",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </p>
+            ) : null}
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="mt-4 border-cyan-500/40 text-cyan-100 hover:bg-cyan-500/10"
+              onClick={() => void copyCode()}
+            >
+              <Copy className="h-3.5 w-3.5 mr-1.5" />
+              Copy code
+            </Button>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed border-white/15 bg-black/20 px-4 py-8 text-center text-sm text-gray-500">
+            No active code — generate one below for self check-in.
+          </div>
+        )}
+
         <label className="flex items-center gap-3 text-gray-200 cursor-pointer select-none">
           <input
             type="checkbox"
@@ -136,28 +194,14 @@ export function CheckInCodePanel() {
         </label>
 
         <div className="space-y-2">
-          <Label className="text-xs uppercase tracking-wide text-gray-500">6-digit code</Label>
+          <Label className="text-xs uppercase tracking-wide text-gray-500">Regenerate code</Label>
           <div className="flex flex-col sm:flex-row gap-2">
-            <div className="relative flex-1">
-              <Input
-                readOnly
-                value={displayCode}
-                placeholder="Generate a code"
-                className={`${fieldClass} font-mono text-xl tracking-[0.35em] text-center`}
-              />
-              {displayCode ? (
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
-                  onClick={() => void copyCode()}
-                  aria-label="Copy code"
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
-              ) : null}
-            </div>
+            <Input
+              readOnly
+              value={displayCode}
+              placeholder="Generate a code"
+              className={`${fieldClass} font-mono text-lg tracking-[0.25em] text-center sm:flex-1`}
+            />
             <Button
               type="button"
               onClick={() => void handleGenerate()}
@@ -169,7 +213,7 @@ export function CheckInCodePanel() {
               ) : (
                 <>
                   <RefreshCw className="h-4 w-4 mr-2" />
-                  Generate
+                  Generate new code
                 </>
               )}
             </Button>

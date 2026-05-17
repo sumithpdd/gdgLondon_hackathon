@@ -100,6 +100,50 @@ export async function generateCheckInCode(): Promise<{ code: string }> {
   return result.data;
 }
 
+const ORGANISER_CODE_SESSION_KEY = "hackathon_organiser_checkin_code";
+
+export function persistOrganiserCheckInCode(code: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(ORGANISER_CODE_SESSION_KEY, normalizeCheckInCodeInput(code));
+  } catch {
+    /* private mode */
+  }
+}
+
+export function readOrganiserCheckInCodeSession(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return sessionStorage.getItem(ORGANISER_CODE_SESSION_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** Active 6-digit code for the organiser desk (stored server-side on generate). */
+export async function fetchCheckInDeskCode(): Promise<{ code: string | null; generatedAt?: Date }> {
+  const fn = httpsCallable<Record<string, never>, { code: string | null; generatedAt?: string }>(
+    functions,
+    "getCheckInDeskCode"
+  );
+  const result = await fn({});
+  return {
+    code: result.data.code,
+    generatedAt: result.data.generatedAt ? new Date(result.data.generatedAt) : undefined,
+  };
+}
+
+export async function setAttendeeSwag(params: {
+  targetUserId: string;
+  swagReceived: boolean;
+}): Promise<void> {
+  const fn = httpsCallable<{ targetUserId: string; swagReceived: boolean }, { success: boolean }>(
+    functions,
+    "setAttendeeSwag"
+  );
+  await fn(params);
+}
+
 /** Prefer `postEventSelfCheckIn` from `lib/meApi` (API route). Callable fallback for legacy clients. */
 export async function selfCheckInWithCode(code: string): Promise<void> {
   const fn = httpsCallable<{ code: string }, { success: boolean }>(functions, "selfCheckInWithCode");
@@ -114,13 +158,15 @@ export async function resetUserAttendance(targetUserId: string): Promise<void> {
   await fn({ targetUserId: targetUserId.trim() });
 }
 
+export type StaffCheckInCohort = "aidevcamp2026" | null;
+
 export async function staffCheckInUser(params: {
   targetUserId?: string;
   email?: string;
-  cohort?: AttendanceCohort;
+  cohort?: StaffCheckInCohort;
 }): Promise<{ userId: string }> {
   const fn = httpsCallable<
-    { targetUserId?: string; email?: string; cohort?: AttendanceCohort | null },
+    { targetUserId?: string; email?: string; cohort?: string | null },
     { success: boolean; userId: string }
   >(functions, "staffCheckInUser");
   const result = await fn({

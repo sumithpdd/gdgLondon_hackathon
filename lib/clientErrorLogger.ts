@@ -49,12 +49,14 @@ export async function reportClientError(payload: ClientErrorPayload): Promise<vo
 /** Use in try/catch when you want explicit reporting beyond global listeners. */
 export function logClientError(
   error: unknown,
-  source: ClientErrorPayload["source"] = "report"
+  source: ClientErrorPayload["source"] = "report",
+  context?: string
 ): void {
   const { message, name, stack } = errorToParts(error);
+  const prefix = context ? `[${context}] ` : "";
   void reportClientError({
     source,
-    message: message.slice(0, 1_500),
+    message: `${prefix}${message}`.slice(0, 1_500),
     name,
     stack: stack?.slice(0, 8_000),
   });
@@ -62,11 +64,18 @@ export function logClientError(
 
 function errorToParts(error: unknown): { message: string; name: string; stack?: string } {
   if (error instanceof Error) {
+    const code = "code" in error ? String((error as Error & { code?: string }).code || "") : "";
+    const message = error.message || "Error";
     return {
-      message: error.message || "Error",
+      message: code && !message.includes(code) ? `${code}: ${message}` : message,
       name: error.name,
       stack: error.stack,
     };
+  }
+  if (error && typeof error === "object") {
+    const o = error as { message?: string; code?: string };
+    const message = [o.code, o.message].filter(Boolean).join(": ") || "Error";
+    return { message, name: o.code || "Error" };
   }
   return { message: String(error), name: "Error" };
 }

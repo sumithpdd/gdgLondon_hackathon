@@ -5,12 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, RotateCcw, UserCheck } from "lucide-react";
+import { Gift, Loader2, RotateCcw, UserCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { getAttendanceForUser, type AttendanceCohort } from "@/lib/attendance";
+import { getAttendanceForUser, isAidevcampCohort } from "@/lib/attendance";
 import { listUsersForAdmin, type AdminListedUser } from "@/lib/admin-users";
 import { isUserDeleted } from "@/lib/auth";
-import { callableCheckInError, resetUserAttendance, staffCheckInUser } from "@/lib/check-in";
+import {
+  callableCheckInError,
+  resetUserAttendance,
+  setAttendeeSwag,
+  staffCheckInUser,
+} from "@/lib/check-in";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,12 +47,15 @@ export function StaffAttendeeCheckIn({
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [search, setSearch] = useState("");
   const [emailQuick, setEmailQuick] = useState("");
-  const [tagAidevcamp, setTagAidevcamp] = useState(false);
+  const [tagAidevcamp2026, setTagAidevcamp2026] = useState(false);
   const [checkingUid, setCheckingUid] = useState<string | null>(null);
+  const [swagUid, setSwagUid] = useState<string | null>(null);
   const [resettingUid, setResettingUid] = useState<string | null>(null);
   const [resetTarget, setResetTarget] = useState<AdminListedUser | null>(null);
   const [quickLoading, setQuickLoading] = useState(false);
-  const [checkedMap, setCheckedMap] = useState<Record<string, boolean>>({});
+  const [deskMap, setDeskMap] = useState<
+    Record<string, { checkedIn: boolean; swagReceived: boolean; aidevcamp: boolean }>
+  >({});
 
   const loadUsers = useCallback(async () => {
     setLoadingUsers(true);
@@ -83,30 +91,42 @@ export function StaffAttendeeCheckIn({
     if (slice.length === 0) return;
     let cancelled = false;
     (async () => {
-      const next: Record<string, boolean> = {};
+      const next: Record<string, { checkedIn: boolean; swagReceived: boolean; aidevcamp: boolean }> =
+        {};
       await Promise.all(
         slice.map(async (u) => {
           const a = await getAttendanceForUser(u.uid);
-          next[u.uid] = !!a?.attendanceVerified;
+          next[u.uid] = {
+            checkedIn: !!a?.attendanceVerified,
+            swagReceived: a?.swagReceived === true,
+            aidevcamp: isAidevcampCohort(a?.cohort),
+          };
         })
       );
-      if (!cancelled) setCheckedMap((prev) => ({ ...prev, ...next }));
+      if (!cancelled) setDeskMap((prev) => ({ ...prev, ...next }));
     })();
     return () => {
       cancelled = true;
     };
   }, [slice]);
 
-  const cohortForNext: AttendanceCohort = tagAidevcamp ? "aidevcamp_flat" : null;
+  const cohortForNext = tagAidevcamp2026 ? ("aidevcamp2026" as const) : null;
 
   const checkInUser = async (targetUid: string) => {
     setCheckingUid(targetUid);
     try {
       await staffCheckInUser({ targetUserId: targetUid, cohort: cohortForNext });
-      setCheckedMap((m) => ({ ...m, [targetUid]: true }));
+      setDeskMap((m) => ({
+        ...m,
+        [targetUid]: {
+          checkedIn: true,
+          swagReceived: m[targetUid]?.swagReceived ?? false,
+          aidevcamp: !!cohortForNext,
+        },
+      }));
       toast({
         title: "Checked in",
-        description: cohortForNext ? "Tagged as AI DevCamp flat cohort." : "Attendance saved.",
+        description: cohortForNext ? "Tagged as AI DevCamp 2026." : "Attendance saved.",
       });
     } catch (e) {
       toast({
@@ -125,7 +145,10 @@ export function StaffAttendeeCheckIn({
     setResettingUid(uid);
     try {
       await resetUserAttendance(uid);
-      setCheckedMap((m) => ({ ...m, [uid]: false }));
+      setDeskMap((m) => ({
+        ...m,
+        [uid]: { checkedIn: false, swagReceived: false, aidevcamp: false },
+      }));
       toast({
         title: "Attendance reset",
         description: resetTarget.email || resetTarget.displayName || uid,
@@ -152,7 +175,14 @@ export function StaffAttendeeCheckIn({
     setQuickLoading(true);
     try {
       const { userId } = await staffCheckInUser({ email, cohort: cohortForNext });
-      setCheckedMap((m) => ({ ...m, [userId]: true }));
+      setDeskMap((m) => ({
+        ...m,
+        [userId]: {
+          checkedIn: true,
+          swagReceived: m[userId]?.swagReceived ?? false,
+          aidevcamp: !!cohortForNext,
+        },
+      }));
       toast({ title: "Checked in", description: email });
       setEmailQuick("");
       void loadUsers();
@@ -164,6 +194,39 @@ export function StaffAttendeeCheckIn({
       });
     } finally {
       setQuickLoading(false);
+    }
+  };
+
+  const toggleSwag = async (targetUid: string, next: boolean) => {
+    const row = deskMap[targetUid];
+    if (!row?.checkedIn) {
+      toast({
+        title: "Check in first",
+        description: "Mark attendance before recording swag.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSwagUid(targetUid);
+    try {
+      await setAttendeeSwag({ targetUserId: targetUid, swagReceived: next });
+      setDeskMap((m) => ({
+        ...m,
+        [targetUid]: { ...m[targetUid], swagReceived: next },
+      }));
+      toast({
+        title: next ? "Swag recorded" : "Swag cleared",
+        description: next ? "Marked as received." : "Swag flag removed.",
+      });
+    } catch (e) {
+      logClientError(e, "report", "checkin-swag");
+      toast({
+        title: "Could not update swag",
+        description: callableCheckInError(e),
+        variant: "destructive",
+      });
+    } finally {
+      setSwagUid(null);
     }
   };
 
@@ -198,11 +261,11 @@ export function StaffAttendeeCheckIn({
         <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
           <input
             type="checkbox"
-            checked={tagAidevcamp}
-            onChange={(e) => setTagAidevcamp(e.target.checked)}
+            checked={tagAidevcamp2026}
+            onChange={(e) => setTagAidevcamp2026(e.target.checked)}
             className="rounded border-white/30 bg-[#0a0a0f] text-emerald-600"
           />
-          Tag next check-ins as <span className="text-emerald-400 font-medium">AI DevCamp flat</span>
+          Tag next check-ins as <span className="text-emerald-400 font-medium">AI DevCamp 2026</span>
         </label>
 
         <div className="space-y-2">
@@ -236,10 +299,18 @@ export function StaffAttendeeCheckIn({
                   ) : null}
                 </div>
                 <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-                  {checkedMap[u.uid] ? (
+                  {deskMap[u.uid]?.checkedIn ? (
                     <span className="text-xs text-emerald-400 font-medium px-2">Checked in</span>
                   ) : null}
-                  {canResetAttendance && checkedMap[u.uid] ? (
+                  {deskMap[u.uid]?.aidevcamp ? (
+                    <span className="text-[10px] uppercase tracking-wide text-emerald-300/90 font-medium px-1.5 py-0.5 rounded border border-emerald-500/30 bg-emerald-500/10">
+                      AI DevCamp 2026
+                    </span>
+                  ) : null}
+                  {deskMap[u.uid]?.swagReceived ? (
+                    <span className="text-xs text-amber-300 font-medium px-1">Swag ✓</span>
+                  ) : null}
+                  {canResetAttendance && deskMap[u.uid]?.checkedIn ? (
                     <Button
                       type="button"
                       size="sm"
@@ -261,13 +332,41 @@ export function StaffAttendeeCheckIn({
                   <Button
                     type="button"
                     size="sm"
+                    variant="outline"
+                    disabled={swagUid === u.uid || !deskMap[u.uid]?.checkedIn}
+                    onClick={() => void toggleSwag(u.uid, !deskMap[u.uid]?.swagReceived)}
+                    className={
+                      deskMap[u.uid]?.swagReceived
+                        ? "border-amber-500/50 bg-amber-500/15 text-amber-100 hover:bg-amber-500/25"
+                        : "border-white/20 text-gray-200 hover:bg-white/5"
+                    }
+                    title={
+                      deskMap[u.uid]?.checkedIn
+                        ? deskMap[u.uid]?.swagReceived
+                          ? "Clear swag"
+                          : "Mark swag received"
+                        : "Check in first"
+                    }
+                  >
+                    {swagUid === u.uid ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Gift className="h-3 w-3 mr-1" />
+                        Swag
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
                     disabled={checkingUid === u.uid}
                     onClick={() => void checkInUser(u.uid)}
                     className="bg-violet-600 hover:bg-violet-500 text-white border-0"
                   >
                     {checkingUid === u.uid ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : checkedMap[u.uid] ? (
+                    ) : deskMap[u.uid]?.checkedIn ? (
                       "Update"
                     ) : (
                       <>

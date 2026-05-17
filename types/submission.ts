@@ -23,7 +23,7 @@ export interface Submission {
   teamMembers?: TeamMember[];
   // Description
   appPurpose: string; // Problem → Solution → Impact
-  // Required: demo video (max 3 min)
+  // Optional: demo video (max 3 min)
   demoVideoUrl?: string;
   // Code repository
   githubUrl: string;

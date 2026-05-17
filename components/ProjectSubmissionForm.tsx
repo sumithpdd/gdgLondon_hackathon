@@ -33,6 +33,7 @@ import {
 import type { AICategory, ProjectStage } from "@/types/submission";
 import { isAfterDeadline, isBeforeIdeaSubmissionOpens } from "@/lib/deadline";
 import { getProfileCompletion } from "@/lib/profile-completion";
+import { logClientError } from "@/lib/clientErrorLogger";
 import {
   buildProjectContactFields,
   findUserProjectForActiveHackathon,
@@ -170,6 +171,7 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
         }
       } catch (error) {
         console.error("Error loading draft:", error);
+        logClientError(error, "report", "project-load-draft");
       }
     };
 
@@ -220,10 +222,10 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
   };
 
   const buildGalleryPayload = () => ({
-    pitchLine: pitchLine.trim() || undefined,
-    aiCategory: aiCategory || undefined,
+    pitchLine: pitchLine.trim(),
     projectStage,
-    recruitmentTags: recruitmentTags.length > 0 ? recruitmentTags : undefined,
+    recruitmentTags,
+    ...(aiCategory ? { aiCategory } : {}),
   });
 
   const saveDraft = async () => {
@@ -354,15 +356,6 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
       return;
     }
 
-    if (!formData.demoVideoUrl?.trim()) {
-      toast({
-        title: "Demo video required for final submission",
-        description: "Add a YouTube demo video link (max 3 min) before locking in.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     if (!formData.githubUrl?.trim()) {
       toast({
         title: "GitHub repo required for final submission",
@@ -415,6 +408,7 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
       router.push("/hackathon/my-projects");
     } catch (error: unknown) {
       console.error("Error submitting form:", error);
+      logClientError(error, "report", "project-ship-final");
       const err = error as { code?: string; message?: string };
       let description = projectCallableError(error);
       if (err?.code === "storage/unauthorized") {
@@ -441,37 +435,60 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
 
   return (
     <Card className="bg-white/5 border-white/10 text-gray-100 shadow-xl shadow-black/20">
-      <CardHeader>
-        <div className="flex flex-col sm:flex-row sm:items-start gap-4 justify-between">
-          <div className="space-y-1 min-w-0">
-            <CardTitle className="text-xl text-white">Project submission</CardTitle>
-            <CardDescription className="text-gray-400">
-              {HACKATHON_DISPLAY_NAME}. YouTube and GitHub are optional while you iterate; both are required for final
-              submission. Opens{" "}
-              {HACKATHON_IDEA_SUBMISSION_OPENS.toLocaleDateString("en-GB", {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })}{" "}
-              · closes{" "}
-              {HACKATHON_SUBMISSION_DEADLINE.toLocaleString("en-GB", {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-                hour: "numeric",
-                minute: "2-digit",
-              })}{" "}
-              (London).
+      <CardHeader className="space-y-0 pb-2">
+        <div className="flex flex-col gap-5 md:flex-row md:items-center md:gap-8">
+          <div className="flex-1 min-w-0 space-y-3 order-2 md:order-1">
+            <div className="space-y-1">
+              <CardTitle className="text-xl sm:text-2xl text-white tracking-tight">
+                Project submission
+              </CardTitle>
+              <p className="text-sm text-violet-300/90 font-medium">{HACKATHON_DISPLAY_NAME}</p>
+            </div>
+            <CardDescription className="text-sm sm:text-base text-gray-400 leading-relaxed max-w-2xl">
+              Use <span className="text-gray-300">Save progress</span> while you iterate. Demo video is optional;{" "}
+              <span className="text-gray-300">GitHub</span> is required when you ship your final submission.
             </CardDescription>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge
+                variant="outline"
+                className="gap-1.5 border-emerald-500/35 bg-emerald-500/10 text-emerald-100 font-normal py-1 px-3"
+              >
+                <CalendarClock className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                Opens{" "}
+                {HACKATHON_IDEA_SUBMISSION_OPENS.toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </Badge>
+              <Badge
+                variant="outline"
+                className="gap-1.5 border-amber-500/35 bg-amber-500/10 text-amber-100 font-normal py-1 px-3"
+              >
+                <CalendarClock className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                Closes{" "}
+                {HACKATHON_SUBMISSION_DEADLINE.toLocaleString("en-GB", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                  timeZoneName: "short",
+                })}
+              </Badge>
+            </div>
           </div>
-          <div className="shrink-0 rounded-lg border border-white/10 bg-black/20 p-2">
-            <Image
-              src="/AI_Innovation_Hub.png"
-              alt="AI Innovation Hub"
-              width={280}
-              height={70}
-              className="h-auto w-[min(100%,220px)] rounded-md opacity-95"
-            />
+          <div className="order-1 md:order-2 flex justify-center md:justify-end shrink-0">
+            <div className="rounded-xl border border-white/10 bg-gradient-to-br from-violet-950/50 via-black/30 to-cyan-950/30 px-4 py-3 shadow-inner">
+              <Image
+                src="/AI_Innovation_Hub.png"
+                alt="AI Innovation Hub"
+                width={240}
+                height={60}
+                className="h-9 sm:h-10 md:h-11 w-auto max-w-[200px] sm:max-w-[220px] object-contain opacity-95"
+                priority
+              />
+            </div>
           </div>
         </div>
       </CardHeader>
@@ -726,7 +743,7 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
 
             <div className="space-y-2">
               <Label htmlFor="demoVideoUrl" className="text-gray-200">
-                Demo video URL (max 3 min)
+                Demo video URL <span className="text-gray-500 font-normal">(optional, max 3 min)</span>
               </Label>
               <Input
                 id="demoVideoUrl"
@@ -736,7 +753,7 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
                 onChange={(e) => setFormData({ ...formData, demoVideoUrl: e.target.value })}
                 className={fieldClass}
               />
-              <p className="text-xs text-gray-500">Show your app in action. Required for final submission.</p>
+              <p className="text-xs text-gray-500">YouTube link to show your app in action — add when you have one.</p>
             </div>
 
             <div className="space-y-2">

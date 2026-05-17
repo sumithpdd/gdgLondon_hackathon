@@ -44,9 +44,20 @@ export function stampProjectOwnership(
   };
 }
 
+/** Firestore rejects `undefined` field values on write. */
+export function omitUndefinedFields<T extends Record<string, unknown>>(data: T): T {
+  const out = { ...data };
+  for (const key of Object.keys(out)) {
+    if (out[key] === undefined) {
+      delete out[key];
+    }
+  }
+  return out;
+}
+
 export function buildProjectContactFields(ctx: ProjectOwnerContext): Record<string, unknown> {
   const { user, userProfile } = ctx;
-  return {
+  return omitUndefinedFields({
     fullName: (userProfile?.profileDisplayName || user.displayName || user.email?.split("@")[0] || "").trim(),
     email: (user.email || "").trim(),
     linkedinUrl: (userProfile?.hackathonLinkedinUrl || "").trim(),
@@ -60,8 +71,8 @@ export function buildProjectContactFields(ctx: ProjectOwnerContext): Record<stri
       userProfile?.techStack?.length
         ? userProfile.techStack
         : userProfile?.programmingSkills ?? userProfile?.skills ?? [],
-    ownerPhotoUrl: user.photoURL || undefined,
-  };
+    ...(user.photoURL ? { ownerPhotoUrl: user.photoURL } : {}),
+  });
 }
 
 /** Find this user's project for the active hackathon edition. */
@@ -130,13 +141,15 @@ export async function saveProjectDocument(params: {
   const nextStatus =
     preserveSubmittedStatus && status === "draft" ? "submitted" : status;
 
-  const payload = stampProjectOwnership(uid, ctx.user.email, {
-    ...fields,
-    status: nextStatus,
-    updatedAt: now,
-    updatedBy: uid,
-    updatedDate: now,
-  });
+  const payload = omitUndefinedFields(
+    stampProjectOwnership(uid, ctx.user.email, {
+      ...fields,
+      status: nextStatus,
+      updatedAt: now,
+      updatedBy: uid,
+      updatedDate: now,
+    })
+  );
 
   if (existingProjectId) {
     await updateDoc(doc(db, PROJECTS_COLLECTION, existingProjectId), payload);
@@ -161,7 +174,7 @@ export async function saveProjectDocument(params: {
       "createProject"
     );
     const result = await createProjectFn({
-      ...fields,
+      ...omitUndefinedFields(fields),
       status: nextStatus,
     });
     return result.data.projectId;

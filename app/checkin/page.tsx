@@ -48,8 +48,8 @@ export default function CheckinPage() {
               <StaffAttendeeCheckIn
                 actorUid={user?.uid ?? ""}
                 canResetAttendance={isAdmin}
-                title="Check in an attendee"
-                description="Search the directory or check in by email. Admins can reset attendance if someone checked in by mistake."
+                title="Check-in & swag desk"
+                description="Check in attendees, mark swag received, and tag AI DevCamp 2026 guests. Admins can reset attendance if needed."
               />
             </div>
           </section>
