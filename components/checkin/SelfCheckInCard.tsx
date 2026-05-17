@@ -2,51 +2,54 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Key, Loader2, UserCheck } from "lucide-react";
+import { KeyRound, Loader2, UserCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { getAttendanceForUser } from "@/lib/attendance";
+import { logClientError } from "@/lib/clientErrorLogger";
 import {
-  callableCheckInError,
-  fetchCheckInPublicConfig,
-  formatCheckInWindow,
-  getCheckInWindowStatus,
-  normalizeCheckInCodeInput,
-  selfCheckInWithCode,
-} from "@/lib/check-in";
+  fetchEventCheckInStatus,
+  postEventSelfCheckIn,
+  type EventCheckInStatusResult,
+} from "@/lib/meApi";
+import { normalizeCheckInCodeInput } from "@/lib/check-in";
+import { cn } from "@/lib/utils";
 
 type Props = {
   userId: string | undefined;
+  /** When true, loads status from API (expanded card on /checkin). */
+  expanded?: boolean;
   onCheckedIn?: () => void;
 };
 
-export function SelfCheckInCard({ userId, onCheckedIn }: Props) {
+function formatWhen(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+}
+
+export function SelfCheckInCard({ userId, expanded = true, onCheckedIn }: Props) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [checkedIn, setCheckedIn] = useState<boolean | null>(null);
   const [code, setCode] = useState("");
-  const [windowLabel, setWindowLabel] = useState("");
-  const [windowStatus, setWindowStatus] = useState<ReturnType<typeof getCheckInWindowStatus>>("disabled");
-  const [enabled, setEnabled] = useState(false);
+  const [status, setStatus] = useState<EventCheckInStatusResult | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!userId) return;
+    if (!userId || !expanded) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      const [attendance, config] = await Promise.all([
-        getAttendanceForUser(userId),
-        fetchCheckInPublicConfig(),
-      ]);
-      setCheckedIn(!!attendance?.attendanceVerified);
-      setEnabled(config.selfCheckInEnabled);
-      setWindowLabel(formatCheckInWindow(config));
-      setWindowStatus(getCheckInWindowStatus(config));
+      const s = await fetchEventCheckInStatus();
+      setStatus(s);
+    } catch (e) {
+      logClientError(e, "report");
+      setStatus(null);
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, expanded]);
 
   useEffect(() => {
     void refresh();
@@ -62,15 +65,19 @@ export function SelfCheckInCard({ userId, onCheckedIn }: Props) {
     }
     setSubmitting(true);
     try {
-      await selfCheckInWithCode(normalized);
-      toast({ title: "You’re checked in", description: "Attendance recorded for this event." });
-      setCheckedIn(true);
+      const result = await postEventSelfCheckIn(normalized);
+      toast({
+        title: result.alreadyMarked ? "Already checked in" : "You’re checked in",
+        description: "Attendance recorded for this event.",
+      });
       setCode("");
+      await refresh();
       onCheckedIn?.();
     } catch (err) {
+      logClientError(err, "report");
       toast({
         title: "Check-in failed",
-        description: callableCheckInError(err),
+        description: err instanceof Error ? err.message : "Something went wrong.",
         variant: "destructive",
       });
     } finally {
@@ -78,64 +85,131 @@ export function SelfCheckInCard({ userId, onCheckedIn }: Props) {
     }
   };
 
-  return (
-    <Card className="bg-[#12121a] border-white/10 shadow-none rounded-xl">
-      <CardHeader>
-        <CardTitle className="text-cyan-300/90 text-sm font-mono flex items-center gap-2">
-          <Key className="h-4 w-4" />
-          Self check-in
-        </CardTitle>
-        <CardDescription className="text-gray-400">
-          {enabled
-            ? "Enter the code shown at the venue during the check-in window."
-            : "Self check-in is not enabled. Ask an organiser at the desk."}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {loading ? (
-          <p className="text-gray-500 text-sm flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" /> Checking status…
-          </p>
-        ) : checkedIn ? (
-          <p className="text-emerald-400 text-sm font-medium">You are checked in.</p>
-        ) : windowStatus !== "open" ? (
-          <p className="text-gray-400 text-sm">
-            Not open yet (or closed). Window: {windowLabel}
+  if (!userId) {
+    return (
+      <div className="rounded-2xl border border-white/10 bg-[#12121a] px-5 py-6 text-sm text-gray-400">
+        Sign in to use self check-in.
+      </div>
+    );
+  }
+
+  if (!expanded) return null;
+
+  if (loading || !status) {
+    return (
+      <div className="rounded-2xl border border-white/10 bg-[#12121a] px-5 py-6 flex items-center gap-2 text-sm text-gray-500">
+        <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
+        Checking live check-in…
+      </div>
+    );
+  }
+
+  if (!status.eligible) {
+    return (
+      <div className="rounded-2xl border border-white/10 bg-[#12121a] px-5 py-6 text-sm text-gray-400">
+        Your account is not eligible for self check-in.
+      </div>
+    );
+  }
+
+  if (status.checkedIn) {
+    return (
+      <div className="rounded-2xl border border-emerald-500/35 bg-emerald-500/10 px-5 py-6">
+        <p className="text-emerald-300 font-medium flex items-center gap-2">
+          <UserCheck className="h-5 w-5" />
+          You are checked in.
+        </p>
+      </div>
+    );
+  }
+
+  if (!status.selfCheckInEnabled) {
+    return (
+      <div className="rounded-2xl border border-white/10 bg-[#12121a] px-5 py-6 space-y-2">
+        <Header />
+        <p className="text-sm text-gray-400">
+          Self check-in is not enabled. Ask an organiser at the desk.
+        </p>
+      </div>
+    );
+  }
+
+  if (!status.active) {
+    return (
+      <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-6 space-y-2">
+        <Header />
+        {status.opensAt && status.closesAt ? (
+          <p className="text-sm text-gray-400">
+            Not open yet (or closed). Window:{" "}
+            <span className="text-gray-300">{formatWhen(status.opensAt)}</span> –{" "}
+            <span className="text-gray-300">{formatWhen(status.closesAt)}</span>.
           </p>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <Input
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              placeholder="000 000"
-              value={code.length > 3 ? `${code.slice(0, 3)} ${code.slice(3)}` : code}
-              onChange={(e) => setCode(normalizeCheckInCodeInput(e.target.value).slice(0, 6))}
-              className="bg-[#0a0a0f] border-white/15 text-white text-center font-mono text-xl tracking-[0.35em] placeholder:text-gray-600"
-              maxLength={7}
-            />
-            <Button
-              type="submit"
-              disabled={submitting || !userId}
-              className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Checking in…
-                </>
-              ) : (
-                <>
-                  <UserCheck className="h-4 w-4 mr-2" />
-                  Check me in
-                </>
-              )}
-            </Button>
-          </form>
+          <p className="text-sm text-gray-400">No check-in window is configured yet.</p>
         )}
-        {!loading && windowStatus === "open" && !checkedIn && (
-          <p className="text-xs text-gray-500">Window: {windowLabel}</p>
-        )}
-      </CardContent>
-    </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border border-cyan-500/30 bg-cyan-500/[0.07] px-5 py-6 space-y-4",
+        "shadow-lg shadow-cyan-500/5"
+      )}
+    >
+      <Header highlight />
+      <p className="text-xs text-gray-400 leading-relaxed">
+        Enter the 6-digit code shown at the venue during the check-in window.
+      </p>
+      <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
+        <input
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          placeholder="000000"
+          value={code}
+          onChange={(e) => setCode(normalizeCheckInCodeInput(e.target.value).slice(0, 6))}
+          maxLength={6}
+          aria-label="6-digit check-in code"
+          className="w-full sm:w-40 min-h-11 bg-gray-950 border border-cyan-500/35 rounded-xl px-3 py-2.5 text-white font-mono tracking-[0.35em] text-center text-lg focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+        />
+        <Button
+          type="submit"
+          disabled={submitting}
+          className="min-h-11 bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-6"
+        >
+          {submitting ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Saving…
+            </>
+          ) : (
+            <>
+              <UserCheck className="h-4 w-4 mr-2" />
+              Confirm attendance
+            </>
+          )}
+        </Button>
+      </form>
+      {status.opensAt || status.closesAt ? (
+        <p className="text-xs text-gray-500">
+          Window: {formatWhen(status.opensAt)} – {formatWhen(status.closesAt)}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function Header({ highlight }: { highlight?: boolean }) {
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-2 font-mono text-xs font-bold",
+        highlight ? "text-cyan-200" : "text-cyan-300/90"
+      )}
+    >
+      <KeyRound className="h-4 w-4" />
+      Mark yourself present
+    </div>
   );
 }

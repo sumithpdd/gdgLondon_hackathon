@@ -15,6 +15,7 @@ import {
   Tags,
   Database,
   Shield,
+  Bug,
 } from "lucide-react";
 import { BUDDIES_FEATURE_LABEL } from "@/lib/constants";
 
@@ -46,15 +47,11 @@ export const PARTICIPANT_NAV: AppNavItem[] = [
   { href: "/past-projects", label: "Past", icon: Archive, matchPrefix: true },
 ];
 
-/** Check-in desk — admin and moderator. */
-export const ORGANISER_NAV: AppNavItem[] = [
-  { href: "/admin/checkin", label: "Check-in desk", icon: Ticket },
-];
-
 /** Extra items for admins only (appended after participant links). */
 export const ADMIN_NAV: AppNavItem[] = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/users", label: "Users", icon: Users },
+  { href: "/admin/errors", label: "Errors", icon: Bug },
   { href: "/admin/tags", label: "Tags", icon: Tags },
   { href: "/admin/content", label: "Content", icon: FileText },
   { href: "/admin/voting", label: "Voting", icon: Vote },
@@ -83,7 +80,7 @@ export function navItemsForUser(
   isOrganiser = false
 ): AppNavItem[] {
   if (!isAuthenticated) return PUBLIC_NAV;
-  if (isAdmin) return [...PARTICIPANT_NAV, ...ORGANISER_NAV, ...ADMIN_NAV];
-  if (isOrganiser) return [...PARTICIPANT_NAV, ...ORGANISER_NAV];
+  if (isAdmin) return [...PARTICIPANT_NAV, ...ADMIN_NAV];
+  if (isOrganiser) return PARTICIPANT_NAV;
   return PARTICIPANT_NAV;
 }

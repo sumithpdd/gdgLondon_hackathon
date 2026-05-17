@@ -13,6 +13,7 @@ import {
 import { PastArchiveGallery } from "@/components/past-projects/PastArchiveGallery";
 import { useAuthContext } from "@/lib/AuthContext";
 import { callableErrorMessage } from "@/lib/admin-projects";
+import { logClientError } from "@/lib/clientErrorLogger";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -63,6 +64,7 @@ export default function PastProjectsPage() {
       toast({ title: "Archived project deleted" });
       setDeleteTarget(null);
     } catch (e) {
+      logClientError(e, "report");
       toast({
         title: "Delete failed",
         description: callableErrorMessage(e),

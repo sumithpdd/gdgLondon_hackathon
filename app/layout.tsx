@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/AuthContext";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
+import ClientErrorRoot from "@/components/ClientErrorRoot";
 
 const poppins = Poppins({
   weight: ["300", "400", "500", "600", "700"],
@@ -27,7 +28,7 @@ export default function RootLayout({
       <body className={`${poppins.variable} font-sans antialiased`}>
         <ThemeProvider>
           <AuthProvider>
-            {children}
+            <ClientErrorRoot>{children}</ClientErrorRoot>
             <Toaster />
           </AuthProvider>
         </ThemeProvider>

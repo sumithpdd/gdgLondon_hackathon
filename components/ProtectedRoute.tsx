@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuthContext } from "@/lib/AuthContext";
 import { isOrganiserRole, isUserDeleted } from "@/lib/auth";
 import Link from "next/link";
@@ -21,17 +21,21 @@ export function ProtectedRoute({
 }: ProtectedRouteProps) {
   const { user, userProfile, loading } = useAuthContext();
   const router = useRouter();
+  const pathname = usePathname();
   useEffect(() => {
     if (!loading) {
       if (!user) {
-        // User not authenticated, redirect to hackathon (Firebase login available there)
-        router.push("/hackathon");
+        const returnTo =
+          pathname && pathname !== "/hackathon"
+            ? `?login=1&redirect=${encodeURIComponent(pathname)}`
+            : "?login=1";
+        router.push(`/hackathon${returnTo}`);
       } else if (requireAdmin && userProfile?.role !== "admin") {
         // User is not admin, redirect to hackathon
         router.push("/hackathon");
       }
     }
-  }, [user, userProfile, loading, requireAdmin, router]);
+  }, [user, userProfile, loading, requireAdmin, router, pathname]);
 
   if (loading) {
     return (

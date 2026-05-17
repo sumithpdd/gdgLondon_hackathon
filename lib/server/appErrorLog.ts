@@ -1,0 +1,60 @@
+import { FieldValue } from "firebase-admin/firestore";
+import { adminDb } from "@/lib/firebase-admin";
+import { redactEmail } from "@/lib/logging/redactEmail";
+
+export type InsertAppErrorLogInput = {
+  message: string;
+  name?: string | null;
+  stack?: string | null;
+  source: string;
+  path?: string | null;
+  url?: string | null;
+  userId?: string | null;
+  userEmail?: string | null;
+  userAgent?: string | null;
+};
+
+export async function insertErrorLog(input: InsertAppErrorLogInput): Promise<string | null> {
+  try {
+    const ref = await adminDb()
+      .collection("error_logs")
+      .add({
+        message: String(input.message).slice(0, 4_000),
+        stack: input.stack != null ? String(input.stack).slice(0, 12_000) : null,
+        name: input.name != null ? String(input.name).slice(0, 200) : null,
+        source: String(input.source || "server").slice(0, 80),
+        path: input.path != null ? String(input.path).slice(0, 500) : null,
+        url: input.url != null ? String(input.url).slice(0, 2_000) : null,
+        userId: input.userId ?? null,
+        userEmail:
+          input.userEmail != null && String(input.userEmail).trim() !== ""
+            ? redactEmail(String(input.userEmail))
+            : null,
+        userAgent: input.userAgent != null ? String(input.userAgent).slice(0, 500) : null,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    return ref.id;
+  } catch (e) {
+    console.error("insertErrorLog: Firestore write failed", e);
+    return null;
+  }
+}
+
+export function logServerRouteException(routeContext: string, e: unknown): void {
+  const { message, name, stack } = unknownToErrorParts(e);
+  console.error(`[api] ${routeContext}`, e);
+  void insertErrorLog({
+    source: "api",
+    message: `${routeContext}: ${message}`.slice(0, 2_000),
+    name: name || "Error",
+    stack: stack || null,
+    path: routeContext.slice(0, 500),
+  });
+}
+
+function unknownToErrorParts(e: unknown): { message: string; name?: string; stack?: string } {
+  if (e instanceof Error) {
+    return { message: e.message || String(e), name: e.name, stack: e.stack };
+  }
+  return { message: String(e) };
+}

@@ -5,21 +5,35 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, UserCheck } from "lucide-react";
+import { Loader2, RotateCcw, UserCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getAttendanceForUser, type AttendanceCohort } from "@/lib/attendance";
 import { listUsersForAdmin, type AdminListedUser } from "@/lib/admin-users";
 import { isUserDeleted } from "@/lib/auth";
-import { callableCheckInError, staffCheckInUser } from "@/lib/check-in";
+import { callableCheckInError, resetUserAttendance, staffCheckInUser } from "@/lib/check-in";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { logClientError } from "@/lib/clientErrorLogger";
 
 type Props = {
   actorUid: string;
+  /** Admins can clear attendance (e.g. mistaken check-in). */
+  canResetAttendance?: boolean;
   title?: string;
   description?: string;
 };
 
 export function StaffAttendeeCheckIn({
   actorUid,
+  canResetAttendance = false,
   title = "Check in an attendee",
   description = "Search the directory and check people in at the desk. Works for admins and moderators.",
 }: Props) {
@@ -30,6 +44,8 @@ export function StaffAttendeeCheckIn({
   const [emailQuick, setEmailQuick] = useState("");
   const [tagAidevcamp, setTagAidevcamp] = useState(false);
   const [checkingUid, setCheckingUid] = useState<string | null>(null);
+  const [resettingUid, setResettingUid] = useState<string | null>(null);
+  const [resetTarget, setResetTarget] = useState<AdminListedUser | null>(null);
   const [quickLoading, setQuickLoading] = useState(false);
   const [checkedMap, setCheckedMap] = useState<Record<string, boolean>>({});
 
@@ -100,6 +116,30 @@ export function StaffAttendeeCheckIn({
       });
     } finally {
       setCheckingUid(null);
+    }
+  };
+
+  const confirmReset = async () => {
+    if (!resetTarget) return;
+    const uid = resetTarget.uid;
+    setResettingUid(uid);
+    try {
+      await resetUserAttendance(uid);
+      setCheckedMap((m) => ({ ...m, [uid]: false }));
+      toast({
+        title: "Attendance reset",
+        description: resetTarget.email || resetTarget.displayName || uid,
+      });
+      setResetTarget(null);
+    } catch (e) {
+      logClientError(e, "report");
+      toast({
+        title: "Reset failed",
+        description: callableCheckInError(e),
+        variant: "destructive",
+      });
+    } finally {
+      setResettingUid(null);
     }
   };
 
@@ -195,9 +235,28 @@ export function StaffAttendeeCheckIn({
                     <p className="text-[10px] text-violet-400">Legacy profile</p>
                   ) : null}
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
                   {checkedMap[u.uid] ? (
                     <span className="text-xs text-emerald-400 font-medium px-2">Checked in</span>
+                  ) : null}
+                  {canResetAttendance && checkedMap[u.uid] ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={resettingUid === u.uid}
+                      onClick={() => setResetTarget(u)}
+                      className="border-amber-500/40 text-amber-200 hover:bg-amber-500/10"
+                    >
+                      {resettingUid === u.uid ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <RotateCcw className="h-3 w-3 mr-1" />
+                          Reset
+                        </>
+                      )}
+                    </Button>
                   ) : null}
                   <Button
                     type="button"
@@ -227,6 +286,35 @@ export function StaffAttendeeCheckIn({
         )}
         <p className="text-xs text-gray-500">{users.length} profiles loaded (active + legacy).</p>
       </CardContent>
+
+      <AlertDialog open={!!resetTarget} onOpenChange={(open) => !open && setResetTarget(null)}>
+        <AlertDialogContent className="bg-[#12121a] border-white/15 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset check-in?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-400">
+              Remove attendance for{" "}
+              <span className="text-gray-200">
+                {resetTarget?.displayName || resetTarget?.email || resetTarget?.uid}
+              </span>
+              . They will need to check in again before voting.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-white/15 bg-transparent text-gray-300 hover:bg-white/5">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                void confirmReset();
+              }}
+              className="bg-amber-600 hover:bg-amber-500 text-white"
+            >
+              Reset attendance
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

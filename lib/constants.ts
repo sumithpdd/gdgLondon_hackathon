@@ -38,6 +38,8 @@ export const LIVE_STATS_DOC_ID = "summary";
 export const LIVE_SLIDE_DOC_ID = "liveSlide";
 /** Public check-in window flags (no code — validated server-side). */
 export const CHECKIN_PUBLIC_DOC_ID = "checkInPublic";
+/** Hashed 6-digit code — Admin SDK / API only (not client-readable). */
+export const CHECKIN_SECRETS_DOC_ID = "checkInSecrets";
 
 export const FIREBASE_STORAGE_FOLDER = "hackathon_uploads";
 export const COMMENTS_SUBCOLLECTION = "comments";

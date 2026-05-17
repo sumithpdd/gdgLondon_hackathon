@@ -100,9 +100,18 @@ export async function generateCheckInCode(): Promise<{ code: string }> {
   return result.data;
 }
 
+/** Prefer `postEventSelfCheckIn` from `lib/meApi` (API route). Callable fallback for legacy clients. */
 export async function selfCheckInWithCode(code: string): Promise<void> {
   const fn = httpsCallable<{ code: string }, { success: boolean }>(functions, "selfCheckInWithCode");
   await fn({ code: normalizeCheckInCodeInput(code) });
+}
+
+export async function resetUserAttendance(targetUserId: string): Promise<void> {
+  const fn = httpsCallable<{ targetUserId: string }, { success: boolean }>(
+    functions,
+    "resetUserAttendance"
+  );
+  await fn({ targetUserId: targetUserId.trim() });
 }
 
 export async function staffCheckInUser(params: {

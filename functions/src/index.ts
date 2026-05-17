@@ -1,6 +1,14 @@
 import * as admin from "firebase-admin";
 import { createHash, randomInt } from "crypto";
+import { setGlobalOptions } from "firebase-functions/v2";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+
+/** Lower footprint per function — helps stay under Cloud Run CPU quota in us-central1. */
+setGlobalOptions({
+  region: "us-central1",
+  memory: "256MiB",
+  maxInstances: 15,
+});
 
 const PROJECTS_COLLECTION = process.env.PROJECTS_COLLECTION || "hackatonProjects";
 const USERS_COLLECTION = process.env.USERS_COLLECTION || "hackatonUsers";
@@ -720,6 +728,26 @@ export const staffCheckInUser = onCall(async (request) => {
     method: "staff",
     cohort: cohortValue,
   });
+  return { success: true, userId: uid };
+});
+
+export const resetUserAttendance = onCall(async (request) => {
+  const actorUid = request.auth?.uid;
+  if (!actorUid) throw new HttpsError("unauthenticated", "Sign in required.");
+  await assertAdmin(actorUid);
+
+  const { targetUserId } = request.data as { targetUserId?: string };
+  const uid = (targetUserId || "").trim();
+  if (!uid) {
+    throw new HttpsError("invalid-argument", "targetUserId is required.");
+  }
+
+  await db.collection(ATTENDANCE_COLLECTION).doc(uid).delete();
+  try {
+    await rebuildLiveStats();
+  } catch {
+    /* non-fatal */
+  }
   return { success: true, userId: uid };
 });
 

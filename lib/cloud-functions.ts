@@ -13,6 +13,7 @@ export const HACKATHON_CALLABLES = [
   "generateCheckInCode",
   "selfCheckInWithCode",
   "staffCheckInUser",
+  "resetUserAttendance",
   "createJoinRequest",
   "handleJoinRequest",
   "setUserRole",

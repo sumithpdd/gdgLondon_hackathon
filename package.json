@@ -14,6 +14,7 @@
     "functions:build": "npm run build --prefix functions && npm run build --prefix functions-legacy",
     "functions:check": "node scripts/check-functions-sync.mjs",
     "functions:deploy:hackathon": "npm run functions:check && npm run build --prefix functions && firebase deploy --only functions:hackathon",
+    "functions:deploy:retry-failed": "npm run build --prefix functions && firebase deploy --only functions:hackathon:staffCheckInUser,functions:hackathon:setUserRole",
     "functions:deploy:legacy": "npm run build --prefix functions-legacy && firebase deploy --only functions:legacy",
     "functions:deploy": "npm run functions:check && npm run functions:build && firebase deploy --only functions"
   },

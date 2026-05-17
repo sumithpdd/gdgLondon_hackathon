@@ -2,6 +2,11 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // App error log (Admin SDK / API routes only)
+    match /error_logs/{id} {
+      allow read, write: if false;
+    }
+
     function getUserRole(userId) {
       return exists(/databases/$(database)/documents/io2026Hackathon_users/$(userId))
         ? get(/databases/$(database)/documents/io2026Hackathon_users/$(userId)).data.role
