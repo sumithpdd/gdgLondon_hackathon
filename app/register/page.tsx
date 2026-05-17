@@ -14,8 +14,6 @@ import {
   Mail,
   User,
 } from "lucide-react";
-import { getRedirectResult } from "firebase/auth";
-import { auth } from "@/lib/firebase";
 import {
   createOrUpdateUserProfile,
   loginWithGoogle,
@@ -47,42 +45,6 @@ export default function RegisterPage() {
     }
   }, [user, loading, router]);
 
-  useEffect(() => {
-    let cancelled = false;
-    getRedirectResult(auth)
-      .then(async (cred) => {
-        if (!cred?.user || cancelled) return;
-        setSubmitting(true);
-        try {
-          await createOrUpdateUserProfile(cred.user);
-          toast({ title: "Welcome!", description: "Your account is ready." });
-          afterAuth();
-        } catch (err) {
-          console.error(err);
-          toast({
-            title: "Registration failed",
-            description: firebaseAuthErrorMessage(err),
-            variant: "destructive",
-          });
-        } finally {
-          if (!cancelled) setSubmitting(false);
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          console.error(err);
-          toast({
-            title: "Google sign-in failed",
-            description: firebaseAuthErrorMessage(err),
-            variant: "destructive",
-          });
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [afterAuth, toast]);
-
   const validate = () => {
     const e: Record<string, string> = {};
     if (!displayName.trim()) e.displayName = "Name is required";
@@ -100,6 +62,11 @@ export default function RegisterPage() {
         await createOrUpdateUserProfile(cred.user);
         toast({ title: "Welcome!", description: "Your account is ready." });
         afterAuth();
+      } else {
+        toast({
+          title: "Continue in Google",
+          description: "Finish sign-in in Google, then you’ll return here.",
+        });
       }
     } catch (err) {
       console.error(err);

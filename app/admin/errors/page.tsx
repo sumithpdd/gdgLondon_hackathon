@@ -4,7 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminShell } from "@/components/AdminShell";
 import { useAuthContext } from "@/lib/AuthContext";
-import { fetchErrorLogsFromServer, postTestErrorLogEntry } from "@/lib/error-logs-admin";
+import {
+  fetchAdminHealth,
+  fetchErrorLogsFromServer,
+  postTestErrorLogEntry,
+} from "@/lib/error-logs-admin";
 import type { AppErrorLog } from "@/types/error-log";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +59,7 @@ export default function AdminErrorLogsPage() {
   const [busy, setBusy] = useState(true);
   const [expandId, setExpandId] = useState<string | null>(null);
   const [testPosting, setTestPosting] = useState(false);
+  const [healthHint, setHealthHint] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setBusy(true);
@@ -181,9 +186,16 @@ export default function AdminErrorLogsPage() {
           </Card>
 
           {loadError ? (
-            <p className="text-sm text-destructive border border-destructive/30 rounded-xl px-4 py-3">
-              {loadError}
-            </p>
+            <div className="space-y-2">
+              <p className="text-sm text-destructive border border-destructive/30 rounded-xl px-4 py-3">
+                {loadError}
+              </p>
+              {healthHint ? (
+                <p className="text-sm text-amber-200/90 border border-amber-500/30 rounded-xl px-4 py-3 leading-relaxed">
+                  {healthHint}
+                </p>
+              ) : null}
+            </div>
           ) : null}
 
           {meta ? (

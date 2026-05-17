@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 
-const REDIRECT_KEY = "hackathon_auth_redirect";
+import { savePostLoginRedirect, HACKATHON_AUTH_REDIRECT_KEY } from "@/lib/auth-redirect";
 
 /** When URL has `?login=1`, open sign-in; `&reset=1` opens forgot-password; optional `redirect=` path. */
 export function OpenLoginFromQuery({
@@ -36,4 +36,4 @@ export function OpenLoginFromQuery({
   return null;
 }
 
-export { REDIRECT_KEY as HACKATHON_AUTH_REDIRECT_KEY };
+export { HACKATHON_AUTH_REDIRECT_KEY };

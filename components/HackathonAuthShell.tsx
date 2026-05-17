@@ -5,19 +5,18 @@ import {
   Suspense,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { getRedirectResult } from "firebase/auth";
-import { auth } from "@/lib/firebase";
-import { createOrUpdateUserProfile } from "@/lib/auth";
-import { firebaseAuthErrorMessage } from "@/lib/firebaseAuthErrors";
 import { AuthModal } from "@/components/AuthModal";
-import { OpenLoginFromQuery, HACKATHON_AUTH_REDIRECT_KEY } from "@/components/OpenLoginFromQuery";
-import { useToast } from "@/hooks/use-toast";
+import { OpenLoginFromQuery } from "@/components/OpenLoginFromQuery";
+import {
+  clearPostLoginRedirect,
+  readPostLoginRedirect,
+  savePostLoginRedirect,
+} from "@/lib/auth-redirect";
 
 type OpenSignInOptions = { forgot?: boolean; redirect?: string };
 
@@ -38,25 +37,19 @@ export function useHackathonAuth(): HackathonAuthContextValue {
 
 export function HackathonAuthShell({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [initialView, setInitialView] = useState<"signin" | "forgot">("signin");
 
   const finishAuth = useCallback(() => {
-    const redirect =
-      typeof sessionStorage !== "undefined"
-        ? sessionStorage.getItem(HACKATHON_AUTH_REDIRECT_KEY)
-        : null;
-    if (typeof sessionStorage !== "undefined") {
-      sessionStorage.removeItem(HACKATHON_AUTH_REDIRECT_KEY);
-    }
+    const redirect = readPostLoginRedirect();
+    clearPostLoginRedirect();
     setOpen(false);
     router.push(redirect && redirect.startsWith("/") ? redirect : "/hackathon");
   }, [router]);
 
   const openSignIn = useCallback((options?: OpenSignInOptions) => {
-    if (options?.redirect && typeof sessionStorage !== "undefined") {
-      sessionStorage.setItem(HACKATHON_AUTH_REDIRECT_KEY, options.redirect);
+    if (options?.redirect) {
+      savePostLoginRedirect(options.redirect);
     }
     setInitialView(options?.forgot ? "forgot" : "signin");
     setOpen(true);
@@ -64,39 +57,13 @@ export function HackathonAuthShell({ children }: { children: ReactNode }) {
 
   const closeSignIn = useCallback(() => {
     setOpen(false);
-    if (typeof sessionStorage !== "undefined") {
-      sessionStorage.removeItem(HACKATHON_AUTH_REDIRECT_KEY);
-    }
+    clearPostLoginRedirect();
   }, []);
 
   const value = useMemo(
     () => ({ openSignIn, closeSignIn }),
     [openSignIn, closeSignIn]
   );
-
-  useEffect(() => {
-    let cancelled = false;
-    getRedirectResult(auth)
-      .then(async (cred) => {
-        if (!cred?.user || cancelled) return;
-        await createOrUpdateUserProfile(cred.user);
-        toast({ title: "Signed in", description: "Welcome back!" });
-        finishAuth();
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          console.error(err);
-          toast({
-            title: "Sign-in failed",
-            description: firebaseAuthErrorMessage(err),
-            variant: "destructive",
-          });
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [finishAuth, toast]);
 
   return (
     <HackathonAuthContext.Provider value={value}>

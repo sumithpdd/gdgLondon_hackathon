@@ -9,10 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { collection, updateDoc, doc, query, where, getDocs, getDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { httpsCallable } from "firebase/functions";
-import { db, storage, functions } from "@/lib/firebase";
+import { storage } from "@/lib/firebase";
 import Link from "next/link";
 import { Upload, X, Loader2, Save, Plus, CalendarClock, AlertTriangle } from "lucide-react";
 import Image from "next/image";
@@ -21,7 +19,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   AI_CATEGORIES,
   BUILT_WITH_OPTIONS,
-  PROJECTS_COLLECTION,
   FIREBASE_STORAGE_FOLDER,
   HACKATHON_SUBMISSION_DEADLINE,
   HACKATHON_IDEA_SUBMISSION_OPENS,
@@ -34,9 +31,15 @@ import {
   PROJECT_STAGE_LABELS,
 } from "@/lib/idea-gallery";
 import type { AICategory, ProjectStage } from "@/types/submission";
-import { getActiveHackathonId, getActiveHackathonName } from "@/lib/active-hackathon";
 import { isAfterDeadline, isBeforeIdeaSubmissionOpens } from "@/lib/deadline";
 import { getProfileCompletion } from "@/lib/profile-completion";
+import {
+  buildProjectContactFields,
+  findUserProjectForActiveHackathon,
+  getOwnedProjectDoc,
+  projectCallableError,
+  saveProjectDocument,
+} from "@/lib/project-submissions";
 
 const fieldClass =
   "bg-white/5 border-white/15 text-white placeholder:text-gray-500 focus-visible:ring-violet-500";
@@ -97,29 +100,26 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
       if (!user) return;
 
       try {
-        let existingDoc: { id: string; data: () => Record<string, unknown> } | null = null;
+        let existingRow: { id: string; data: Record<string, unknown> } | null = null;
 
         if (editId) {
-          const docRef = doc(db, PROJECTS_COLLECTION, editId);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists() && docSnap.data().userId === user.uid) {
-            existingDoc = { id: docSnap.id, data: () => docSnap.data() as Record<string, unknown> };
+          const owned = await getOwnedProjectDoc(editId, user.uid);
+          if (owned) {
+            existingRow = { id: owned.id, data: owned.data as Record<string, unknown> };
           }
         }
 
-        if (!existingDoc) {
-          const q = query(collection(db, PROJECTS_COLLECTION), where("userId", "==", user.uid));
-          const querySnapshot = await getDocs(q);
-          if (!querySnapshot.empty) {
-            const first = querySnapshot.docs[0];
-            existingDoc = { id: first.id, data: () => first.data() as Record<string, unknown> };
+        if (!existingRow) {
+          const found = await findUserProjectForActiveHackathon(user.uid);
+          if (found) {
+            existingRow = { id: found.id, data: found.data as Record<string, unknown> };
           }
         }
 
-        if (existingDoc) {
-          const data = existingDoc.data();
+        if (existingRow) {
+          const data = existingRow.data;
 
-          setExistingSubmissionId(existingDoc.id);
+          setExistingSubmissionId(existingRow.id);
           setExistingScreenshots([]);
           setFormData({
             projectTitle: (data.projectTitle as string) || (data.fullName as string) || "",
@@ -157,8 +157,8 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
             setExistingStatus(data.status as "draft" | "submitted");
           }
 
-          const shouldToast = projectToastForId.current !== existingDoc.id;
-          projectToastForId.current = existingDoc.id;
+          const shouldToast = projectToastForId.current !== existingRow.id;
+          projectToastForId.current = existingRow.id;
           if (shouldToast) {
             toast({
               title: editId ? "Project loaded" : "Draft loaded",
@@ -219,24 +219,6 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
     return urls;
   };
 
-  /** Minimal identity on the project doc (not synced from hackathon profile). */
-  const buildContactPayload = () => ({
-    fullName: (userProfile?.profileDisplayName || user?.displayName || user?.email?.split("@")[0] || "").trim(),
-    email: (user?.email || "").trim(),
-    linkedinUrl: (userProfile?.hackathonLinkedinUrl || "").trim(),
-    websiteUrl: (userProfile?.websiteUrl || "").trim(),
-    twitterUrl: (userProfile?.twitterUrl || "").trim(),
-    facebookUrl: (userProfile?.facebookUrl || "").trim(),
-    instagramUrl: (userProfile?.instagramUrl || "").trim(),
-    interests: userProfile?.interests ?? userProfile?.wantToLearnTags ?? [],
-    expertise: userProfile?.expertise ?? userProfile?.domainExpertise ?? [],
-    techStack:
-      userProfile?.techStack?.length
-        ? userProfile.techStack
-        : userProfile?.programmingSkills ?? userProfile?.skills ?? [],
-    ownerPhotoUrl: user?.photoURL || undefined,
-  });
-
   const buildGalleryPayload = () => ({
     pitchLine: pitchLine.trim() || undefined,
     aiCategory: aiCategory || undefined,
@@ -290,39 +272,23 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
         screenshotUrls = [...screenshotUrls, ...newUrls];
       }
 
-      const now = new Date();
+      const projectId = await saveProjectDocument({
+        ctx: { user, userProfile },
+        existingProjectId: existingSubmissionId,
+        fields: {
+          ...formData,
+          ...buildProjectContactFields({ user, userProfile }),
+          ...buildGalleryPayload(),
+          teamMembers: formData.projectType === "team" ? teamMembers : [],
+          builtWith,
+          lookingForMembers,
+          screenshots: screenshotUrls,
+        },
+        status: "draft",
+        preserveSubmittedStatus: existingStatus === "submitted",
+      });
+      setExistingSubmissionId(projectId);
       const newStatus = existingStatus === "submitted" ? "submitted" : "draft";
-      const baseData = {
-        ...formData,
-        ...buildContactPayload(),
-        ...buildGalleryPayload(),
-        teamMembers: formData.projectType === "team" ? teamMembers : [],
-        builtWith,
-        lookingForMembers,
-        screenshots: screenshotUrls,
-        userId: user.uid,
-        userEmail: user.email,
-        hackathonId: getActiveHackathonId(),
-        hackathonName: getActiveHackathonName(),
-        updatedAt: now,
-        status: newStatus,
-        updatedBy: user.uid,
-        updatedDate: now,
-      };
-      const submissionData = existingSubmissionId
-        ? baseData
-        : { ...baseData, place: null, likes: 0, views: 0 };
-
-      if (existingSubmissionId) {
-        await updateDoc(doc(db, PROJECTS_COLLECTION, existingSubmissionId), submissionData);
-      } else {
-        const createProjectFn = httpsCallable<Record<string, unknown>, { projectId: string }>(
-          functions,
-          "createProject"
-        );
-        const result = await createProjectFn(submissionData);
-        setExistingSubmissionId(result.data.projectId);
-      }
 
       toast({
         title: "Saved",
@@ -338,7 +304,7 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
       setPreviewUrls([]);
     } catch (error: unknown) {
       console.error("Error saving draft:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to save draft. Please try again.";
+      const errorMessage = projectCallableError(error);
       toast({
         title: "Error",
         description: errorMessage,
@@ -424,37 +390,20 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
         screenshotUrls = [...screenshotUrls, ...newUrls];
       }
 
-      const now = new Date();
-      const submissionData = {
-        ...formData,
-        ...buildContactPayload(),
-        ...buildGalleryPayload(),
-        teamMembers: formData.projectType === "team" ? teamMembers : [],
-        builtWith,
-        lookingForMembers,
-        screenshots: screenshotUrls,
-        userId: user.uid,
-        userEmail: user.email,
-        hackathonId: getActiveHackathonId(),
-        hackathonName: getActiveHackathonName(),
-        updatedAt: now,
+      await saveProjectDocument({
+        ctx: { user, userProfile },
+        existingProjectId: existingSubmissionId,
+        fields: {
+          ...formData,
+          ...buildProjectContactFields({ user, userProfile }),
+          ...buildGalleryPayload(),
+          teamMembers: formData.projectType === "team" ? teamMembers : [],
+          builtWith,
+          lookingForMembers,
+          screenshots: screenshotUrls,
+        },
         status: "submitted",
-        place: null,
-        likes: 0,
-        views: 0,
-        updatedBy: user.uid,
-        updatedDate: now,
-      };
-
-      if (existingSubmissionId) {
-        await updateDoc(doc(db, PROJECTS_COLLECTION, existingSubmissionId), submissionData);
-      } else {
-        const createProjectFn = httpsCallable<Record<string, unknown>, { projectId: string }>(
-          functions,
-          "createProject"
-        );
-        await createProjectFn(submissionData);
-      }
+      });
 
       toast({
         title: "Success!",
@@ -467,33 +416,16 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
     } catch (error: unknown) {
       console.error("Error submitting form:", error);
       const err = error as { code?: string; message?: string };
-      let errorMessage = "Failed to submit your project. ";
-      let debugInfo = "";
-
+      let description = projectCallableError(error);
       if (err?.code === "storage/unauthorized") {
-        errorMessage += "Storage permission denied. Please check Firebase Storage rules.";
-        debugInfo = `Error code: ${err.code}`;
+        description = "Screenshot upload failed — check Storage rules.";
       } else if (err?.code === "permission-denied") {
-        errorMessage += "Database permission denied. Please check Firestore rules.";
-        debugInfo = `Error code: ${err.code}`;
-      } else if (err?.code) {
-        errorMessage += `Firebase Error: ${err.code}`;
-        debugInfo = err.message || "No additional details";
-      } else if (err?.message) {
-        errorMessage += err.message;
-      } else {
-        errorMessage += "Unknown error. Please check browser console (F12) for details.";
+        description = "Could not save to io2026Hackathon_projects — sign in and try again.";
       }
 
       toast({
         title: "Submission failed",
-        description: (
-          <div className="space-y-1">
-            <p>{errorMessage}</p>
-            {debugInfo && <p className="text-xs opacity-70 mt-1">{debugInfo}</p>}
-            <p className="text-xs opacity-60 mt-2">Check browser console (F12) for full error details.</p>
-          </div>
-        ),
+        description,
         variant: "destructive",
       });
     } finally {

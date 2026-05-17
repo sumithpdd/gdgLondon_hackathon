@@ -7,12 +7,6 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    function getUserRole(userId) {
-      return exists(/databases/$(database)/documents/io2026Hackathon_users/$(userId))
-        ? get(/databases/$(database)/documents/io2026Hackathon_users/$(userId)).data.role
-        : get(/databases/$(database)/documents/hackatonUsers/$(userId)).data.role;
-    }
-
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -39,10 +33,6 @@ service cloud.firestore {
 
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
-    }
-
-    function isOwnerOrAdmin(userId) {
-      return isOwner(userId) || isAdmin();
     }
 
     match /hackatonUsers/{userId} {
@@ -205,12 +195,17 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isAuthenticated()
         && request.resource.data.userId == request.auth.uid
+        && request.resource.data.hackathonId is string
+        && request.resource.data.hackathonId.size() > 0
         && !("place" in request.resource.data && request.resource.data.place != null);
       allow update: if isAuthenticated()
         && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.hackathonId is string
+        && request.resource.data.hackathonId.size() > 0
+        && (!("hackathonId" in resource.data) || request.resource.data.hackathonId == resource.data.hackathonId)
         && !("place" in request.resource.data && request.resource.data.place != resource.data.place)
-        && !("voteTotal" in request.resource.data && request.resource.data.voteTotal != resource.data.voteTotal)
-        && request.resource.data.userId == resource.data.userId;
+        && !("voteTotal" in request.resource.data && request.resource.data.voteTotal != resource.data.voteTotal);
       allow delete: if isAuthenticated() &&
         (resource.data.userId == request.auth.uid || isAdmin());
       match /comments/{commentId} {

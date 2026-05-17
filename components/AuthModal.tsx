@@ -105,6 +105,12 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialView = "signin" }
         toast({ title: "Signed in", description: "Welcome back!" });
         onSuccess?.();
         onClose();
+        setGoogleLoading(false);
+      } else {
+        toast({
+          title: "Continue in Google",
+          description: "Complete sign-in in the Google screen, then you’ll return here.",
+        });
       }
     } catch (err) {
       console.error(err);
@@ -113,7 +119,6 @@ export function AuthModal({ isOpen, onClose, onSuccess, initialView = "signin" }
         description: firebaseAuthErrorMessage(err),
         variant: "destructive",
       });
-    } finally {
       setGoogleLoading(false);
     }
   };

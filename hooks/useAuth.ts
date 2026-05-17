@@ -5,6 +5,8 @@ import { User, onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { createOrUpdateUserProfile, getUserProfile, UserProfile } from "@/lib/auth";
 import { recordHackathonParticipationIfNeeded } from "@/lib/participation";
+import { handleGoogleRedirectResultOnce } from "@/lib/googleRedirectResult";
+import { useToast } from "@/hooks/use-toast";
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -23,6 +25,13 @@ export function useAuth() {
       void recordHackathonParticipationIfNeeded(firebaseUser.uid).catch(() => {});
     }
   }, []);
+
+  useEffect(() => {
+    void handleGoogleRedirectResultOnce().catch((err) => {
+      const msg = err instanceof Error ? err.message : "Google sign-in failed";
+      toast({ title: "Google sign-in failed", description: msg, variant: "destructive" });
+    });
+  }, [toast]);
 
   useEffect(() => {
     // Set a timeout to prevent infinite loading

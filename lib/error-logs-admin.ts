@@ -37,3 +37,31 @@ export async function postTestErrorLogEntry(user?: User | null): Promise<string>
   }
   return String((json.data as { id?: string })?.id ?? "");
 }
+
+export type AdminHealthResult = {
+  env: {
+    ok: boolean;
+    projectId?: string;
+    hasEmail: boolean;
+    keyLength: number;
+    keyLooksValid: boolean;
+    error?: string;
+  };
+  clientProject?: string;
+  projectsMatch: boolean;
+  tokenVerified: boolean;
+  tokenError?: string;
+  uid?: string;
+  role?: string;
+};
+
+export async function fetchAdminHealth(user?: User | null): Promise<AdminHealthResult> {
+  const res = await fetch("/api/admin/health", {
+    headers: await getBearerAuthHeaders(user),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!json?.ok) {
+    throw new Error(String(json?.error ?? res.status));
+  }
+  return json.data as AdminHealthResult;
+}

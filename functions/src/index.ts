@@ -10,10 +10,11 @@ setGlobalOptions({
   maxInstances: 15,
 });
 
-const PROJECTS_COLLECTION = process.env.PROJECTS_COLLECTION || "hackatonProjects";
-const USERS_COLLECTION = process.env.USERS_COLLECTION || "hackatonUsers";
-const JOIN_REQUESTS_COLLECTION = process.env.JOIN_REQUESTS_COLLECTION || "hackatonJoinRequests";
-const CONFIG_COLLECTION = process.env.CONFIG_COLLECTION || "hackatonConfig";
+const PROJECTS_COLLECTION = process.env.PROJECTS_COLLECTION || "io2026Hackathon_projects";
+const USERS_COLLECTION = process.env.USERS_COLLECTION || "io2026Hackathon_users";
+const JOIN_REQUESTS_COLLECTION =
+  process.env.JOIN_REQUESTS_COLLECTION || "io2026Hackathon_joinRequests";
+const CONFIG_COLLECTION = process.env.CONFIG_COLLECTION || "io2026Hackathon_settings";
 const CONFIG_DOC = process.env.CONFIG_DOC || "settings";
 const VOTES_COLLECTION = process.env.VOTES_COLLECTION || "io2026Hackathon_votes";
 const ATTENDANCE_COLLECTION = process.env.ATTENDANCE_COLLECTION || "io2026Hackathon_attendance";

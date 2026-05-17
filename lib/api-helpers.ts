@@ -33,46 +33,70 @@ async function readRole(uid: string): Promise<string> {
   return "user";
 }
 
+function authErrorMessage(e: unknown): string {
+  const code =
+    e && typeof e === "object" && "code" in e ? String((e as { code: string }).code) : "";
+  const msg = e instanceof Error ? e.message : String(e);
+
+  if (code === "auth/id-token-expired") {
+    return "Session expired — refresh the page or sign in again.";
+  }
+  if (code === "auth/argument-error" || msg.includes("PEM") || msg.includes("private key")) {
+    return "Server misconfigured: FIREBASE_ADMIN_PRIVATE_KEY is invalid or truncated on Vercel. Paste the full private_key from service account JSON (one line with \\n).";
+  }
+  if (msg.includes("placeholder") || msg.includes("truncated")) {
+    return msg;
+  }
+  if (code === "auth/invalid-id-token" || code === "auth/id-token-revoked") {
+    return "Invalid session — sign out and sign in again.";
+  }
+  if (code) {
+    return `Auth failed (${code}). Sign out and sign in again.`;
+  }
+  return "Invalid or expired token — try signing out and back in.";
+}
+
 export async function verifyAuth(request: NextRequest): Promise<AuthResult | NextResponse> {
   const authHeader = request.headers.get("authorization") ?? "";
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!token) {
     return err("Missing Authorization header", 401);
   }
+
+  const clientProject = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim();
+  const adminProject =
+    process.env.FIREBASE_ADMIN_PROJECT_ID?.trim() || clientProject;
+  if (clientProject && adminProject && clientProject !== adminProject) {
+    return err(
+      "Server Firebase project mismatch. Set FIREBASE_ADMIN_PROJECT_ID to match NEXT_PUBLIC_FIREBASE_PROJECT_ID.",
+      500
+    );
+  }
+
+  const missingAdmin =
+    !process.env.FIREBASE_ADMIN_CLIENT_EMAIL?.trim() ||
+    !process.env.FIREBASE_ADMIN_PRIVATE_KEY?.trim();
+  if (missingAdmin) {
+    return err(
+      "Server auth not configured. Set FIREBASE_ADMIN_CLIENT_EMAIL and FIREBASE_ADMIN_PRIVATE_KEY on Vercel.",
+      503
+    );
+  }
+
+  let decoded;
   try {
-    const decoded = await adminAuth().verifyIdToken(token);
+    decoded = await adminAuth().verifyIdToken(token);
+  } catch (e: unknown) {
+    console.error("verifyIdToken failed:", e);
+    return err(authErrorMessage(e), 401);
+  }
+
+  try {
     const role = await readRole(decoded.uid);
     return { uid: decoded.uid, email: decoded.email, role };
   } catch (e: unknown) {
-    const code =
-      e && typeof e === "object" && "code" in e ? String((e as { code: string }).code) : "";
-    console.error("verifyIdToken failed:", code || e);
-
-    if (code === "auth/id-token-expired") {
-      return err("Session expired — refresh the page or sign in again.", 401);
-    }
-
-    const clientProject = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim();
-    const adminProject =
-      process.env.FIREBASE_ADMIN_PROJECT_ID?.trim() || clientProject;
-    if (clientProject && adminProject && clientProject !== adminProject) {
-      return err(
-        "Server Firebase project mismatch. Set FIREBASE_ADMIN_PROJECT_ID to match NEXT_PUBLIC_FIREBASE_PROJECT_ID.",
-        500
-      );
-    }
-
-    const missingAdmin =
-      !process.env.FIREBASE_ADMIN_CLIENT_EMAIL?.trim() ||
-      !process.env.FIREBASE_ADMIN_PRIVATE_KEY?.trim();
-    if (missingAdmin) {
-      return err(
-        "Server auth not configured. Set FIREBASE_ADMIN_CLIENT_EMAIL and FIREBASE_ADMIN_PRIVATE_KEY on Vercel.",
-        503
-      );
-    }
-
-    return err("Invalid or expired token — try signing out and back in.", 401);
+    console.error("readRole / adminDb failed:", e);
+    return err(authErrorMessage(e), 503);
   }
 }
 

@@ -5,14 +5,17 @@ import {
   signInWithRedirect,
   sendPasswordResetEmail,
   GoogleAuthProvider,
+  setPersistence,
+  browserLocalPersistence,
   updateProfile,
   type User,
   type UserCredential,
 } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import { USERS_COLLECTION } from "./constants";
 import { syncUserProfileOnAuth } from "./user-profile-sync";
+import { markGoogleRedirectPending } from "./auth-redirect";
 
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: "select_account" });
@@ -54,10 +57,24 @@ export async function sendPasswordResetToEmail(email: string): Promise<void> {
 /** Popup on desktop; redirect on mobile (returns null while navigation happens). */
 export async function loginWithGoogle(): Promise<UserCredential | null> {
   if (preferGoogleRedirect()) {
+    await setPersistence(auth, browserLocalPersistence);
+    markGoogleRedirectPending();
     await signInWithRedirect(auth, googleProvider);
     return null;
   }
-  return signInWithPopup(auth, googleProvider);
+  try {
+    return await signInWithPopup(auth, googleProvider);
+  } catch (e: unknown) {
+    const code =
+      e && typeof e === "object" && "code" in e ? String((e as { code: string }).code) : "";
+    if (code === "auth/popup-blocked" || code === "auth/cancelled-popup-request") {
+      await setPersistence(auth, browserLocalPersistence);
+      markGoogleRedirectPending();
+      await signInWithRedirect(auth, googleProvider);
+      return null;
+    }
+    throw e;
+  }
 }
 
 export async function registerWithEmail(email: string, password: string, displayName: string) {
