@@ -2,12 +2,15 @@ import type { User } from "firebase/auth";
 import { getBearerAuthHeaders } from "@/lib/api/authHeaders";
 import type { ErrorLogsResponse } from "@/types/error-log";
 
-export async function fetchErrorLogsFromServer(options: {
-  from?: string;
-  to?: string;
-  q?: string;
-  limit?: number;
-}): Promise<ErrorLogsResponse> {
+export async function fetchErrorLogsFromServer(
+  options: {
+    from?: string;
+    to?: string;
+    q?: string;
+    limit?: number;
+  },
+  user?: User | null
+): Promise<ErrorLogsResponse> {
   const p = new URLSearchParams();
   if (options.from) p.set("from", options.from);
   if (options.to) p.set("to", options.to);
