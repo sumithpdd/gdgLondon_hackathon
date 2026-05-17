@@ -34,8 +34,10 @@ We follow a **component-based** front end with **domain-driven** naming: modules
 
 ## Project submission & profile
 
-- **Canonical UX:** project draft/final submission lives on **`/hackathon/my-projects`** (form below your project card). Hackathon profile (directory, buddies) stays on **`/hackathon/profile`** — not merged into the submission payload.
-- **`/submit`** redirects to **`/hackathon/my-projects?project=1`** (and preserves `edit=` when present). Old links remain valid.
+- **Canonical UX:** project draft/final submission lives on **`/hackathon/my-projects`** (form below your project card). Buttons: **Save progress** (`draft`) and **Ship it! — Final submission** (`submitted`).
+- **Writes:** `lib/project-submissions.ts` — `saveProjectDocument` stamps **`userId`**, **`userEmail`**, **`hackathonId`**, **`hackathonName`** on every create/update; primary path is client `addDoc`/`updateDoc` on `PROJECTS_COLLECTION` (`io2026Hackathon_projects` when dataset=io2026). Callable **`createProject`** is fallback only.
+- **Profile:** `/hackathon/profile` — directory, buddies, team-join fields only; not the project form.
+- **`/submit`** redirects to **`/hackathon/my-projects?project=1`** (and preserves `edit=` when present).
 
 ---
 
@@ -51,7 +53,11 @@ We follow a **component-based** front end with **domain-driven** naming: modules
 | `components/admin/AdminUserBadges.tsx` | Reusable role + status badges for admin user UI |
 | `components/admin/AdminProvisionUserDialog.tsx` | Add Auth user to active hackathon (callable) |
 | `lib/hackathon-projects.ts` | Filter projects by active `hackathonId` (ideas gallery) |
+| `lib/project-submissions.ts` | Save/load projects; stamp ownership; `saveProjectDocument` |
 | `lib/profile-completion.ts` | Team join score (80% threshold) |
+| `lib/meApi.ts` | Self check-in + check-in status API wrappers |
+| `lib/clientErrorLogger.ts` | Client-side errors → `POST /api/log-error` |
+| `lib/error-logs-admin.ts` | Admin fetch of `error_logs` |
 | `lib/prizes.ts` | Read/seed prize array on `settings/main` |
 | `components/HackathonAuthShell.tsx` | Sign-in modal + `?login=1` query handling |
 | `components/HackathonResultsSummary.tsx` | Winners + stats (admin + `/past-projects`) |
@@ -95,9 +101,13 @@ Do not show raw Firestore collection names in user-facing copy; use edition labe
 
 ## Cloud Functions (privileged)
 
-| Callable | Purpose |
-|----------|---------|
-| `createProject` | New submission; sets `hackathonId` / `hackathonName` |
+| Callable / API | Purpose |
+|----------------|---------|
+| `saveProjectDocument` (client `lib/`) | Primary create/update in `PROJECTS_COLLECTION` with `hackathonId` + `userId` |
+| `createProject` | Fallback create if client `addDoc` fails; must use same collection env as app |
+| `POST /api/me/attendance/self-check-in` | Self check-in with code + window validation |
+| `POST /api/log-error` | Persist client errors to `error_logs` |
+| `GET /api/admin/error-logs` | Admin error log list |
 | `castVotes` | Audience voting with caps + check-in |
 | `setWinnerPlace` / `assignWinnersFromVotes` | Winner assignment |
 | `deleteProject` | Admin delete project + join requests |

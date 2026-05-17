@@ -13,7 +13,7 @@ Start here if you're new to the project:
 1. **[JUNIOR_ONBOARDING.md](./JUNIOR_ONBOARDING.md)** — **Start here:** flows, schema cheat sheet, repo map, `motionDiv` typo explained, safe first tasks
 2. **[IO2026_HACKATHON_SPEC.md](./IO2026_HACKATHON_SPEC.md)** — IO 2026 dataset, **multi-hackathon registry**, migration, prizes, routes, voting/attendance roadmap
 3. **[DATA_MODEL.md](./DATA_MODEL.md)** — Collections, participation map, settings/prizes, archive
-4. **[USER_FLOW.md](./USER_FLOW.md)** — Overview → sign in / register → profile, ideas, past projects
+4. **[USER_FLOW.md](./USER_FLOW.md)** — Overview → auth → profile / save & ship project / ideas / check-in / vote
 5. **[START_HERE.md](./START_HERE.md)** - Older beginner guide (partially outdated — prefer JUNIOR_ONBOARDING for auth/stack)
 6. **[FEATURES_SIMPLE.md](./FEATURES_SIMPLE.md)** - What the app does
 7. **Admin setup** - See [DEPLOYMENT.md](./DEPLOYMENT.md) Step 4 (Firestore active `users` collection → set `role: "admin"`)
@@ -55,7 +55,7 @@ Having issues? Check here:
 
 | Document | Purpose | Audience |
 |----------|---------|----------|
-| **ARCHITECTURE.md** | App layers, submission on profile, security summary, `.cursor/` | Developers |
+| **ARCHITECTURE.md** | App layers, project save on my-projects, security summary, `.cursor/` | Developers |
 | **IO2026_HACKATHON_SPEC.md** | IO 2026 collections, Buddies, migration, rules, routes, voting/live roadmap | Organisers & developers |
 | **DEPLOYMENT.md** | Complete deployment guide | Everyone deploying |
 | **FIREBASE_AUTH.md** | Authentication system details | Developers |

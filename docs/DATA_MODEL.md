@@ -213,6 +213,12 @@ Active path from `SETTINGS_COLLECTION` + `SETTINGS_DOC_ID` in `lib/constants.ts`
 
 ## Project submissions (active `projects` collection)
 
+**IO 2026 collection:** `io2026Hackathon_projects` (auto-created on first save).
+
+**Write path:** `lib/project-submissions.ts` → `saveProjectDocument` (client SDK). Every document includes **`userId`**, **`userEmail`**, **`hackathonId`** (registry id, e.g. `io2026Hackathon`), **`hackathonName`**. Firestore rules require `hackathonId` on create/update.
+
+**Load path:** `findUserProjectForActiveHackathon(uid)` — query `userId` + `hackathonId`; legacy rows without `hackathonId` are upgraded on next save.
+
 ```typescript
 {
   projectTitle?: string;
@@ -235,8 +241,8 @@ Active path from `SETTINGS_COLLECTION` + `SETTINGS_DOC_ID` in `lib/constants.ts`
   lookingForMembers?: boolean;
   label?: "winner" | "finalist" | "featured";
   place?: "first" | "second" | "third";
-  hackathonId?: string;   // registry id, e.g. io2026Hackathon — set on createProject
-  hackathonName?: string; // display label, e.g. GDG London Hackathon
+  hackathonId: string;    // required — e.g. io2026Hackathon (rules + stampProjectOwnership)
+  hackathonName: string;  // display label, e.g. GDG London Hackathon
   voteTotal?: number;     // audience aggregate; only Functions may change
 
   likes?: number;

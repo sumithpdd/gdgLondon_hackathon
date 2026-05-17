@@ -1,37 +1,69 @@
 # Updates & Changelog
 
-Build with AI Hackathon — IWD London 2026
+GDG London Hackathon platform — IO 2026 live dataset + IWD archive.
 
 ---
 
-## Current Data Model (March 2026)
+## May 2026 (recent)
 
-**Collections**:
-- `hackatonUsers` — User profiles and roles (admin, moderator, user)
-- `hackatonProjects` — Hackathon project submissions
-- `Interests`, `Expertise`, `TechStack` — Tag libraries
+### Project submissions
+- **Save progress** and **Ship it!** write to `io2026Hackathon_projects` via `lib/project-submissions.ts`
+- Every project doc stamped with **`userId`**, **`userEmail`**, **`hackathonId`**, **`hackathonName`**
+- Canonical UX on **`/hackathon/my-projects`** (profile page is directory-only)
+- Firestore rules require `hackathonId` on project create/update
+- Cloud Function `createProject` is fallback only; Functions default collection names aligned to `io2026Hackathon_*`
 
-**Storage**: `hackathon_uploads/` — Project screenshots
+### Check-in
+- Single **`/checkin`** page: self-service code + organiser desk
+- Self check-in via **`POST /api/me/attendance/self-check-in`**
+- `/admin/checkin` redirects to `/checkin`
+- Admin can reset attendance from organiser desk
+
+### Auth & ops
+- Google sign-in: redirect fallback for mobile/iOS
+- Client error logging → `error_logs`; admin viewer at **`/admin/errors`**
+- Firebase Admin env normalization for Vercel (`FIREBASE_ADMIN_*`)
+
+See [USER_FLOW.md](./USER_FLOW.md) and [IO2026_HACKATHON_SPEC.md](./IO2026_HACKATHON_SPEC.md) for full journeys.
+
+---
+
+## Current data model (IO 2026)
+
+When `NEXT_PUBLIC_HACKATHON_DATASET=io2026`:
+
+| Collection | Purpose |
+|------------|---------|
+| `io2026Hackathon_users` | Profiles and roles |
+| `io2026Hackathon_projects` | Drafts and submissions |
+| `io2026Hackathon_joinRequests` | Team join requests |
+| `io2026Hackathon_attendance` | Event check-in |
+| `io2026Hackathon_votes` | Audience votes (Function writes only) |
+| `io2026Hackathon_settings` | Prizes, voting window, rules |
+| `error_logs` | App errors (server/API only) |
+
+**Archive:** `iwd2026Hackathon_*` — read-only in client rules; `/past-projects`.
+
+Legacy `hackaton*` collections remain until migrated.
 
 See [DATA_MODEL.md](./DATA_MODEL.md) for full schema.
 
 ---
 
-## Migration from Legacy (DevFestComp2025 / CompetitionUsers)
+## Migration from legacy (`hackaton*`)
 
-If migrating from the previous DevFest setup:
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS=/path/to/serviceAccount.json
+npm run migrate:iwd-archive
+# Dry run: node scripts/migrate-to-iwd-archive.mjs --dry-run
+```
 
-1. **Firestore**: Create new `projects` and `users` collections
-2. **Export** data from `DevFestComp2025` → import to `projects`
-3. **Export** data from `CompetitionUsers` → import to `users`
-4. **Storage**: Copy files from `devfest2025Comp/` to `hackathon_uploads/`
-5. Update Firebase security rules (see `firebase-rules.txt`)
-6. Deploy updated app
+Copies legacy data to `iwd2026Hackathon_*` for `/past-projects`. Does not delete `hackaton*`.
 
 ---
 
-## Recent Changes
+## Related docs
 
-- **Collections**: `projects`, `users` (replacing DevFestComp2025, CompetitionUsers)
-- **Storage**: `hackathon_uploads` (replacing devfest2025Comp)
-- **Constants**: `PROJECTS_COLLECTION`, `USERS_COLLECTION` in `lib/constants.ts`
+- [USER_FLOW.md](./USER_FLOW.md) — participant journey
+- [DEPLOYMENT.md](./DEPLOYMENT.md) — deploy checklist
+- [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) — common fixes

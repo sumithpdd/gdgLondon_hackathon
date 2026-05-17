@@ -16,6 +16,7 @@ Multi-edition hackathon platform. Live dataset: **IO 2026** (`io2026Hackathon_*`
 | [docs/SECURITY.md](docs/SECURITY.md) | Secrets, public vs internal docs, rules |
 | [docs/ENVIRONMENT_VARIABLES.md](docs/ENVIRONMENT_VARIABLES.md) | Env names (no real values) |
 | [docs/IO2026_HACKATHON_SPEC.md](docs/IO2026_HACKATHON_SPEC.md) | Product spec, routes, voting |
+| [docs/USER_FLOW.md](docs/USER_FLOW.md) | Participant journey — save/ship, check-in, vote |
 
 ## Cursor guidance
 
@@ -55,7 +56,7 @@ Multi-edition hackathon platform. Live dataset: **IO 2026** (`io2026Hackathon_*`
 - Use **`NEXT_PUBLIC_*` only** for values safe in the browser (Firebase web config, public hackathon ids).
 - **Admin actions** via callables with `assertAdmin` (`adminProvisionHackathonUser`, `setUserRole`, `adminUpdateUser`, …).
 - **Votes:** client cannot create vote docs; use `castVotes` only.
-- **Projects:** clients cannot set `place` or `voteTotal` (rules).
+- **Projects:** clients cannot set `place` or `voteTotal` (rules). Creates/updates must include **`hackathonId`**; use `lib/project-submissions.ts` (`stampProjectOwnership`, `saveProjectDocument`).
 - **Roles:** clients cannot elevate `role` on other users; admins use Functions.
 - Validate and trim strings on server paths; cap lengths where applicable.
 - Gate admin UI with `ProtectedRoute` + server/rules — hiding routes is not enough.

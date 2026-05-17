@@ -28,75 +28,50 @@ This document explains what the app can do and how each feature works.
 
 ---
 
-### 2. Submit a Project 📤
+### 2. My project — Save progress & Ship it 📤
 
-**What it does**: Lets you share your AI project  
-**How it works**: Form that saves to Firebase
+**What it does**: Lets you draft and submit your hackathon project for the **current edition**.
+
+**Where**: `/hackathon/my-projects` (`?project=1` opens the form). `/submit` redirects here.
 
 **Steps**:
-1. Click "Submit Your Project" from home
-2. Fill in:
-   - Your name (from Firebase / hackathon profile)
-   - Email (auto-filled)
-   - GitHub URL
-   - Project description
-   - Upload screenshots (1-5 images)
-   - Optional: Social media links
-   - Optional: Interest tags (AI, ML, etc.)
-3. Click "Submit for Review" or "Save as Draft"
+1. Sign in and open **My Projects**
+2. Fill in title, description, GitHub, demo video, screenshots, team info, etc.
+3. Click **Save progress** to store a draft (come back anytime)
+4. When ready, click **Ship it! — Final submission** (validates required fields)
 
 **What happens**:
 ```
-Fill Form → Upload Images to Firebase Storage → Save Data to Firestore
+Fill form → Upload screenshots to Storage → saveProjectDocument() → io2026Hackathon_projects
 ```
 
 **Behind the scenes**:
-- Images uploaded one by one to Firebase Storage
-- Each image gets a unique URL
-- All info saved to Firestore collection `hackatonProjects`
-- Submission linked to your Firebase `userId`
+- `lib/project-submissions.ts` stamps **`userId`**, **`userEmail`**, **`hackathonId`** (`io2026Hackathon`), **`hackathonName`** on every save
+- Collection: **`io2026Hackathon_projects`** when `NEXT_PUBLIC_HACKATHON_DATASET=io2026`
+- **Save progress** → `status: "draft"` (hidden from public gallery)
+- **Ship it** → `status: "submitted"` (visible in gallery)
+- Profile page (`/hackathon/profile`) is separate — used for directory / joining teams, not the project form
 
 **Files involved**:
-- `components/ProjectSubmissionForm.tsx` - Project draft/final form (on `/hackathon/profile`)
-- `app/submit/page.tsx` - Redirects to `/hackathon/my-projects?project=1`
-- `lib/firebase.ts` - Connects to Firebase
-
-**Important Code**:
-```typescript
-// Upload image to Firebase Storage
-const storageRef = ref(storage, `hackathon_uploads/${filename}`)
-await uploadBytes(storageRef, file)
-const url = await getDownloadURL(storageRef)
-
-// Save submission to Firestore
-await addDoc(collection(db, "projects"), {
-  fullName: "Your Name",
-  email: "your@email.com",
-  screenshots: [url1, url2, url3],
-  status: "submitted",
-  createdAt: new Date()
-})
-```
+- `components/ProjectSubmissionForm.tsx` — form UI
+- `lib/project-submissions.ts` — Firestore create/update
+- `app/hackathon/my-projects/page.tsx` — project card + form
+- `app/submit/page.tsx` — redirect to my-projects
 
 ---
 
-### 3. Save as Draft 💾
+### 3. Save progress (draft) 💾
 
-**What it does**: Saves incomplete submissions  
-**How it works**: Same as submit but with `status: "draft"`
+**What it does**: Saves incomplete work without final submission.
 
 **Why it's useful**:
 - Come back later to finish
 - Don't lose your work
-- Can upload more screenshots later
+- Add screenshots over multiple sessions
 
 **Behind the scenes**:
-- Checks if you have an existing draft (by user ID)
-- Updates existing draft or creates new one
-- Marked as `status: "draft"` (not visible in gallery)
-
-**Files involved**:
-- `components/ProjectSubmissionForm.tsx` - Has "Save as Draft" / final submit (on profile page)
+- `findUserProjectForActiveHackathon(uid)` loads your project for the active `hackathonId`
+- Updates existing doc or creates a new one in `io2026Hackathon_projects`
 
 ---
 

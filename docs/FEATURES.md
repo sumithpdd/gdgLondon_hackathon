@@ -29,34 +29,29 @@ const { user, userProfile, isAuthenticated } = useAuthContext();
 
 ---
 
-## 💾 Draft System
+## 💾 Save progress & Ship it
 
-**What**: Save incomplete forms and resume later
+**What**: Save incomplete projects and submit when ready
+
+**Where**: `/hackathon/my-projects` (`ProjectSubmissionForm`)
 
 **How It Works**:
 1. Fill partial form
-2. Click "Save Draft" button
-3. Come back anytime
-4. Form auto-loads your draft
-5. Continue editing or submit
+2. Click **Save progress** (draft)
+3. Return anytime — form loads via `findUserProjectForActiveHackathon`
+4. Click **Ship it! — Final submission** when required fields pass validation
 
 **Features**:
-- Auto-load existing draft on page load
-- Update draft multiple times
-- Separate "draft" vs "submitted" status
-- Only submitted items show in public gallery
-
-**User Experience**:
-- Toast notification: "Draft Saved"
-- Shows existing screenshots separately
-- Can add/remove screenshots
-- Two buttons: "Save Draft" | "Submit Project"
+- Every save tags `userId`, `hackathonId`, `hackathonName` (`lib/project-submissions.ts`)
+- Writes to `io2026Hackathon_projects` when dataset=io2026
+- Only `status: "submitted"` appears in public gallery
+- `/submit` redirects to my-projects
 
 **Technical**:
 ```typescript
-// Location: components/ProjectSubmissionForm.tsx (embedded on /hackathon/profile); app/submit redirects
+// lib/project-submissions.ts
 status: "draft" | "submitted"
-updatedAt: timestamp
+saveProjectDocument({ ctx, existingProjectId, fields, status })
 ```
 
 ---

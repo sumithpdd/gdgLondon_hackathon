@@ -71,8 +71,8 @@
 - [CHECKLIST.md](./CHECKLIST.md) - Pre-deployment checklist
 
 ### Features & Flow
-- [ARCHITECTURE.md](./ARCHITECTURE.md) - Layers, DDD-style `lib/` modules, submission on profile, Cursor rules ⭐
-- [USER_FLOW.md](./USER_FLOW.md) - User journey (overview → auth → profile + project submission → ideas) ⭐
+- [ARCHITECTURE.md](./ARCHITECTURE.md) - Layers, DDD-style `lib/` modules, `lib/project-submissions.ts`, Cursor rules ⭐
+- [USER_FLOW.md](./USER_FLOW.md) - User journey (auth → profile / my-projects save & ship → ideas → check-in → vote) ⭐
 - [FEATURES.md](./FEATURES.md) - Complete feature list (technical)
 - [FEATURES_SIMPLE.md](./FEATURES_SIMPLE.md) - Simple explanations
 
@@ -150,6 +150,9 @@ vercel --prod
 | `/admin` | Admin | Submissions, winners, stats |
 | `/admin/hackathons` | Admin | Registry + seed prizes |
 | `/admin/users` | Admin | Users + `hackathonParticipations` |
+| `/checkin` | Protected | Self check-in + organiser desk |
+| `/vote` | Protected | Audience voting (after check-in) |
+| `/admin/errors` | Admin | Client/API error logs |
 
 ---
 
@@ -171,12 +174,16 @@ NEXT_PUBLIC_APP_URL=https://your-app.vercel.app
 
 ---
 
-## 🏷️ Collections
+## 🏷️ Collections (IO 2026 — `NEXT_PUBLIC_HACKATHON_DATASET=io2026`)
 
 | Collection | Purpose |
 |-----------|---------|
-| `hackatonUsers` | User profiles & roles |
-| `hackatonProjects` | Hackathon project submissions |
+| `io2026Hackathon_users` | User profiles & roles |
+| `io2026Hackathon_projects` | Drafts & submissions (`hackathonId` + `userId` on every doc) |
+| `io2026Hackathon_attendance` | Check-in (`/checkin`) |
+| `iwd2026Hackathon_projects` | IWD archive (`/past-projects`, read-only client) |
+
+Legacy `hackaton*` used when dataset env is unset.
 
 ---
 

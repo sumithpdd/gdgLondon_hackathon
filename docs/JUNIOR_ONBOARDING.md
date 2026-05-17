@@ -80,6 +80,8 @@ components/                   # Reusable UI
 lib/                          # ★ Put new Firebase / domain logic here
   auth.ts                     # Sign-in, user profile load
   join-requests.ts            # Team join requests, getUserProject
+  project-submissions.ts      # Save progress / Ship it → io2026Hackathon_projects
+  meApi.ts                    # Self check-in API wrappers
   admin-users.ts              # List/filter users, provision by email, admin callables
   profile-completion.ts       # “80% profile” score for joining teams
   hackathon-collections.ts      # Collection name prefixes (io2026 vs legacy)
@@ -108,13 +110,15 @@ flowchart TD
   B -->|Yes| E[/hackathon/profile]
   D --> E
   E --> F{What next?}
-  F --> G[/hackathon/my-projects - create project]
+  F --> G[/hackathon/my-projects]
+  G --> G1[Save progress - draft]
+  G1 --> G2[Ship it - submitted]
   F --> H[/hackathon/ideas - join a team]
   F --> I[/hackathon/buddies]
   H --> J{Profile >= 80% team join score?}
   J -->|No| E
   J -->|Yes| K[Send join request]
-  G --> L[Submit before deadline]
+  G2 --> L[Before HACKATHON_SUBMISSION_DEADLINE]
 ```
 
 ### Important product rules (2026)
@@ -125,7 +129,8 @@ flowchart TD
 | **Join a team** | Profile needs **80%** “team join score” (bio, LinkedIn, team preference) — see `lib/profile-completion.ts` |
 | **Your project on home** | Only shows if project’s `hackathonId` matches active edition (old SnippetPro-style projects are hidden) |
 | **Past ideas/winners** | `/past-projects` reads **`iwd2026Hackathon_*`** archive |
-| **Check-in** | `/checkin` only — not on profile page |
+| **Check-in** | `/checkin` — self + organiser desk on one page; `/admin/checkin` redirects here |
+| **Project save** | Always tags `hackathonId` + `userId` via `lib/project-submissions.ts` |
 
 Full narrative: [USER_FLOW.md](./USER_FLOW.md).
 
@@ -215,7 +220,7 @@ Full schema: [DATA_MODEL.md](./DATA_MODEL.md).
 | User edits **own** profile | Client `updateDoc` on own user doc | Rules allow owner |
 | Admin edits **another** user | `adminUpdateUser` callable | Rules + reliable admin check |
 | Admin sets **role** | `setUserRole` callable | Updates all user collections if needed |
-| Create project | `createProject` callable | Enforces one project per user |
+| Create / update project | `lib/project-submissions.ts` → Firestore `addDoc`/`updateDoc` | Rules enforce owner + `hackathonId`; `createProject` callable is fallback only |
 | Cast votes | `castVotes` callable | Caps + check-in enforced |
 | Set winner place | `setWinnerPlace` callable | Clients cannot set `place` |
 | Delete project (admin) | `deleteProject` callable | Deletes join requests too |

@@ -57,7 +57,9 @@ The platform supports **multiple hackathon editions** without duplicating the wh
 | `NEXT_PUBLIC_ACTIVE_HACKATHON_ID` | Registry id stored on user profile under `hackathonParticipations` (default `io2026Hackathon`). |
 | `NEXT_PUBLIC_APP_URL` | Optional base URL for password-reset emails (sign-in flow). |
 
-**Cloud Functions:** set `PROJECTS_COLLECTION`, `USERS_COLLECTION`, `JOIN_REQUESTS_COLLECTION`, `CONFIG_COLLECTION`, and optionally `CONFIG_DOC` (`main` for IO settings) to match the app. Defaults in `functions/src/index.ts` still point at legacy names if env is unset — **set env to IO names before production IO 2026**.
+**Cloud Functions:** set `PROJECTS_COLLECTION`, `USERS_COLLECTION`, `JOIN_REQUESTS_COLLECTION`, `CONFIG_COLLECTION`, and optionally `CONFIG_DOC` (`main` for IO settings) to match the app. Defaults in `functions/src/index.ts` use **`io2026Hackathon_*`** when env is unset; still set explicit env on deploy so production matches Vercel.
+
+**Client project writes:** primary path is `lib/project-submissions.ts` → Firestore `addDoc` / `updateDoc` on `PROJECTS_COLLECTION` with **`userId` + `hackathonId` stamped on every save**. Callable `createProject` is a **fallback** only if client create fails.
 
 Planned (attendance / voting — implement before exposing UI):
 
@@ -86,8 +88,10 @@ Copies: users, projects (+ `comments` subcollection), join requests, config → 
 
 `firestore.rules` includes:
 
-- `getUserRole`: prefers `io2026Hackathon_users/{uid}`, else `hackatonUsers/{uid}` (transition).
-- Full rules for `io2026Hackathon_*` (mirrors legacy project/join behaviour).
+- `isAdmin()` / `isOrganiser()`: check `io2026Hackathon_users/{uid}` and legacy `hackatonUsers/{uid}` for role (transition).
+- **`io2026Hackathon_projects`**: create/update require authenticated owner, non-empty **`hackathonId`**, and owner cannot change `hackathonId` or `voteTotal` on update.
+- Full rules for other `io2026Hackathon_*` collections (mirrors legacy project/join behaviour where applicable).
+- **`error_logs`**: deny all client access (Admin SDK / API routes only).
 - **Archive** `iwd2026Hackathon_*`: client **read-only**; writes via Admin SDK / migration only.
 
 Deploy: `firebase deploy --only firestore:rules`
@@ -117,6 +121,17 @@ Do **not** fold “Buddies” into the main hackathon product title. Networking 
 Constants: `HACKATHON_IDEA_SUBMISSION_OPENS`, `HACKATHON_SUBMISSION_DEADLINE` in `lib/constants.ts`. Timeline helpers: `lib/hackathon-timeline.ts` (re-exported from `lib/deadline.ts`).
 
 **UI:** “Submissions opening soon” before opens; form locked before opens and after final deadline for edits (see **project submission** on `/hackathon/my-projects`).
+
+### 6a. Save progress vs Ship it
+
+| UI label | Firestore `status` | Module |
+|----------|-------------------|--------|
+| **Save progress** | `draft` (preserves `submitted` if already shipped) | `lib/project-submissions.ts` → `saveProjectDocument` |
+| **Ship it! — Final submission** | `submitted` | Same |
+
+**Required on every write:** `userId`, `userEmail`, `hackathonId` (`io2026Hackathon`), `hackathonName`. Rules reject creates/updates without `hackathonId`.
+
+**Load existing draft:** `findUserProjectForActiveHackathon(uid)` queries by `userId` + `hackathonId`; legacy rows missing `hackathonId` in `io2026Hackathon_projects` are picked up once and re-tagged on next save.
 
 ### 6b. Project submission vs hackathon profile (team-join score)
 
@@ -163,9 +178,9 @@ The **project submission** card shows an **optional** amber callout when the tea
 
 ## 8. Voting & attendance — implementation order
 
-**Shipped (MVP):** `/checkin` writes to `ATTENDANCE_COLLECTION` with **document id = attendee `userId`**: self–service button, plus **admin** search over up to 400 user profiles and per-row **Check in**, with optional **`cohort: "aidevcamp_flat"`** for AI DevCamp flat guests (`lib/attendance.ts`). Deploy updated **`firestore.rules`** so admins may `create` attendance for others.
+**Shipped:** `/checkin` — participants use **self check-in** (6-digit code, window from settings); **organisers** on the same page manage the public code and search-check-in attendees; **admins** can reset attendance. Attendance doc id = `userId` in `io2026Hackathon_attendance`. Client rules: attendance **create/update** denied — writes go through API routes / callables.
 
-**Order:** (1) **Cloud Functions** (authoritative caps, live codes, audit) → (2) **`/vote` UI** + tighter `/checkin` + admin audit views → (3) **`/live`** read model.
+**Order (remaining polish):** tighter audit/export for attendance; optional cohort tags for flat guests.
 
 ### 8.1 Admin settings (`io2026Hackathon_settings/main`)
 
