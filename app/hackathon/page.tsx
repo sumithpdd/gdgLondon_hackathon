@@ -141,10 +141,10 @@ export default function HackathonOverviewPage() {
     timeLeft.seconds === 0;
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[70vh] space-y-12 max-w-4xl mx-auto text-center">
+    <div className="flex flex-col items-center justify-center min-h-[70vh] page-stack max-w-4xl mx-auto text-center px-2 sm:px-0">
       {/* Badge */}
-      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-violet-500/20 border border-violet-400/30 text-foreground dark:text-white text-sm font-semibold animate-bounce">
-        <Rocket className="w-4 h-4" />
+      <div className="inline-flex items-center gap-3 px-5 py-2.5 rounded-xl bg-violet-500/20 border border-violet-400/30 text-foreground dark:text-white text-base font-semibold animate-bounce">
+        <Rocket className="w-5 h-5" />
         {HACKATHON_EVENT_SHORT.toUpperCase()}
       </div>
 
@@ -157,14 +157,14 @@ export default function HackathonOverviewPage() {
             Hackathon
           </span>
         </h1>
-        <p className="text-muted-foreground text-lg sm:text-xl max-w-2xl mx-auto">
+        <p className="text-muted-foreground text-xl sm:text-2xl leading-relaxed max-w-2xl mx-auto">
           {HACKATHON_EVENT_TAGLINE}
         </p>
-        <div className="mt-6 px-6 py-4 rounded-2xl bg-amber-500/15 border-2 border-amber-400/40 text-center">
-          <p className="text-amber-100 font-bold text-base sm:text-lg">
+        <div className="mt-8 px-8 py-6 rounded-2xl bg-amber-500/15 border-2 border-amber-400/40 text-center space-y-2">
+          <p className="text-amber-100 font-bold text-lg sm:text-xl">
             🎉 Prizes are handed out live on event day — be there in person to claim your glory.
           </p>
-          <p className="text-amber-200/90 text-sm mt-1 font-medium">Show up, win big! No mail, no exceptions.</p>
+          <p className="text-amber-200/90 text-base font-medium">Show up, win big! No mail, no exceptions.</p>
         </div>
       </div>
 
@@ -206,7 +206,7 @@ export default function HackathonOverviewPage() {
 
       {/* Your Project (if user has one) or 2 Ways to Participate */}
       {isAuthenticated && userProject ? (
-        <section className="p-8 rounded-3xl bg-card border border-violet-500/20 shadow-sm text-left w-full mt-8">
+        <section className="content-card border-violet-500/20 text-left w-full">
           {/* Winner banner */}
           {winnersAnnounced && userProject.place && (
             <div className="mb-6 p-5 rounded-2xl bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-500/20 border-2 border-amber-400/40 text-center">
@@ -221,8 +221,8 @@ export default function HackathonOverviewPage() {
               )}
             </div>
           )}
-          <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
-            <Award className="w-6 h-6 text-violet-400" />
+          <h2 className="text-2xl font-bold text-foreground mb-6 flex items-center gap-3">
+            <Award className="w-7 h-7 text-violet-400 shrink-0" />
             Your Project
           </h2>
           <div className="p-6 rounded-2xl bg-muted/50 border border-border">
@@ -271,15 +271,15 @@ export default function HackathonOverviewPage() {
           </div>
         </section>
       ) : (
-        <section className="p-8 rounded-3xl bg-card border border-violet-500/20 shadow-sm text-left w-full mt-8">
-          <h2 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
-            <GitBranch className="w-6 h-6 text-violet-400" />
+        <section className="content-card border-violet-500/20 text-left w-full">
+          <h2 className="text-2xl font-bold text-foreground mb-8 flex items-center gap-3">
+            <GitBranch className="w-7 h-7 text-violet-400 shrink-0" />
             2 Ways to Participate
           </h2>
-          <div className="grid sm:grid-cols-2 gap-6">
-            <div className="p-6 rounded-2xl bg-muted/50 border border-border flex flex-col">
-              <h3 className="font-bold text-foreground mb-2">Create a Project</h3>
-              <p className="text-muted-foreground text-sm flex-1">
+          <div className="grid sm:grid-cols-2 gap-6 sm:gap-8">
+            <div className="p-7 sm:p-8 rounded-2xl bg-muted/50 border border-border flex flex-col">
+              <h3 className="font-bold text-foreground text-lg mb-3">Create a Project</h3>
+              <p className="text-muted-foreground text-base leading-relaxed flex-1">
                 Submit your hackathon project idea and build something amazing with AI.
               </p>
               {isOpen ? (
@@ -305,9 +305,9 @@ export default function HackathonOverviewPage() {
                 </p>
               )}
             </div>
-            <div className="p-6 rounded-2xl bg-muted/50 border border-border flex flex-col">
-              <h3 className="font-bold text-foreground mb-2">Browse Ideas &amp; Join a Team</h3>
-              <p className="text-muted-foreground text-sm flex-1">
+            <div className="p-7 sm:p-8 rounded-2xl bg-muted/50 border border-border flex flex-col">
+              <h3 className="font-bold text-foreground text-lg mb-3">Browse Ideas &amp; Join a Team</h3>
+              <p className="text-muted-foreground text-base leading-relaxed flex-1">
                 Explore the Idea Gallery and request to join a project that interests you.
               </p>
               {isOpen ? (

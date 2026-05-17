@@ -21,7 +21,7 @@ export function getBootstrapAdminEmails(): string[] {
     }
   }
 
-  return [...emails];
+  return Array.from(emails);
 }
 
 export function isBootstrapAdminEmail(email: string | null | undefined): boolean {

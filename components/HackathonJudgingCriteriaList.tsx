@@ -13,10 +13,11 @@ export function HackathonJudgingCriteriaList() {
   }, []);
 
   return (
-    <ul className="space-y-2 text-muted-foreground">
+    <ul className="space-y-4 text-muted-foreground text-base leading-relaxed">
       {criteria.map((c) => (
-        <li key={c.title}>
-          <strong className="text-foreground">{c.title}</strong> — {c.description}
+        <li key={c.title} className="pl-1">
+          <strong className="text-foreground text-lg">{c.title}</strong>
+          <span className="text-muted-foreground"> — {c.description}</span>
         </li>
       ))}
     </ul>

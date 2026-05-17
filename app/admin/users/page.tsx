@@ -354,7 +354,7 @@ export default function AdminUsersPage() {
                 <Select
                   value={sortMode}
                   onValueChange={(v) => {
-                    setSortMode(v as SortMode);
+                    setSortMode(v as AdminUserSortMode);
                     setPage(0);
                   }}
                 >

@@ -10,9 +10,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "functions:install": "npm install --prefix functions",
-    "functions:build": "npm run build --prefix functions",
-    "functions:deploy": "npm run functions:build && firebase deploy --only functions"
+    "functions:install": "npm install --prefix functions && npm install --prefix functions-legacy",
+    "functions:build": "npm run build --prefix functions && npm run build --prefix functions-legacy",
+    "functions:check": "node scripts/check-functions-sync.mjs",
+    "functions:deploy:hackathon": "npm run functions:check && npm run build --prefix functions && firebase deploy --only functions:hackathon",
+    "functions:deploy:legacy": "npm run build --prefix functions-legacy && firebase deploy --only functions:legacy",
+    "functions:deploy": "npm run functions:check && npm run functions:build && firebase deploy --only functions"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",

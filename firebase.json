@@ -9,7 +9,19 @@
   "functions": [
     {
       "source": "functions",
-      "codebase": "default",
+      "codebase": "hackathon",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": ["npm --prefix \"$RESOURCE_DIR\" run build"]
+    },
+    {
+      "source": "functions-legacy",
+      "codebase": "legacy",
       "ignore": [
         "node_modules",
         ".git",

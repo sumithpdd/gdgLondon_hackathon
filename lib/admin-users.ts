@@ -175,7 +175,7 @@ export function matchesAdminUserSearch(u: UserProfile, q: string): boolean {
   );
 }
 
-export function filterAdminUsers(users: UserProfile[], filters: AdminUserListFilters): UserProfile[] {
+export function filterAdminUsers(users: AdminListedUser[], filters: AdminUserListFilters): AdminListedUser[] {
   const hackathonId = filters.hackathonId ?? getActiveHackathonId();
   let list = users.filter((u) => matchesAdminUserSearch(u, filters.searchQuery ?? ""));
 
@@ -196,7 +196,7 @@ export function filterAdminUsers(users: UserProfile[], filters: AdminUserListFil
   return list;
 }
 
-export function sortAdminUsers(users: UserProfile[], sortMode: AdminUserSortMode): UserProfile[] {
+export function sortAdminUsers(users: AdminListedUser[], sortMode: AdminUserSortMode): AdminListedUser[] {
   const out = [...users];
   out.sort((a, b) => {
     if (sortMode === "name") {

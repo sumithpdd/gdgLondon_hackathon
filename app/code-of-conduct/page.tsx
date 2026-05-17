@@ -9,8 +9,10 @@ import {
   Scale,
   Handshake,
   FileText,
+  type LucideIcon,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SectionIcon } from "@/components/ui/section-icon";
 
 export const metadata: Metadata = {
   title: "Code of Conduct | GDG London Hackathon",
@@ -66,7 +68,7 @@ function Section({
   variant = "default",
 }: {
   id: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   title: string;
   children: React.ReactNode;
   variant?: "default" | "violet" | "rose";
@@ -88,16 +90,12 @@ function Section({
     <section id={id} className="scroll-mt-24">
       <Card className={`bg-card/80 backdrop-blur-sm ${border}`}>
         <CardHeader className="pb-2">
-          <CardTitle className="text-xl sm:text-2xl text-foreground flex items-center gap-3">
-            <span
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted/60 ${iconColor}`}
-            >
-              <Icon className="h-5 w-5" />
-            </span>
+          <CardTitle className="text-xl sm:text-2xl text-foreground flex items-center gap-3 sm:gap-4">
+            <SectionIcon icon={Icon} className={iconColor} />
             {title}
           </CardTitle>
         </CardHeader>
-        <CardContent className="text-muted-foreground leading-relaxed space-y-4 text-[15px] sm:text-base">
+        <CardContent className="prose-muted space-y-5">
           {children}
         </CardContent>
       </Card>
@@ -107,7 +105,7 @@ function Section({
 
 function BulletList({ items }: { items: string[] }) {
   return (
-    <ul className="space-y-2 pl-1">
+    <ul className="space-y-3 pl-1 text-base">
       {items.map((item) => (
         <li key={item} className="flex gap-3">
           <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400/80" aria-hidden />
@@ -120,8 +118,8 @@ function BulletList({ items }: { items: string[] }) {
 
 export default function CodeOfConductPage() {
   return (
-    <article className="space-y-10 pb-8">
-      <header className="text-center space-y-5">
+    <article className="page-stack pb-10">
+      <header className="text-center space-y-6 sm:space-y-8">
         <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-1.5 text-sm font-medium text-violet-300">
           <Shield className="h-4 w-4" />
           Community guidelines

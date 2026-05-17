@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SectionIcon } from "@/components/ui/section-icon";
 import {
   Upload,
   Lightbulb,
@@ -43,22 +44,45 @@ function variantClasses(variant?: string) {
   return "bg-card border-border";
 }
 
+function SectionHeading({
+  title,
+  icon,
+  emoji,
+}: {
+  title: string;
+  icon?: LucideIcon | null;
+  emoji?: string;
+}) {
+  return (
+    <h3 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-3 sm:gap-4">
+      {emoji ? (
+        <span className="icon-badge text-amber-400 text-2xl" aria-hidden>
+          {emoji}
+        </span>
+      ) : icon ? (
+        <SectionIcon icon={icon} />
+      ) : null}
+      {title}
+    </h3>
+  );
+}
+
 function SectionBlock({ section }: { section: RulesSection }) {
   const Icon = section.icon ? ICONS[section.icon] : null;
 
   if (section.kind === "warning") {
     return (
-      <section className="p-8 rounded-3xl bg-card border border-border text-left">
-        <h3 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
-          <span className="text-amber-400">⚠</span>
-          {section.title}
-        </h3>
-        {section.body && <p className="text-muted-foreground mb-4">{section.body}</p>}
+      <section className="content-card text-left space-y-5">
+        <SectionHeading title={section.title} emoji="⚠" />
+        {section.body && <p className="prose-muted">{section.body}</p>}
         {section.items && (
-          <ul className="space-y-2 text-muted-foreground">
+          <ul className="space-y-3 prose-muted">
             {section.items.map((item, i) => (
-              <li key={i} className="flex items-center gap-2">
-                <span className="text-rose-400">✕</span> {item}
+              <li key={i} className="flex items-start gap-3">
+                <span className="text-rose-400 text-lg leading-none mt-0.5" aria-hidden>
+                  ✕
+                </span>
+                <span>{item}</span>
               </li>
             ))}
           </ul>
@@ -69,19 +93,19 @@ function SectionBlock({ section }: { section: RulesSection }) {
 
   if (section.kind === "numbered" && section.items) {
     return (
-      <section className="p-8 rounded-3xl bg-card border border-border text-left">
-        <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
-          {Icon && <Icon className="w-5 h-5 text-violet-400" />}
-          {section.title}
-        </h3>
-        {section.body && <p className="text-muted-foreground mb-6">{section.body}</p>}
+      <section className="content-card text-left space-y-6">
+        <SectionHeading title={section.title} icon={Icon} />
+        {section.body && <p className="prose-muted">{section.body}</p>}
         <div className="space-y-4">
           {section.items.map((text, i) => (
-            <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-muted/50 border border-border">
-              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm">
+            <div
+              key={i}
+              className="flex items-start gap-4 p-5 sm:p-6 rounded-2xl bg-muted/50 border border-border"
+            >
+              <span className="flex-shrink-0 w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-base">
                 {i + 1}
               </span>
-              <span className="text-foreground/90">{text}</span>
+              <span className="text-foreground/90 text-base leading-relaxed pt-1.5">{text}</span>
             </div>
           ))}
         </div>
@@ -91,26 +115,23 @@ function SectionBlock({ section }: { section: RulesSection }) {
 
   if (section.kind === "judging") {
     return (
-      <section className="p-8 rounded-3xl bg-card border border-border text-left">
-        <h3 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
-          {Icon && <Icon className="w-5 h-5 text-violet-400" />}
-          {section.title}
-        </h3>
-        {section.body && <p className="text-muted-foreground text-sm mb-4">{section.body}</p>}
+      <section className="content-card text-left space-y-5">
+        <SectionHeading title={section.title} icon={Icon} />
+        {section.body && <p className="prose-muted">{section.body}</p>}
         <HackathonJudgingCriteriaList />
       </section>
     );
   }
 
   return (
-    <Card className={cn("text-left", variantClasses(section.variant))}>
-      <CardHeader>
-        <CardTitle className="text-foreground flex items-center gap-2">
-          {Icon && <Icon className="w-5 h-5 text-violet-400" />}
+    <Card className={cn("text-left rounded-3xl shadow-sm", variantClasses(section.variant))}>
+      <CardHeader className="pb-4">
+        <CardTitle className="text-foreground flex items-center gap-3 sm:gap-4">
+          {Icon ? <SectionIcon icon={Icon} /> : null}
           {section.title}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-2 text-muted-foreground">
+      <CardContent className="space-y-4 text-muted-foreground text-base leading-relaxed">
         {section.body &&
           section.body.split("\n\n").map((para, i) => (
             <p key={i}>
@@ -128,7 +149,7 @@ function SectionBlock({ section }: { section: RulesSection }) {
             </p>
           ))}
         {section.items && (
-          <ul className="list-disc pl-6 space-y-1">
+          <ul className="list-disc pl-6 space-y-2">
             {section.items.map((item, i) => (
               <li key={i}>{item}</li>
             ))}
@@ -139,7 +160,7 @@ function SectionBlock({ section }: { section: RulesSection }) {
             href={section.linkHref}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-primary font-semibold underline"
+            className="inline-flex items-center gap-2 text-primary font-semibold underline text-base"
           >
             {section.linkLabel}
           </a>
@@ -161,12 +182,11 @@ export function HackathonRulesFromSettings() {
   }, []);
 
   return (
-    <div className="space-y-8">
-      <h2 className="text-2xl font-bold text-foreground text-center">{title}</h2>
+    <div className="page-stack">
+      <h2 className="text-3xl sm:text-4xl font-bold text-foreground text-center">{title}</h2>
       {sections.map((s) => (
         <SectionBlock key={s.id} section={s} />
       ))}
     </div>
   );
 }
-
