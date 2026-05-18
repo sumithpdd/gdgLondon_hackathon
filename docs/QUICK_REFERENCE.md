@@ -35,6 +35,11 @@
 ### IO 2026, multi-hackathon, Buddies & routes
 **→ [IO2026_HACKATHON_SPEC.md](./IO2026_HACKATHON_SPEC.md)** — `NEXT_PUBLIC_HACKATHON_DATASET`, `hackathons` registry, `hackathonParticipations`, prizes in settings, `npm run migrate:iwd-archive`, `/past-projects` (winners + stats), Buddies, auth (`/register`, `?login=1`). **Data model:** [DATA_MODEL.md](./DATA_MODEL.md). **User flow:** [USER_FLOW.md](./USER_FLOW.md).
 
+### Event day: check-in, swag, voting
+**→ [USER_FLOW.md](./USER_FLOW.md#step-4-event-day--check-in-swag-ai-devcamp-voting)** — customer journey diagram  
+**→ [DATA_MODEL.md](./DATA_MODEL.md#event-attendance--swag)** — attendance + cohort + swag schema  
+**Organiser desk:** `/checkin` · **Vote:** `/vote` · **Admin:** `/admin/voting`, Operations → Check-in desk
+
 ### Learn About Mentorship Program
 - Mentee applications
 - Mentor applications

@@ -61,12 +61,13 @@ The platform supports **multiple hackathon editions** without duplicating the wh
 
 **Client project writes:** primary path is `lib/project-submissions.ts` → Firestore `addDoc` / `updateDoc` on `PROJECTS_COLLECTION` with **`userId` + `hackathonId` stamped on every save**. Callable `createProject` is a **fallback** only if client create fails.
 
-Planned (attendance / voting — implement before exposing UI):
+**Functions env (attendance / voting — set on deploy):**
 
 | Variable | Purpose |
 |----------|---------|
 | `ATTENDANCE_COLLECTION` | e.g. `io2026Hackathon_attendance` |
 | `VOTES_COLLECTION` | e.g. `io2026Hackathon_votes` |
+| `CONFIG_COLLECTION` | e.g. `io2026Hackathon_settings` (doc `main`, `checkInPublic`, `checkInSecrets`) |
 
 ---
 
@@ -113,10 +114,11 @@ Do **not** fold “Buddies” into the main hackathon product title. Networking 
 
 ## 6. Submission timeline (IO 2026)
 
-| Milestone | Date (London) | ISO (code) |
-|-----------|---------------|------------|
-| Idea submission opens | **17 May 2026**, start of day | `2026-05-17T00:00:00+01:00` |
-| Final submission deadline | **19 May 2026**, **8:00 PM** | `2026-05-19T20:00:00+01:00` |
+| Milestone | Date (London) | Code constant |
+|-----------|---------------|---------------|
+| Idea submission opens | **17 May 2026**, start of day | `HACKATHON_IDEA_SUBMISSION_OPENS` |
+| In-person event | **18 May 2026** → **19 May 18:00** | `HACKATHON_EVENT_START_DATE`, `HACKATHON_EVENT_END_DATE` |
+| Final submission deadline | **19 May 2026**, **8:00 PM** | `HACKATHON_SUBMISSION_DEADLINE` |
 
 Constants: `HACKATHON_IDEA_SUBMISSION_OPENS`, `HACKATHON_SUBMISSION_DEADLINE` in `lib/constants.ts`. Timeline helpers: `lib/hackathon-timeline.ts` (re-exported from `lib/deadline.ts`).
 
@@ -167,51 +169,67 @@ The **project submission** card shows an **optional** amber callout when the tea
 | `/hackathon/resources` | Learning links + **rules** (`/hackathon/rules` → `#rules`) |
 | `/hackathon/prizes` | Full prize list (from `settings/main.prizes`) |
 | `/admin/hackathons` | Registry CRUD + seed IO 2026 prizes |
-| `/checkin` | **MVP** — self check-in + admin attendee list, optional `aidevcamp_flat` cohort tag (`lib/attendance.ts`). Room code / Functions validation still TODO. |
-| `/vote` | Audience voting UI → **`castVotes`** callable (check-in, caps, `voteTotal`) |
+| `/checkin` | Self check-in + organiser desk (code, search, **swag**, **AI DevCamp 2026** cohort). Admin nav: Operations → Check-in desk. |
+| `/vote` | Audience ballot — search, budget bar, badges (AI DevCamp / swag). Requires check-in; **`castVotes`** updates `voteTotal`. |
 | `/admin/voting` | Vote leaderboard, voting window, assign top 3 from votes |
+| `/admin/projects` | All projects (draft + submitted) with full fields |
 | `/live` | Projector — live vote leaderboard / pitch / welcome (§9) |
 | `/admin/live` | Admin slide controls + refresh aggregates |
 | `/admin/content` | CMS for resources links + rules sections (`settings/main`) |
 
 ---
 
-## 8. Voting & attendance — implementation order
+## 8. Voting & attendance — shipped
 
-**Shipped:** `/checkin` — participants use **self check-in** (6-digit code, window from settings); **organisers** on the same page manage the public code and search-check-in attendees; **admins** can reset attendance. Attendance doc id = `userId` in `io2026Hackathon_attendance`. Client rules: attendance **create/update** denied — writes go through API routes / callables.
+### 8.1 Check-in
 
-**Order (remaining polish):** tighter audit/export for attendance; optional cohort tags for flat guests.
+| Piece | Location |
+|-------|----------|
+| Self check-in UI | `components/checkin/SelfCheckInCard.tsx` on `/checkin` |
+| Organiser desk | `components/checkin/StaffAttendeeCheckIn.tsx` — search, filters, swag, AI DevCamp tag |
+| Self check-in API | `POST /api/me/attendance/self-check-in` (`lib/meApi.ts`) |
+| Staff callables | `staffCheckInUser`, `setAttendeeSwag`, `resetUserAttendance`, `getCheckInDeskCode` |
+| Attendance reads | `lib/attendance.ts` — `getAttendanceForUser`, `isAidevcampCohort` |
+| Staff helpers | `lib/check-in.ts` — `tagAttendeeAidevcamp2026`, `setAttendeeSwag` |
 
-### 8.1 Admin settings (`io2026Hackathon_settings/main`)
+**Settings docs:** `checkInPublic` (window flags, public read) · `checkInSecrets` (hashed code, server-only).
 
-- `checkInCode` (e.g. 6-digit), rotation / expiry fields as needed.
-- `votingOpensAt`, `votingClosesAt` (timestamps).
-- Optional: `attendanceWindowOpensAt` / `attendanceWindowClosesAt`.
-- Existing flags such as `winnersAnnounced` stay as today.
-- **`prizes`** — array for carousel and `/hackathon/prizes` (see `lib/prizes.ts`, admin seed on `/admin/hackathons`).
+**Attendance doc id** = `userId`. Fields: `attendanceVerified`, `method`, `cohort` (`aidevcamp2026`), `swagReceived` — full schema in [DATA_MODEL.md](./DATA_MODEL.md).
 
-### 8.2 Suggested callable API (Gen 2 HTTPS)
+### 8.2 Voting
 
-Implement in `functions/src/index.ts` (names indicative):
+| Piece | Location |
+|-------|----------|
+| Vote UI | `app/vote/page.tsx`, `components/vote/VoteProjectCard.tsx` |
+| Client API | `lib/voting.ts` — `fetchVoteableProjects`, `fetchUserVotes` (index fallback), `castVotes` |
+| Server enforcement | `castVotes`, `assignWinnersFromVotes` in `functions/src/index.ts` |
+| Attendee badges | `components/attendance/AttendeeEventBadges.tsx` on `/vote` |
 
-| Callable | Auth | Behaviour |
-|----------|------|-----------|
-| `recordCheckIn` | Signed-in | Validates live code + window; writes one doc per user in `ATTENDANCE_COLLECTION`; idempotent per event/day as designed. |
-| `castVotes` | Signed-in | Requires verified attendance; **organisers (admin/moderator) 10 votes**, **participants 5**, **max 2 per project**; updates `VOTES_COLLECTION` + `project.voteTotal`; no self-vote. |
-| `assignWinnersFromVotes` | Admin | Sets `place` on top 3 projects by `voteTotal` for active `hackathonId`. |
-| `adminSetCheckInCode` / `adminSetVotingWindow` | Admin only | Updates settings doc. |
+**Caps:** organisers 10 / participants 5 total; max 2 per project; check-in required; no self-vote.
 
-Client-side rules are **not** sufficient for caps; Functions must validate.
+**Admin:** `/admin/voting` — window + leaderboard + assign places from vote totals.
 
-### 8.3 Firestore shape (sketch)
+### 8.3 Callable API (implemented)
 
-- **Attendance:** `userId`, `checkedInAt`, `codeVersion` or `eventId`, `attendanceVerified: true`.
-- **Votes:** `userId`, `projectId`, `createdAt`, `hackathonId: "io2026"`, optional `weight`; aggregate counts via query or aggregation documents.
+| Callable / API | Auth | Behaviour |
+|----------------|------|-----------|
+| `POST /api/me/attendance/self-check-in` | Signed-in | Validates code + window; writes attendance |
+| `staffCheckInUser` | Organiser | Check-in by uid or email; optional `cohort: aidevcamp2026` |
+| `setAttendeeSwag` | Organiser | `swagReceived` on checked-in attendee |
+| `resetUserAttendance` | Admin | Clears attendance doc |
+| `getCheckInDeskCode` | Organiser | Returns active desk code |
+| `castVotes` | Signed-in | Ballot with caps + `voteTotal` update |
+| `assignWinnersFromVotes` | Admin | Top 3 by `voteTotal` → `place` |
+| `refreshLiveStats` | Admin | Rebuild `liveStats/summary` |
 
-### 8.4 Admin audit
+### 8.4 Firestore indexes
 
-- List attendance for window; export CSV optional.
-- Vote tallies per project; detect anomalies (same-second bursts, etc.).
+Deploy with app: `firebase deploy --only firestore:indexes` — includes `io2026Hackathon_votes` (`userId` + `hackathonId`) and `io2026Hackathon_projects` (`status` + `voteTotal`).
+
+### 8.5 Remaining polish (optional)
+
+- CSV export of attendance / swag / cohort for ops
+- Denormalised `votingEligible` on user doc (today derived from attendance at vote time)
 
 ---
 
@@ -277,11 +295,14 @@ Then:
 
 ---
 
-## 14. Immediate next steps for the team
+## 14. Event-day runbook (organisers)
 
-1. **Deploy** Firestore rules + indexes + Functions (`castVotes`, `assignWinnersFromVotes`).
-2. Set Functions env (`functions/.env.example`) and run `npm run seed:io2026 -- --uid=... --force-settings` for prizes + judging criteria.
-3. Configure **voting window** in `/admin/voting`; verify **check-in** then **`/vote`** end-to-end.
-4. After voting closes: **Assign 1st/2nd/3rd from votes** or announce winners on dashboard.
-5. Build **`/live`** projector (§9) — optional.
-6. Per-hackathon **editable rules/resources** in admin CMS — optional; judging criteria already in `settings/main`.
+1. **Deploy** `firebase deploy --only firestore:rules,firestore:indexes,functions`
+2. **Seed** settings if needed: `npm run seed:io2026 -- --uid=... --force-settings`
+3. **Check-in desk** (`/checkin`): generate room code → attendees self-check-in or staff search-check-in
+4. **AI DevCamp guests:** enable cohort checkbox or tap **AI DevCamp** on each row; attendees see badge on **`/vote`**
+5. **Swag:** tap **Swag** per checked-in attendee (filter **Needs swag**)
+6. **Voting window:** `/admin/voting` → set open/close → verify **`/vote`** after check-in
+7. **Close:** assign top 3 from votes or manual `place` on dashboard; announce on **`/live`**
+
+See [USER_FLOW.md](./USER_FLOW.md) for participant-facing journey diagrams.

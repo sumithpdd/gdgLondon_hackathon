@@ -93,8 +93,22 @@ Deploy: `firebase deploy --only functions:adminProvisionHackathonUser,functions:
 
 - **Organisers** (`admin` / `moderator`): **10** votes total, **max 2** per project.
 - **Participants**: **5** votes total, **max 2** per project.
-- **Check-in required** before `castVotes`.
+- **Check-in required** before `castVotes` (`io2026Hackathon_attendance/{uid}.attendanceVerified`).
+- **`fetchUserVotes`:** composite query with fallback (index may be building in prod).
 - Winners via `voteTotal` + admin `assignWinnersFromVotes` or manual `place`.
+- Attendee badges: `components/attendance/AttendeeEventBadges.tsx` on `/vote`.
+
+## Check-in desk (organisers)
+
+| Action | API |
+|--------|-----|
+| Self check-in | `POST /api/me/attendance/self-check-in` |
+| Staff check-in | `staffCheckInUser` |
+| Swag | `setAttendeeSwag` |
+| AI DevCamp 2026 tag | `tagAttendeeAidevcamp2026` or `staffCheckInUser({ cohort: "aidevcamp2026" })` |
+| Reset (admin) | `resetUserAttendance` |
+
+UI: `components/checkin/StaffAttendeeCheckIn.tsx` at `/checkin`. Cohort values: `aidevcamp2026` (legacy `aidevcamp_flat` still recognized for badges).
 
 ## Env (typical `.env.local`)
 

@@ -125,6 +125,56 @@ place: "first" | "second" | "third" | null
 
 ---
 
+## 🎫 Event check-in, swag & AI DevCamp 2026
+
+**What**: Venue attendance, swag tracking, and AI DevCamp cohort tagging
+
+**Routes:** `/checkin` (participants + organiser desk)
+
+**Participant:**
+- Enter 6-digit room code during check-in window
+- `SelfCheckInCard` → `POST /api/me/attendance/self-check-in`
+
+**Organiser desk** (`StaffAttendeeCheckIn`):
+- Search directory; quick check-in by email
+- **Swag** button — `setAttendeeSwag` callable
+- **AI DevCamp 2026** — cohort checkbox on check-in/update, or **AI DevCamp** button on checked-in rows
+- Filters: Not checked in · Needs swag · AI DevCamp
+
+**Firestore:** `io2026Hackathon_attendance/{uid}` — see [DATA_MODEL.md](./DATA_MODEL.md)
+
+**Modules:** `lib/attendance.ts`, `lib/check-in.ts`, `lib/meApi.ts`
+
+---
+
+## 🗳️ Audience voting
+
+**What**: Live audience ballot for submitted projects
+
+**Route:** `/vote` (also linked from hub and app bar)
+
+**Rules:**
+| Role | Total votes | Per project |
+|------|-------------|-------------|
+| Participant | 5 | max 2 |
+| Admin / moderator | 10 | max 2 |
+
+- Requires **check-in** (`attendanceVerified`)
+- Cannot vote for own project
+- Writes via **`castVotes`** Cloud Function only
+
+**UI:**
+- Search projects; budget bar; per-project +/- controls
+- Badges: **AI DevCamp 2026 attendee**, **Swag received** (`AttendeeEventBadges`)
+
+**Admin:** `/admin/voting` — window, leaderboard, assign top 3 from votes
+
+**Modules:** `lib/voting.ts`, `components/vote/VoteProjectCard.tsx`
+
+**Journey:** [USER_FLOW.md](./USER_FLOW.md#step-4-event-day--check-in-swag-ai-devcamp-voting)
+
+---
+
 ## 🎯 Interests & Tags
 
 **What**: Add interests as removable tags

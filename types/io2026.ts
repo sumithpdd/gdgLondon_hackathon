@@ -1,27 +1,31 @@
 /**
  * Firestore shapes for io2026Hackathon_* (live) and iwd2026Hackathon_* (archive).
- * Align implementation with docs/IO2026_HACKATHON_SPEC.md (event name vs Buddies feature in lib/constants.ts).
+ * Canonical field detail: docs/DATA_MODEL.md
  */
 
 import type { Timestamp } from "firebase/firestore";
 
 export type ProfileCompletionStatus = "incomplete" | "complete";
 
+export type UserRole = "admin" | "moderator" | "user";
+
 export interface Io2026User {
+  uid?: string;
   displayName?: string;
   email?: string;
   linkedinUrl?: string;
-  bio?: string;
+  hackathonBio?: string;
+  profileDisplayName?: string;
   skills?: string[];
   interests?: string[];
   teamPreference?: "solo" | "team" | "either";
-  inPersonAttendance?: "yes" | "no" | "maybe";
+  inPersonAttendance?: boolean | null;
   profileCompletionStatus?: ProfileCompletionStatus;
   profileCompletionPercent?: number;
-  isPresent?: boolean;
-  checkedInAt?: Timestamp;
-  role?: "admin" | "moderator" | "user";
-  isActive?: boolean;
+  role?: UserRole;
+  hackathonParticipations?: Record<string, { joinedAt?: Timestamp }>;
+  adminProvisioned?: boolean;
+  profileStatus?: "provisioned" | "active";
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -30,49 +34,77 @@ export type ProjectStatus = "draft" | "submitted" | "finalist" | "winner";
 
 export interface Io2026Project {
   userId: string;
+  userEmail?: string;
   projectTitle?: string;
-  description?: string;
   teamName?: string;
+  pitchLine?: string;
+  appPurpose?: string;
   projectType?: "solo" | "team";
-  openToBuddies?: boolean;
+  teamMembers?: { name: string; linkedinUrl?: string }[];
   githubUrl?: string;
-  demoUrl?: string;
   demoVideoUrl?: string;
   screenshots?: string[];
-  members?: { name: string; email?: string; linkedinUrl?: string }[];
   status?: ProjectStatus;
   place?: "first" | "second" | "third" | null;
-  hackathonId?: string;
+  hackathonId: string;
+  hackathonName?: string;
   voteTotal?: number;
   builtWith?: string[];
+  lookingForMembers?: boolean;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
 
 export interface Io2026Vote {
-  projectId: string;
   userId: string;
-  userName?: string;
-  timestamp: Timestamp;
-  voteCount: number;
-  attendanceVerified: boolean;
+  projectId: string;
   hackathonId: string;
+  voteCount: number;
+  attendanceVerified?: boolean;
+  userName?: string;
+  timestamp?: Timestamp;
 }
+
+/** Doc id = userId */
+export type AttendanceCohort = "aidevcamp2026" | "aidevcamp_flat" | null;
 
 export interface Io2026Attendance {
   userId: string;
-  codeUsed?: string;
-  verifiedAt?: Timestamp;
+  checkedInAt?: Timestamp;
+  checkedInByUid?: string;
+  method?: "self" | "admin" | "staff";
+  attendanceVerified: boolean;
+  cohort?: AttendanceCohort;
+  swagReceived?: boolean;
+  swagReceivedAt?: Timestamp;
+  swagReceivedByUid?: string;
 }
 
-export interface Io2026Settings {
+export interface Io2026SettingsMain {
+  winnersAnnounced?: boolean;
+  winnersAnnouncedAt?: Timestamp;
   votingOpensAt?: Timestamp;
   votingClosesAt?: Timestamp;
-  votingOpen?: boolean;
-  liveAttendanceCode?: string;
+  prizes?: {
+    id: string;
+    name: string;
+    imageSrc: string;
+    featured?: boolean;
+    sortOrder: number;
+  }[];
   judgingCriteria?: { title: string; description: string }[];
-  attendanceWindowOpens?: Timestamp;
-  attendanceWindowCloses?: Timestamp;
-  currentPitchProjectId?: string | null;
-  winnersAnnounced?: boolean;
+  resourcesIntro?: string;
+  rulesTitle?: string;
+}
+
+export interface Io2026CheckInPublic {
+  attendanceWindowOpensAt?: Timestamp;
+  attendanceWindowClosesAt?: Timestamp;
+}
+
+export interface Io2026LiveStats {
+  checkInCount?: number;
+  totalVotesCast?: number;
+  topProjects?: { id: string; voteTotal: number; projectTitle?: string }[];
+  updatedAt?: Timestamp;
 }

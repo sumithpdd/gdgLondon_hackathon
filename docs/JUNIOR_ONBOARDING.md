@@ -82,7 +82,11 @@ lib/                          # ★ Put new Firebase / domain logic here
   join-requests.ts            # Team join requests, getUserProject
   project-submissions.ts      # Save progress / Ship it → io2026Hackathon_projects
   meApi.ts                    # Self check-in API wrappers
+  attendance.ts               # Read attendance, isAidevcampCohort
+  check-in.ts                 # Staff check-in, swag, AI DevCamp tag callables
+  voting.ts                   # Vote page data, castVotes wrapper
   admin-users.ts              # List/filter users, provision by email, admin callables
+  admin-nav.ts                # Grouped admin sidebar links
   profile-completion.ts       # “80% profile” score for joining teams
   hackathon-collections.ts      # Collection name prefixes (io2026 vs legacy)
   active-hackathon.ts         # Active edition id + event description from registry
@@ -119,6 +123,8 @@ flowchart TD
   J -->|No| E
   J -->|Yes| K[Send join request]
   G2 --> L[Before HACKATHON_SUBMISSION_DEADLINE]
+  L --> CI[/checkin - 6 digit code]
+  CI --> V[/vote - audience ballot]
 ```
 
 ### Important product rules (2026)
@@ -129,7 +135,8 @@ flowchart TD
 | **Join a team** | Profile needs **80%** “team join score” (bio, LinkedIn, team preference) — see `lib/profile-completion.ts` |
 | **Your project on home** | Only shows if project’s `hackathonId` matches active edition (old SnippetPro-style projects are hidden) |
 | **Past ideas/winners** | `/past-projects` reads **`iwd2026Hackathon_*`** archive |
-| **Check-in** | `/checkin` — self + organiser desk on one page; `/admin/checkin` redirects here |
+| **Check-in** | `/checkin` — self + organiser desk (swag, AI DevCamp cohort); `/admin/checkin` redirects here |
+| **Vote** | `/vote` after `attendanceVerified`; badges for AI DevCamp + swag |
 | **Project save** | Always tags `hackathonId` + `userId` via `lib/project-submissions.ts` |
 
 Full narrative: [USER_FLOW.md](./USER_FLOW.md).
@@ -177,7 +184,7 @@ Three layers (do not confuse them):
 | `io2026Hackathon_joinRequests` | Auto ID | Pending/approved/rejected team joins |
 | `io2026Hackathon_settings` | `main` | Prizes, voting windows, rules text, `winnersAnnounced` |
 | `io2026Hackathon_votes` | Composite | Audience votes (writes **only** via `castVotes` function) |
-| `io2026Hackathon_attendance` | `uid` | Check-in verified flag |
+| `io2026Hackathon_attendance` | `uid` | Check-in, `cohort` (AI DevCamp), `swagReceived` |
 | `hackathons` | e.g. `io2026Hackathon` | Edition registry (description for home page) |
 
 ### Key project fields

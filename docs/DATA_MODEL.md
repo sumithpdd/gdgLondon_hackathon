@@ -30,8 +30,12 @@ flowchart TB
     IU["io2026Hackathon_users"]
     IP["io2026Hackathon_projects"]
     IS["io2026Hackathon_settings/main"]
+    ICP["io2026Hackathon_settings/checkInPublic"]
+    IV["io2026Hackathon_votes"]
+    IA["io2026Hackathon_attendance"]
     IJ["io2026Hackathon_joinRequests"]
     IB["io2026Hackathon_buddyRequests"]
+    IL["io2026Hackathon_liveStats/summary"]
   end
 
   subgraph archive["Archive read-only"]
@@ -205,6 +209,15 @@ Active path from `SETTINGS_COLLECTION` + `SETTINGS_DOC_ID` in `lib/constants.ts`
 }
 ```
 
+**Related settings documents** (same `io2026Hackathon_settings` collection):
+
+| Doc ID | Read access | Purpose |
+|--------|-------------|---------|
+| `main` | Public | Prizes, voting window, winners flag, rules CMS fields, judging criteria |
+| `checkInPublic` | Public | Check-in window open/close timestamps (no secret code) |
+| `checkInSecrets` | **Admin SDK / Functions only** | Hashed 6-digit desk code; never exposed to client rules |
+| `liveSlide` | Public | Projector mode (`leaderboard` \| `pitch` \| `welcome`), headlines, `currentPitchProjectId` |
+
 **Seed:** Admin → Hackathons → “Seed IO 2026 prizes”, or `npm run seed:io2026 -- --uid=... --force-settings` (also merges default **judging criteria**).
 
 **Defaults:** `lib/prizes.ts` → `DEFAULT_IO2026_PRIZES` (Sony headphones, wireless keyboard, bag, Google socks).
@@ -285,6 +298,63 @@ Active path from `SETTINGS_COLLECTION` + `SETTINGS_DOC_ID` in `lib/constants.ts`
 **Attendance:** `io2026Hackathon_attendance/{userId}` with `attendanceVerified: true` (see `/checkin`).
 
 **Client:** `lib/voting.ts`, UI `/vote`, admin `/admin/voting`.
+
+**Indexes** (`firestore.indexes.json`):
+
+| Collection | Fields | Used by |
+|------------|--------|---------|
+| `io2026Hackathon_votes` | `userId` ASC, `hackathonId` ASC | `fetchUserVotes`, `castVotes` |
+| `io2026Hackathon_projects` | `status` ASC, `voteTotal` DESC | `fetchVoteableProjects` (fallback query if index missing) |
+
+**Client resilience:** `fetchUserVotes` tries the composite query first; on `failed-precondition` (index building/missing), falls back to `userId` only and filters `hackathonId` in memory.
+
+**Vote page load:** projects + settings load independently of ballot/attendance so a ballot query failure does not blank the project list.
+
+---
+
+## Event attendance & swag
+
+**Collection:** `io2026Hackathon_attendance` — **document ID = Firebase Auth `uid`** (one row per attendee).
+
+```typescript
+{
+  userId: string;                    // same as doc id
+  checkedInAt: Timestamp;
+  checkedInByUid: string;            // self uid or organiser uid
+  method: "self" | "admin" | "staff";
+  attendanceVerified: true;          // required for voting
+
+  /** AI DevCamp 2026 cohort — set at staff desk */
+  cohort?: "aidevcamp2026" | "aidevcamp_flat" | null;
+  // Legacy aidevcamp_flat is normalized to aidevcamp2026 on new staff writes
+
+  swagReceived?: boolean;
+  swagReceivedAt?: Timestamp;
+  swagReceivedByUid?: string;        // organiser who marked swag
+}
+```
+
+**Rules:** users read **own** doc; organisers read any; **no client create/update** — writes via API routes and Cloud Functions only.
+
+**Write paths:**
+
+| Action | Path | Who |
+|--------|------|-----|
+| Self check-in | `POST /api/me/attendance/self-check-in` | Participant (validates 6-digit code + window) |
+| Staff check-in | `staffCheckInUser` callable | `admin` / `moderator` |
+| Tag AI DevCamp | `staffCheckInUser` with `cohort: "aidevcamp2026"` or `tagAttendeeAidevcamp2026()` | Organiser desk |
+| Swag | `setAttendeeSwag` callable | Organiser (requires prior check-in) |
+| Reset | `resetUserAttendance` callable | Admin only |
+
+**UI surfaces:**
+
+| Surface | Shows |
+|---------|--------|
+| `/checkin` | Self code entry; organiser desk (`StaffAttendeeCheckIn`) |
+| `/vote` | `AttendeeEventBadges` — **AI DevCamp 2026 attendee**, **Swag received** when applicable |
+| Admin → **Check-in desk** (`/checkin` from admin nav) | Filters: Not checked in, Needs swag, AI DevCamp; one-tap swag + cohort tag |
+
+**Cohort helper:** `isAidevcampCohort(cohort)` in `lib/attendance.ts` — treats `aidevcamp2026` and legacy `aidevcamp_flat` as the same badge.
 
 ---
 

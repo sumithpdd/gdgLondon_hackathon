@@ -13,11 +13,22 @@ GDG London Hackathon platform — IO 2026 live dataset + IWD archive.
 - Firestore rules require `hackathonId` on project create/update
 - Cloud Function `createProject` is fallback only; Functions default collection names aligned to `io2026Hackathon_*`
 
-### Check-in
+### Check-in & event desk
 - Single **`/checkin`** page: self-service code + organiser desk
 - Self check-in via **`POST /api/me/attendance/self-check-in`**
-- `/admin/checkin` redirects to `/checkin`
-- Admin can reset attendance from organiser desk
+- Organiser desk: **swag** toggle, **AI DevCamp 2026** cohort tag, filters (needs swag / AI DevCamp / not checked in)
+- `tagAttendeeAidevcamp2026()` in `lib/check-in.ts` for one-tap cohort on checked-in users
+- `/admin/checkin` redirects to `/checkin`; admin nav → **Operations → Check-in desk**
+
+### Voting
+- **`/vote`** — search, budget bar, resilient load (`fetchUserVotes` index fallback)
+- **`AttendeeEventBadges`** on vote page — AI DevCamp 2026 + swag received
+- Ballot errors no longer block project list load
+- Deploy **`firestore.indexes.json`** for vote queries in production
+
+### Admin UX
+- Grouped admin nav (`lib/admin-nav.ts`): Overview, People, Content, Event, Operations
+- **`/admin/projects`** — all draft + submitted projects with full detail
 
 ### Auth & ops
 - Google sign-in: redirect fallback for mobile/iOS

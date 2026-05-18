@@ -12,8 +12,8 @@ Start here if you're new to the project:
 
 1. **[JUNIOR_ONBOARDING.md](./JUNIOR_ONBOARDING.md)** — **Start here:** flows, schema cheat sheet, repo map, `motionDiv` typo explained, safe first tasks
 2. **[IO2026_HACKATHON_SPEC.md](./IO2026_HACKATHON_SPEC.md)** — IO 2026 dataset, **multi-hackathon registry**, migration, prizes, routes, voting/attendance roadmap
-3. **[DATA_MODEL.md](./DATA_MODEL.md)** — Collections, participation map, settings/prizes, archive
-4. **[USER_FLOW.md](./USER_FLOW.md)** — Overview → auth → profile / save & ship project / ideas / check-in / vote
+3. **[DATA_MODEL.md](./DATA_MODEL.md)** — Collections, attendance/swag/cohort, votes, settings, archive
+4. **[USER_FLOW.md](./USER_FLOW.md)** — Full customer journey incl. event day (check-in → swag → AI DevCamp → vote)
 5. **[START_HERE.md](./START_HERE.md)** - Older beginner guide (partially outdated — prefer JUNIOR_ONBOARDING for auth/stack)
 6. **[FEATURES_SIMPLE.md](./FEATURES_SIMPLE.md)** - What the app does
 7. **Admin setup** - See [DEPLOYMENT.md](./DEPLOYMENT.md) Step 4 (Firestore active `users` collection → set `role: "admin"`)
@@ -56,11 +56,11 @@ Having issues? Check here:
 | Document | Purpose | Audience |
 |----------|---------|----------|
 | **ARCHITECTURE.md** | App layers, project save on my-projects, security summary, `.cursor/` | Developers |
-| **IO2026_HACKATHON_SPEC.md** | IO 2026 collections, Buddies, migration, rules, routes, voting/live roadmap | Organisers & developers |
+| **IO2026_HACKATHON_SPEC.md** | IO 2026 collections, routes, voting/check-in (shipped), event runbook | Organisers & developers |
 | **DEPLOYMENT.md** | Complete deployment guide | Everyone deploying |
 | **FIREBASE_AUTH.md** | Authentication system details | Developers |
 | **FIRESTORE_RULES.md** | Database security rules | Developers & Admins |
-| **DATA_MODEL.md** | Firestore collections, registry, participation, prizes | Developers |
+| **DATA_MODEL.md** | Firestore schema — users, projects, attendance, votes, settings | Developers |
 ### Setup Guides
 
 | Document | Purpose | Audience |

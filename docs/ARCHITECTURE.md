@@ -56,6 +56,11 @@ We follow a **component-based** front end with **domain-driven** naming: modules
 | `lib/project-submissions.ts` | Save/load projects; stamp ownership; `saveProjectDocument` |
 | `lib/profile-completion.ts` | Team join score (80% threshold) |
 | `lib/meApi.ts` | Self check-in + check-in status API wrappers |
+| `lib/attendance.ts` | Read attendance; `isAidevcampCohort` |
+| `lib/check-in.ts` | Staff check-in, swag, AI DevCamp tag callables |
+| `lib/voting.ts` | Voteable projects, ballot load (index fallback), `castVotes` wrapper |
+| `lib/admin-nav.ts` | Grouped admin sidebar + mobile tabs |
+| `lib/admin-projects-list.ts` | Admin all-projects fetch |
 | `lib/clientErrorLogger.ts` | Client-side errors → `POST /api/log-error` |
 | `lib/error-logs-admin.ts` | Admin fetch of `error_logs` |
 | `lib/prizes.ts` | Read/seed prize array on `settings/main` |
@@ -106,6 +111,10 @@ Do not show raw Firestore collection names in user-facing copy; use edition labe
 | `saveProjectDocument` (client `lib/`) | Primary create/update in `PROJECTS_COLLECTION` with `hackathonId` + `userId` |
 | `createProject` | Fallback create if client `addDoc` fails; must use same collection env as app |
 | `POST /api/me/attendance/self-check-in` | Self check-in with code + window validation |
+| `staffCheckInUser` | Organiser desk check-in + optional `aidevcamp2026` cohort |
+| `setAttendeeSwag` | Mark swag received (requires check-in) |
+| `resetUserAttendance` | Admin clear mistaken check-in |
+| `getCheckInDeskCode` | Active 6-digit desk code for organisers |
 | `POST /api/log-error` | Persist client errors to `error_logs` |
 | `GET /api/admin/error-logs` | Admin error log list |
 | `castVotes` | Audience voting with caps + check-in |
