@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminShell } from "@/components/AdminShell";
 import { useAuthContext } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -90,7 +89,6 @@ export default function AdminVotingPage() {
   };
 
   return (
-    <ProtectedRoute requireAdmin>
       <AdminShell title="Voting" subtitle="Audience vote tallies, windows, and winner assignment">
         {loading ? (
           <div className="flex justify-center py-16">
@@ -165,6 +163,5 @@ export default function AdminVotingPage() {
           </div>
         )}
       </AdminShell>
-    </ProtectedRoute>
   );
 }

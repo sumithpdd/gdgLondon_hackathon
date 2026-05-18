@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useAuthContext } from "@/lib/AuthContext";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminShell } from "@/components/AdminShell";
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -246,7 +245,6 @@ export default function AdminTagsPage() {
   };
 
   return (
-    <ProtectedRoute requireAdmin={true}>
       <AdminShell
         title="Tag management"
         subtitle="Create, edit, and delete tags for interests, expertise, and technology stack."
@@ -458,7 +456,6 @@ export default function AdminTagsPage() {
           </AlertDialogContent>
         </AlertDialog>
       </AdminShell>
-    </ProtectedRoute>
   );
 }
 

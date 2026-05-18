@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminShell } from "@/components/AdminShell";
 import { useAuthContext } from "@/lib/AuthContext";
 import {
@@ -115,7 +114,6 @@ export default function AdminErrorLogsPage() {
   };
 
   return (
-    <ProtectedRoute requireAdmin>
       <AdminShell
         title="Error logs"
         subtitle="Client, React, and API failures in Firestore error_logs (mobile-friendly)"
@@ -274,6 +272,5 @@ export default function AdminErrorLogsPage() {
           </p>
         </div>
       </AdminShell>
-    </ProtectedRoute>
   );
 }

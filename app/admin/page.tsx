@@ -18,7 +18,6 @@ import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { Github, Linkedin, Twitter, Trash2, ChevronLeft, ChevronRight, Tag } from "lucide-react";
 import { HackathonResultsSummary } from "@/components/HackathonResultsSummary";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminShell } from "@/components/AdminShell";
 import {
   Select,
@@ -159,7 +158,6 @@ export default function AdminPage() {
 
   if (loading) {
     return (
-      <ProtectedRoute requireAdmin={true}>
         <AdminShell
           title="Admin dashboard"
           subtitle="Loading submissions…"
@@ -171,12 +169,10 @@ export default function AdminPage() {
             </div>
           </div>
         </AdminShell>
-      </ProtectedRoute>
     );
   }
 
   return (
-    <ProtectedRoute requireAdmin={true}>
     <AdminShell
       title="Admin dashboard"
       subtitle="Review project submissions, assign winner places, and manage the competition."
@@ -408,6 +404,5 @@ export default function AdminPage() {
         </AlertDialogContent>
       </AlertDialog>
     </AdminShell>
-    </ProtectedRoute>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminShell } from "@/components/AdminShell";
 import { useAuthContext } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -92,7 +91,6 @@ export default function AdminContentPage() {
   };
 
   return (
-    <ProtectedRoute requireAdmin>
       <AdminShell
         title="Content"
         subtitle="Per-hackathon resources links and rules (stored in settings/main)"
@@ -246,6 +244,5 @@ export default function AdminContentPage() {
           </div>
         )}
       </AdminShell>
-    </ProtectedRoute>
   );
 }

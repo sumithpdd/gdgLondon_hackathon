@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { doc, setDoc } from "firebase/firestore";
 import { useAuthContext } from "@/lib/AuthContext";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminShell } from "@/components/AdminShell";
 import { listHackathons, createHackathon, type HackathonRegistryRecord } from "@/lib/hackathons-registry";
 import { ensureActiveHackathonRegistry, getActiveHackathonId } from "@/lib/active-hackathon";
@@ -130,7 +129,6 @@ export default function AdminHackathonsPage() {
   };
 
   return (
-    <ProtectedRoute requireAdmin={true}>
       <AdminShell
         title="Hackathons"
         subtitle="Register hackathon editions for the platform. User participation is tracked per id (see env NEXT_PUBLIC_ACTIVE_HACKATHON_ID, default io2026Hackathon). Firestore project/user data still follows NEXT_PUBLIC_HACKATHON_DATASET."
@@ -313,6 +311,5 @@ export default function AdminHackathonsPage() {
           </div>
         </div>
       </AdminShell>
-    </ProtectedRoute>
   );
 }

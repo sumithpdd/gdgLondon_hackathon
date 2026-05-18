@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useAuthContext } from "@/lib/AuthContext";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminShell } from "@/components/AdminShell";
 import { collection, addDoc, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -133,7 +132,6 @@ export default function SeedTagsPage() {
   };
 
   return (
-    <ProtectedRoute requireAdmin={true}>
       <AdminShell
         title="Seed default tags"
         subtitle="Add starter tags to each collection. Existing tag names are skipped."
@@ -213,7 +211,6 @@ export default function SeedTagsPage() {
             </CardContent>
           </Card>
       </AdminShell>
-    </ProtectedRoute>
   );
 }
 

@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuthContext } from "@/lib/AuthContext";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminShell } from "@/components/AdminShell";
 import { UserProfile, UserRole, isUserDeleted } from "@/lib/auth";
 import {
@@ -287,7 +286,6 @@ export default function AdminUsersPage() {
 
   if (loading) {
     return (
-      <ProtectedRoute requireAdmin={true}>
         <AdminShell title="Users" subtitle="Loading directory…">
           <div className="flex items-center justify-center py-24">
             <div className="text-center">
@@ -296,12 +294,10 @@ export default function AdminUsersPage() {
             </div>
           </div>
         </AdminShell>
-      </ProtectedRoute>
     );
   }
 
   return (
-    <ProtectedRoute requireAdmin={true}>
       <AdminShell
         title="Users"
         subtitle="Edit profiles, change roles, or mark users as deleted (soft delete). Deleted accounts stay in Firestore for audit."
@@ -699,7 +695,6 @@ export default function AdminUsersPage() {
           </AlertDialogContent>
         </AlertDialog>
       </AdminShell>
-    </ProtectedRoute>
   );
 }
 
