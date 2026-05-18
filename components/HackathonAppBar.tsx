@@ -1,6 +1,7 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "firebase/auth";
@@ -8,7 +9,7 @@ import { auth } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
 import { useAuthContext } from "@/lib/AuthContext";
 import { useHackathonAuth } from "@/components/HackathonAuthShell";
-import { HACKATHON_DISPLAY_NAME } from "@/lib/constants";
+import { HACKATHON_BRAND_LOGO_SRC, HACKATHON_DISPLAY_NAME } from "@/lib/constants";
 import {
   isNavItemActive,
   navItemsForUser,
@@ -178,6 +179,194 @@ export function HackathonAppBar() {
 
   const brandTitle = HACKATHON_DISPLAY_NAME.toUpperCase();
 
+  const desktopNavItems = useMemo(() => {
+    const items = [...participantItems];
+    if (adminTopLink) items.push(adminTopLink);
+    return items;
+  }, [participantItems, adminTopLink]);
+
+  const navSplitAt = Math.ceil(desktopNavItems.length / 2);
+  const navRowOne = desktopNavItems.slice(0, navSplitAt);
+  const navRowTwo = desktopNavItems.slice(navSplitAt);
+
+  const brandBlock = (
+    <Link href="/hackathon" className="flex items-center gap-2.5 sm:gap-3 shrink-0 min-w-0 group">
+      <Image
+        src={HACKATHON_BRAND_LOGO_SRC}
+        alt="Google I/O"
+        width={44}
+        height={44}
+        className="h-9 w-9 sm:h-10 sm:w-10 object-contain shrink-0"
+        priority
+      />
+      <div className="min-w-0">
+        <p className="text-sm sm:text-base font-bold tracking-wide text-foreground leading-tight truncate max-w-[160px] sm:max-w-[260px] lg:max-w-none">
+          {brandTitle}
+        </p>
+        <p className="text-[10px] sm:text-xs font-medium text-emerald-600 dark:text-emerald-400 leading-tight">
+          Build with AI
+        </p>
+      </div>
+    </Link>
+  );
+
+  const accountActions = (
+    <div className="shrink-0 flex items-center gap-1.5 sm:gap-2">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="lg:hidden h-10 w-10"
+        onClick={() => setMobileOpen(true)}
+        aria-label="Open menu"
+        aria-expanded={mobileOpen}
+      >
+        <Menu className="h-5 w-5" />
+      </Button>
+
+      <ThemeToggle />
+
+      {isAuthenticated && user ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className={cn(
+                "flex items-center gap-1.5 rounded-lg pl-1 pr-1.5 sm:pr-2 py-1 min-w-0",
+                "bg-secondary hover:bg-muted border border-border text-foreground transition-colors",
+                "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              )}
+            >
+              <span className="relative h-8 w-8 shrink-0 rounded-full overflow-hidden bg-emerald-600 flex items-center justify-center text-xs font-bold text-white">
+                {user.photoURL ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={user.photoURL} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  initials
+                )}
+              </span>
+              <span className="text-sm font-medium truncate hidden md:inline max-w-[100px] lg:max-w-[140px]">
+                {display}
+              </span>
+              <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0 hidden sm:block" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64 p-0 max-h-[min(70vh,32rem)] overflow-y-auto">
+            <div className="border-b border-border bg-muted/40 px-3 py-3">
+              <p className="text-sm font-semibold text-foreground leading-snug truncate">{fullName}</p>
+              <p className="text-xs text-muted-foreground mt-1 truncate">{user.email}</p>
+              <span
+                className={cn(
+                  "mt-2 inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold tracking-wide capitalize",
+                  isAdmin && "bg-emerald-600 text-white",
+                  isModerator && !isAdmin && "bg-blue-600 text-white",
+                  !isAdmin && !isModerator && "bg-muted text-muted-foreground"
+                )}
+              >
+                {roleLabel}
+              </span>
+            </div>
+
+            <div className="p-1.5 hidden lg:block">
+              {PARTICIPANT_NAV.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <DropdownMenuItem key={item.href} asChild>
+                    <Link href={item.href} className={menuLink(item)}>
+                      {Icon ? <Icon className="h-4 w-4 shrink-0 text-muted-foreground" /> : null}
+                      {item.label}
+                    </Link>
+                  </DropdownMenuItem>
+                );
+              })}
+              {isAdmin ? (
+                <>
+                  <DropdownMenuSeparator className="my-1 bg-border" />
+                  <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">
+                    Admin
+                  </p>
+                  {ADMIN_NAV_GROUPS.map((group) => (
+                    <div key={group.id}>
+                      <p className="px-3 pt-1 pb-0.5 text-[10px] font-medium text-muted-foreground">
+                        {group.label}
+                      </p>
+                      {group.items.map((item) => {
+                        const Icon = item.icon;
+                        const active = isAdminNavItemActive(pathname, item);
+                        return (
+                          <DropdownMenuItem key={item.href} asChild>
+                            <Link href={item.href} className={cn(menuItem, active && "bg-accent")}>
+                              <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                              {item.label}
+                            </Link>
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </>
+              ) : null}
+            </div>
+
+            <div className="p-1.5 lg:hidden">
+              <DropdownMenuItem asChild>
+                <Link href="/hackathon/profile" className={cn(menuItem, isProfileActive && "bg-accent")}>
+                  <UserRound className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  My profile
+                </Link>
+              </DropdownMenuItem>
+            </div>
+
+            <div className="p-1.5 border-t border-border">
+              <DropdownMenuItem
+                className={cn(
+                  menuItem,
+                  "text-amber-400 focus:bg-amber-950/30 focus:text-amber-300 data-[highlighted]:bg-amber-950/25"
+                )}
+                onSelect={(e) => {
+                  e.preventDefault();
+                  handleLeaveProgramme();
+                }}
+              >
+                <UserMinus className="h-4 w-4 shrink-0" />
+                Leave programme
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="my-1 bg-border" />
+              <DropdownMenuItem
+                className={cn(
+                  menuItem,
+                  "text-rose-400 focus:bg-rose-950/35 focus:text-rose-300 data-[highlighted]:bg-rose-950/25"
+                )}
+                onSelect={(e) => {
+                  e.preventDefault();
+                  void handleSignOut();
+                }}
+              >
+                <LogOut className="h-4 w-4 shrink-0" />
+                Sign out
+              </DropdownMenuItem>
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : (
+        <div className="hidden sm:flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="border-border bg-card/80"
+            onClick={() => openSignIn()}
+          >
+            Sign in
+          </Button>
+          <Button variant="default" size="sm" asChild className="bg-violet-600 hover:bg-violet-500">
+            <Link href="/register">Register</Link>
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+
   const mobileDrawerContent = (
     <nav className="flex flex-col gap-1">
       {mobileNavItems.map((item) => (
@@ -256,197 +445,32 @@ export function HackathonAppBar() {
     </nav>
   );
 
+
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/80">
-      <div className="container mx-auto max-w-6xl px-4 sm:px-8 py-3 flex items-center gap-3 min-h-[3.75rem]">
-        <Link href="/hackathon" className="flex items-center gap-2.5 sm:gap-3 shrink-0 min-w-0">
-          <div className="h-10 w-10 shrink-0 rounded-md bg-emerald-600 flex flex-col items-center justify-center text-[8px] font-bold leading-tight text-center text-white px-0.5">
-            IO
-            <span className="text-[7px] font-semibold opacity-95">2026</span>
-          </div>
-          <div className="hidden min-[400px]:block min-w-0">
-            <p className="text-sm sm:text-base font-bold tracking-wide text-foreground leading-tight truncate max-w-[140px] sm:max-w-[220px]">
-              {brandTitle}
-            </p>
-            <p className="text-[10px] sm:text-xs font-medium text-emerald-600 dark:text-emerald-400 leading-tight">
-              Build with AI
-            </p>
-          </div>
-        </Link>
-
+      <div className="container mx-auto max-w-6xl px-4 sm:px-8">
+        <div className="flex items-center justify-between gap-3 py-2.5 lg:py-3 min-h-[3.75rem]">
+          {brandBlock}
+          {accountActions}
+        </div>
         <nav
-          className="hidden lg:flex flex-1 items-center justify-center gap-6 xl:gap-8 min-w-0"
+          className="hidden lg:flex flex-col items-center gap-1.5 border-t border-border/60 pt-2 pb-2.5"
           aria-label="Main navigation"
         >
-          {participantItems.map((item) => (
-            <NavLink key={item.href} item={item} className="text-[15px]" />
-          ))}
-          {adminTopLink ? (
-            <>
-              <span className="h-5 w-px bg-border shrink-0" aria-hidden />
-              <NavLink item={adminTopLink} className="text-[15px]" />
-            </>
+          <div className="flex flex-wrap items-center justify-center gap-x-6 xl:gap-x-8 gap-y-1">
+            {navRowOne.map((item) => (
+              <NavLink key={item.href} item={item} className="text-[14px] xl:text-[15px]" />
+            ))}
+          </div>
+          {navRowTwo.length > 0 ? (
+            <div className="flex flex-wrap items-center justify-center gap-x-6 xl:gap-x-8 gap-y-1">
+              {navRowTwo.map((item) => (
+                <NavLink key={item.href} item={item} className="text-[14px] xl:text-[15px]" />
+              ))}
+            </div>
           ) : null}
         </nav>
-
-        <div className="flex-1 lg:flex-none" aria-hidden />
-
-        <div className="shrink-0 flex items-center gap-1.5 sm:gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="lg:hidden h-10 w-10"
-            onClick={() => setMobileOpen(true)}
-            aria-label="Open menu"
-            aria-expanded={mobileOpen}
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-
-          <ThemeToggle />
-
-          {isAuthenticated && user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className={cn(
-                    "flex items-center gap-1.5 rounded-lg pl-1 pr-1.5 sm:pr-2 py-1 min-w-0",
-                    "bg-secondary hover:bg-muted border border-border text-foreground transition-colors",
-                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                  )}
-                >
-                  <span className="relative h-8 w-8 shrink-0 rounded-full overflow-hidden bg-emerald-600 flex items-center justify-center text-xs font-bold text-white">
-                    {user.photoURL ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={user.photoURL} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      initials
-                    )}
-                  </span>
-                  <span className="text-sm font-medium truncate hidden md:inline max-w-[100px] lg:max-w-[120px]">
-                    {display}
-                  </span>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0 hidden sm:block" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64 p-0 max-h-[min(70vh,32rem)] overflow-y-auto">
-                <div className="border-b border-border bg-muted/40 px-3 py-3">
-                  <p className="text-sm font-semibold text-foreground leading-snug truncate">{fullName}</p>
-                  <p className="text-xs text-muted-foreground mt-1 truncate">{user.email}</p>
-                  <span
-                    className={cn(
-                      "mt-2 inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold tracking-wide capitalize",
-                      isAdmin && "bg-emerald-600 text-white",
-                      isModerator && !isAdmin && "bg-blue-600 text-white",
-                      !isAdmin && !isModerator && "bg-muted text-muted-foreground"
-                    )}
-                  >
-                    {roleLabel}
-                  </span>
-                </div>
-
-                <div className="p-1.5 hidden lg:block">
-                  {PARTICIPANT_NAV.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <DropdownMenuItem key={item.href} asChild>
-                        <Link href={item.href} className={menuLink(item)}>
-                          {Icon ? <Icon className="h-4 w-4 shrink-0 text-muted-foreground" /> : null}
-                          {item.label}
-                        </Link>
-                      </DropdownMenuItem>
-                    );
-                  })}
-                  {isAdmin ? (
-                    <>
-                      <DropdownMenuSeparator className="my-1 bg-border" />
-                      <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">
-                        Admin
-                      </p>
-                      {ADMIN_NAV_GROUPS.map((group) => (
-                        <div key={group.id}>
-                          <p className="px-3 pt-1 pb-0.5 text-[10px] font-medium text-muted-foreground">
-                            {group.label}
-                          </p>
-                          {group.items.map((item) => {
-                            const Icon = item.icon;
-                            const active = isAdminNavItemActive(pathname, item);
-                            return (
-                              <DropdownMenuItem key={item.href} asChild>
-                                <Link href={item.href} className={cn(menuItem, active && "bg-accent")}>
-                                  <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                                  {item.label}
-                                </Link>
-                              </DropdownMenuItem>
-                            );
-                          })}
-                        </div>
-                      ))}
-                    </>
-                  ) : null}
-                </div>
-
-                <div className="p-1.5 lg:hidden">
-                  <DropdownMenuItem asChild>
-                    <Link href="/hackathon/profile" className={cn(menuItem, isProfileActive && "bg-accent")}>
-                      <UserRound className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      My profile
-                    </Link>
-                  </DropdownMenuItem>
-                </div>
-
-                <div className="p-1.5 border-t border-border">
-                  <DropdownMenuItem
-                    className={cn(
-                      menuItem,
-                      "text-amber-400 focus:bg-amber-950/30 focus:text-amber-300 data-[highlighted]:bg-amber-950/25"
-                    )}
-                    onSelect={(e) => {
-                      e.preventDefault();
-                      handleLeaveProgramme();
-                    }}
-                  >
-                    <UserMinus className="h-4 w-4 shrink-0" />
-                    Leave programme
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator className="my-1 bg-border" />
-                  <DropdownMenuItem
-                    className={cn(
-                      menuItem,
-                      "text-rose-400 focus:bg-rose-950/35 focus:text-rose-300 data-[highlighted]:bg-rose-950/25"
-                    )}
-                    onSelect={(e) => {
-                      e.preventDefault();
-                      void handleSignOut();
-                    }}
-                  >
-                    <LogOut className="h-4 w-4 shrink-0" />
-                    Sign out
-                  </DropdownMenuItem>
-                </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <div className="hidden sm:flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="border-border bg-card/80"
-                onClick={() => openSignIn()}
-              >
-                Sign in
-              </Button>
-              <Button variant="default" size="sm" asChild className="bg-violet-600 hover:bg-violet-500">
-                <Link href="/register">Register</Link>
-              </Button>
-            </div>
-          )}
-        </div>
       </div>
-
       <MobileNavDrawer open={mobileOpen} onClose={closeMobile} title="Menu">
         {mobileDrawerContent}
       </MobileNavDrawer>

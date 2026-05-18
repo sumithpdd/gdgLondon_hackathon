@@ -26,6 +26,9 @@ const c = getActiveCollections();
 
 export const HACKATHON_DISPLAY_NAME = HACKATHON_BRAND_NAME;
 
+/** Google I/O brand mark (header logo + favicon). */
+export const HACKATHON_BRAND_LOGO_SRC = "/io-logo.png";
+
 /** Live hackathon edition (IO 2026) — hub hero, footer, metadata. Archive: /past-projects (IWD 2026). */
 export const HACKATHON_EVENT_TAGLINE = "Build with AI × Google I/O 2026 — GDG London";
 export const HACKATHON_EVENT_SHORT = "Google I/O 2026";

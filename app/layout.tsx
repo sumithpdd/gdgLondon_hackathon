@@ -17,6 +17,10 @@ export const metadata: Metadata = {
   title: "Build with AI Hackathon — Google I/O 2026 | GDG London",
   description:
     "Build with AI × Google I/O 2026 — GDG London. Create, ship, and showcase your AI project. Use any AI technology.",
+  icons: {
+    icon: "/io-logo.png",
+    apple: "/io-logo.png",
+  },
 };
 
 export default function RootLayout({
