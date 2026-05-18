@@ -37,23 +37,40 @@ export type UserVoteLine = {
   voteCount: number;
 };
 
-export async function fetchUserVotes(uid: string): Promise<UserVoteLine[]> {
-  const hackathonId = getActiveHackathonId();
-  const q = query(
-    collection(db, VOTES_COLLECTION),
-    where("userId", "==", uid),
-    where("hackathonId", "==", hackathonId)
-  );
-  const snap = await getDocs(q);
-  return snap.docs
+function mapVoteDocs(
+  docs: { data: () => Record<string, unknown> }[],
+  hackathonId: string
+): UserVoteLine[] {
+  return docs
     .map((d) => {
       const data = d.data();
+      if (data.hackathonId && data.hackathonId !== hackathonId) return null;
       return {
         projectId: String(data.projectId || ""),
         voteCount: Number(data.voteCount) || 0,
       };
     })
-    .filter((v) => v.projectId && v.voteCount > 0);
+    .filter((v): v is UserVoteLine => !!v && !!v.projectId && v.voteCount > 0);
+}
+
+export async function fetchUserVotes(uid: string): Promise<UserVoteLine[]> {
+  const hackathonId = getActiveHackathonId();
+  const composite = query(
+    collection(db, VOTES_COLLECTION),
+    where("userId", "==", uid),
+    where("hackathonId", "==", hackathonId)
+  );
+  try {
+    const snap = await getDocs(composite);
+    return mapVoteDocs(snap.docs, hackathonId);
+  } catch (err) {
+    const code =
+      err && typeof err === "object" && "code" in err ? String((err as { code: string }).code) : "";
+    if (code !== "failed-precondition") throw err;
+    const fallback = query(collection(db, VOTES_COLLECTION), where("userId", "==", uid));
+    const snap = await getDocs(fallback);
+    return mapVoteDocs(snap.docs, hackathonId);
+  }
 }
 
 export async function fetchVotingSettings(): Promise<{

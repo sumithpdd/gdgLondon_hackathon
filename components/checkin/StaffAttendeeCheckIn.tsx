@@ -15,6 +15,7 @@ import {
   resetUserAttendance,
   setAttendeeSwag,
   staffCheckInUser,
+  tagAttendeeAidevcamp2026,
 } from "@/lib/check-in";
 import {
   AlertDialog,
@@ -48,7 +49,9 @@ export function StaffAttendeeCheckIn({
   const [search, setSearch] = useState("");
   const [emailQuick, setEmailQuick] = useState("");
   const [tagAidevcamp2026, setTagAidevcamp2026] = useState(false);
+  const [deskFilter, setDeskFilter] = useState<"all" | "unchecked" | "needs_swag" | "aidevcamp">("all");
   const [checkingUid, setCheckingUid] = useState<string | null>(null);
+  const [taggingUid, setTaggingUid] = useState<string | null>(null);
   const [swagUid, setSwagUid] = useState<string | null>(null);
   const [resettingUid, setResettingUid] = useState<string | null>(null);
   const [resetTarget, setResetTarget] = useState<AdminListedUser | null>(null);
@@ -85,7 +88,23 @@ export function StaffAttendeeCheckIn({
     );
   }, [users, search]);
 
-  const slice = useMemo(() => filtered.slice(0, 50), [filtered]);
+  const deskFiltered = useMemo(() => {
+    return filtered.filter((u) => {
+      const row = deskMap[u.uid];
+      switch (deskFilter) {
+        case "unchecked":
+          return !row?.checkedIn;
+        case "needs_swag":
+          return row?.checkedIn && !row?.swagReceived;
+        case "aidevcamp":
+          return row?.aidevcamp;
+        default:
+          return true;
+      }
+    });
+  }, [filtered, deskFilter, deskMap]);
+
+  const slice = useMemo(() => deskFiltered.slice(0, 50), [deskFiltered]);
 
   useEffect(() => {
     if (slice.length === 0) return;
@@ -197,6 +216,35 @@ export function StaffAttendeeCheckIn({
     }
   };
 
+  const markAidevcamp = async (targetUid: string) => {
+    const row = deskMap[targetUid];
+    if (!row?.checkedIn) {
+      toast({
+        title: "Check in first",
+        description: "Mark attendance before tagging AI DevCamp 2026.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setTaggingUid(targetUid);
+    try {
+      await tagAttendeeAidevcamp2026(targetUid);
+      setDeskMap((m) => ({
+        ...m,
+        [targetUid]: { ...m[targetUid], aidevcamp: true },
+      }));
+      toast({ title: "Tagged", description: "AI DevCamp 2026 attendee." });
+    } catch (e) {
+      toast({
+        title: "Could not tag",
+        description: callableCheckInError(e),
+        variant: "destructive",
+      });
+    } finally {
+      setTaggingUid(null);
+    }
+  };
+
   const toggleSwag = async (targetUid: string, next: boolean) => {
     const row = deskMap[targetUid];
     if (!row?.checkedIn) {
@@ -265,8 +313,34 @@ export function StaffAttendeeCheckIn({
             onChange={(e) => setTagAidevcamp2026(e.target.checked)}
             className="rounded border-white/30 bg-[#0a0a0f] text-emerald-600"
           />
-          Tag next check-ins as <span className="text-emerald-400 font-medium">AI DevCamp 2026</span>
+          Apply <span className="text-emerald-400 font-medium">AI DevCamp 2026</span> on check-in / update
         </label>
+
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              ["all", "All"],
+              ["unchecked", "Not checked in"],
+              ["needs_swag", "Needs swag"],
+              ["aidevcamp", "AI DevCamp"],
+            ] as const
+          ).map(([id, label]) => (
+            <Button
+              key={id}
+              type="button"
+              size="sm"
+              variant={deskFilter === id ? "default" : "outline"}
+              onClick={() => setDeskFilter(id)}
+              className={
+                deskFilter === id
+                  ? "bg-violet-600 hover:bg-violet-500 text-white border-0"
+                  : "border-white/20 text-gray-300 hover:bg-white/5"
+              }
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
 
         <div className="space-y-2">
           <Label className="text-gray-300">Search name or email</Label>
@@ -309,6 +383,22 @@ export function StaffAttendeeCheckIn({
                   ) : null}
                   {deskMap[u.uid]?.swagReceived ? (
                     <span className="text-xs text-amber-300 font-medium px-1">Swag ✓</span>
+                  ) : null}
+                  {deskMap[u.uid]?.checkedIn && !deskMap[u.uid]?.aidevcamp ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={taggingUid === u.uid}
+                      onClick={() => void markAidevcamp(u.uid)}
+                      className="border-emerald-500/40 text-emerald-200 hover:bg-emerald-500/10"
+                    >
+                      {taggingUid === u.uid ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "AI DevCamp"
+                      )}
+                    </Button>
                   ) : null}
                   {canResetAttendance && deskMap[u.uid]?.checkedIn ? (
                     <Button
@@ -380,7 +470,7 @@ export function StaffAttendeeCheckIn({
             ))}
           </ul>
         )}
-        {!loadingUsers && filtered.length === 0 && (
+        {!loadingUsers && deskFiltered.length === 0 && (
           <p className="text-gray-500 text-sm">No users match this filter.</p>
         )}
         <p className="text-xs text-gray-500">{users.length} profiles loaded (active + legacy).</p>

@@ -6,15 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EventParticipationNotice } from "@/components/EventParticipationNotice";
 import { VoteProjectCard } from "@/components/vote/VoteProjectCard";
+import { AttendeeEventBadges } from "@/components/attendance/AttendeeEventBadges";
 import { useAuthContext } from "@/lib/AuthContext";
+import { getAttendanceForUser, type AttendanceDoc } from "@/lib/attendance";
 import { HACKATHON_DISPLAY_NAME } from "@/lib/constants";
+import { logClientError } from "@/lib/clientErrorLogger";
 import {
   castVotes,
   fetchUserVotes,
   fetchVoteableProjects,
   fetchVotingSettings,
   filterVoteableProjects,
-  isUserEligibleToVote,
   voteBudgetForRole,
   VOTE_MAX_PER_PROJECT,
   type VoteableProject,
@@ -33,6 +35,7 @@ export default function VotePage() {
   const [votingOpen, setVotingOpen] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | undefined>();
   const [checkedIn, setCheckedIn] = useState(false);
+  const [attendance, setAttendance] = useState<AttendanceDoc | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   const budget = voteBudgetForRole(userProfile?.role);
@@ -55,27 +58,66 @@ export default function VotePage() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    let projectsFailed = false;
     try {
-      const [projs, settings] = await Promise.all([fetchVoteableProjects(), fetchVotingSettings()]);
-      setProjects(projs);
-      setVotingOpen(settings.votingOpen);
-      setStatusMessage(settings.message);
+      const [projsResult, settingsResult] = await Promise.allSettled([
+        fetchVoteableProjects(),
+        fetchVotingSettings(),
+      ]);
+
+      if (projsResult.status === "fulfilled") {
+        setProjects(projsResult.value);
+      } else {
+        projectsFailed = true;
+        logClientError(projsResult.reason, "report", "vote-load-projects");
+      }
+
+      if (settingsResult.status === "fulfilled") {
+        setVotingOpen(settingsResult.value.votingOpen);
+        setStatusMessage(settingsResult.value.message);
+      } else {
+        logClientError(settingsResult.reason, "report", "vote-load-settings");
+        setVotingOpen(true);
+      }
 
       if (user) {
-        const [votes, eligible] = await Promise.all([
+        const [votesResult, attendanceResult] = await Promise.allSettled([
           fetchUserVotes(user.uid),
-          isUserEligibleToVote(user.uid),
+          getAttendanceForUser(user.uid),
         ]);
-        setCheckedIn(eligible);
-        const map: Record<string, number> = {};
-        votes.forEach((v) => {
-          map[v.projectId] = v.voteCount;
-        });
-        setAllocations(map);
+
+        if (attendanceResult.status === "fulfilled") {
+          setAttendance(attendanceResult.value);
+          setCheckedIn(attendanceResult.value?.attendanceVerified === true);
+        } else {
+          setAttendance(null);
+          setCheckedIn(false);
+          logClientError(attendanceResult.reason, "report", "vote-load-attendance");
+        }
+
+        if (votesResult.status === "fulfilled") {
+          const map: Record<string, number> = {};
+          votesResult.value.forEach((v) => {
+            map[v.projectId] = v.voteCount;
+          });
+          setAllocations(map);
+        } else {
+          logClientError(votesResult.reason, "report", "vote-load-ballot");
+          toast({
+            title: "Could not load your ballot",
+            description: "Projects are shown — you can still vote after check-in.",
+            variant: "destructive",
+          });
+        }
+      } else {
+        setAttendance(null);
+        setCheckedIn(false);
+        setAllocations({});
       }
-    } catch (e) {
-      console.error(e);
-      toast({ title: "Could not load voting", variant: "destructive" });
+
+      if (projectsFailed) {
+        toast({ title: "Could not load projects", variant: "destructive" });
+      }
     } finally {
       setLoading(false);
     }
@@ -163,6 +205,10 @@ export default function VotePage() {
       </header>
 
       <EventParticipationNotice compact />
+
+      {user && attendance ? (
+        <AttendeeEventBadges attendance={attendance} className="justify-center sm:justify-start" />
+      ) : null}
 
       <section className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-white/10 bg-white/5 p-4">

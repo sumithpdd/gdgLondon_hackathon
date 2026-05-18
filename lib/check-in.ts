@@ -160,6 +160,11 @@ export async function resetUserAttendance(targetUserId: string): Promise<void> {
 
 export type StaffCheckInCohort = "aidevcamp2026" | null;
 
+/** Tag or re-tag a checked-in attendee as AI DevCamp 2026 (staff desk). */
+export async function tagAttendeeAidevcamp2026(targetUserId: string): Promise<void> {
+  await staffCheckInUser({ targetUserId, cohort: "aidevcamp2026" });
+}
+
 export async function staffCheckInUser(params: {
   targetUserId?: string;
   email?: string;
