@@ -25,6 +25,8 @@ type Props = {
   profileComplete?: boolean;
   hasRequested?: boolean;
   isRequesting?: boolean;
+  /** When false, show view-only (submitted but not recruiting). */
+  canRequestJoin?: boolean;
   onRequestJoin?: () => void;
   onSignIn?: () => void;
 };
@@ -58,6 +60,7 @@ export function IdeaGalleryCard({
   profileComplete = true,
   hasRequested = false,
   isRequesting = false,
+  canRequestJoin = true,
   onRequestJoin,
   onSignIn,
 }: Props) {
@@ -94,6 +97,13 @@ export function IdeaGalleryCard({
           In a project
         </Button>
       );
+    }
+    if (!canRequestJoin) {
+      return detailHref ? (
+        <Button size="sm" variant="outline" className="border-white/20 text-gray-300" asChild>
+          <Link href={detailHref}>View project</Link>
+        </Button>
+      ) : null;
     }
     if (!profileComplete) {
       return (
@@ -149,6 +159,11 @@ export function IdeaGalleryCard({
           <span className="rounded-full bg-black/50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-200 backdrop-blur-sm">
             {PROJECT_STAGE_LABELS[stage]}
           </span>
+          {s.lookingForMembers ? (
+            <span className="rounded-full bg-emerald-600/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white backdrop-blur-sm">
+              Recruiting
+            </span>
+          ) : null}
         </div>
         <span
           className={cn(

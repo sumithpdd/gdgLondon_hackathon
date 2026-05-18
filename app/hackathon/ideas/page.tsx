@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { collection, getDocs, query, orderBy } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { Submission } from "@/types/submission";
+import { fetchIdeaGalleryProjects } from "@/lib/idea-gallery-fetch";
 import { getProjectTitle } from "@/lib/submission-utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,10 +12,9 @@ import { useAuthContext } from "@/lib/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { createJoinRequest, getUserProject } from "@/lib/join-requests";
-import { PROJECTS_COLLECTION, HACKATHON_DISPLAY_NAME } from "@/lib/constants";
+import { HACKATHON_DISPLAY_NAME } from "@/lib/constants";
 import { useHackathonAuth } from "@/components/HackathonAuthShell";
 import { isHackathonProfileComplete, JOIN_PROFILE_MIN_PERCENT } from "@/lib/profile-completion";
-import { isCurrentIdeaGalleryProject } from "@/lib/hackathon-projects";
 import { IdeaGalleryCard } from "@/components/IdeaGalleryCard";
 import {
   IDEA_CATEGORY_FILTERS,
@@ -55,22 +53,16 @@ export default function IdeaGalleryPage() {
   useEffect(() => {
     const fetchIdeas = async () => {
       try {
-        const q = query(collection(db, PROJECTS_COLLECTION), orderBy("createdAt", "desc"));
-        const snapshot = await getDocs(q);
-        const data = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate?.(),
-        })) as Submission[];
-        setSubmissions(data.filter(isCurrentIdeaGalleryProject));
+        setSubmissions(await fetchIdeaGalleryProjects());
       } catch (error) {
         console.error("Error fetching ideas:", error);
+        toast({ title: "Could not load projects", variant: "destructive" });
       } finally {
         setLoading(false);
       }
     };
-    fetchIdeas();
-  }, []);
+    void fetchIdeas();
+  }, [toast]);
 
   const filtered = useMemo(
     () =>
@@ -149,7 +141,8 @@ export default function IdeaGalleryPage() {
             </span>
           </h1>
           <p className="mx-auto max-w-2xl text-gray-400">
-            {HACKATHON_DISPLAY_NAME} — teams actively looking for collaborators, skills, and co-builders.
+            {HACKATHON_DISPLAY_NAME} — browse shipped submissions. Teams with{" "}
+            <span className="text-pink-300">Open to teammates</span> can receive join requests.
           </p>
           <p className="text-sm text-gray-500">
             Past hackathon ideas and winners on{" "}
@@ -247,7 +240,7 @@ export default function IdeaGalleryPage() {
               <Users className="mx-auto mb-4 h-12 w-12 text-gray-500" />
               <p className="text-gray-400">
                 {submissions.length === 0
-                  ? 'No projects are looking for team members yet. Create a project and toggle "Open to new team members" to appear here!'
+                  ? "No submitted projects yet. Ship your project from My Projects to appear here — turn on “Open to new team members” if you want join requests."
                   : "No projects match your filters. Try clearing search or filters."}
               </p>
               {submissions.length === 0 && (
@@ -269,6 +262,7 @@ export default function IdeaGalleryPage() {
                 profileComplete={profileComplete}
                 hasRequested={requestedIds.has(s.id!)}
                 isRequesting={requestingIds.has(s.id!)}
+                canRequestJoin={s.lookingForMembers === true}
                 onRequestJoin={() => handleRequestToJoin(s)}
                 onSignIn={() => openSignIn({ redirect: "/hackathon/ideas" })}
               />

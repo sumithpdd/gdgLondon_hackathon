@@ -55,6 +55,16 @@ export const FIREBASE_COLLECTION = PROJECTS_COLLECTION;
 // IO 2026 submission timeline (London)
 export const HACKATHON_IDEA_SUBMISSION_OPENS = new Date("2026-05-17T00:00:00+01:00");
 export const HACKATHON_SUBMISSION_DEADLINE = new Date("2026-05-19T20:00:00+01:00");
+/** In-person hackathon build window (Watch Party + hack night). */
+export const HACKATHON_EVENT_START_DATE = new Date("2026-05-18T00:00:00+01:00");
+export const HACKATHON_EVENT_END_DATE = new Date("2026-05-19T18:00:00+01:00");
+
+/** Why every Watch Party attendee should register on the hub. */
+export const HACKATHON_WATCH_PARTY_REGISTRATION_BULLETS = [
+  "Receive swag",
+  "Vote for hackathon projects during the live event",
+  "Access participation and event details",
+] as const;
 /** @deprecated Use HACKATHON_IDEA_SUBMISSION_OPENS / HACKATHON_SUBMISSION_DEADLINE */
 export const HACKATHON_START_DATE = HACKATHON_IDEA_SUBMISSION_OPENS;
 

@@ -20,6 +20,7 @@ import {
   registerWithEmail,
 } from "@/lib/auth";
 import { firebaseAuthErrorMessage } from "@/lib/firebaseAuthErrors";
+import { EventParticipationNotice } from "@/components/EventParticipationNotice";
 import { HACKATHON_DISPLAY_NAME } from "@/lib/constants";
 import { useAuthContext } from "@/lib/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -150,7 +151,9 @@ export default function RegisterPage() {
           <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-1 leading-tight">
             Join the <span className="text-violet-400">hackathon</span>
           </h1>
-          <p className="text-gray-400 mb-8 text-sm">Create your account to get started.</p>
+          <p className="text-gray-400 mb-4 text-sm">Create your account to get started.</p>
+
+          <EventParticipationNotice className="mb-8" compact />
 
           <button
             type="button"

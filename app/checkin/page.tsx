@@ -7,6 +7,7 @@ import { CheckInCodePanel } from "@/components/admin/CheckInCodePanel";
 import { SelfCheckInCard } from "@/components/checkin/SelfCheckInCard";
 import { StaffAttendeeCheckIn } from "@/components/checkin/StaffAttendeeCheckIn";
 import { isOrganiserRole } from "@/lib/auth";
+import { EventParticipationNotice } from "@/components/EventParticipationNotice";
 import { HACKATHON_DISPLAY_NAME } from "@/lib/constants";
 
 export default function CheckinPage() {
@@ -27,6 +28,8 @@ export default function CheckinPage() {
             the check-in window{isOrganiser ? ", or use the organiser desk below." : ", or ask an organiser at the desk."}
           </p>
         </header>
+
+        <EventParticipationNotice compact />
 
         <section className="space-y-3">
           <h2 className="text-sm font-mono uppercase tracking-wider text-cyan-400/80">Your attendance</h2>

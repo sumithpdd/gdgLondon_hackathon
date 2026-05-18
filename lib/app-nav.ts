@@ -8,14 +8,7 @@ import {
   Vote,
   BookOpen,
   Archive,
-  LayoutDashboard,
-  Calendar,
-  FileText,
-  MonitorPlay,
-  Tags,
-  Database,
   Shield,
-  Bug,
 } from "lucide-react";
 import { BUDDIES_FEATURE_LABEL } from "@/lib/constants";
 
@@ -47,17 +40,9 @@ export const PARTICIPANT_NAV: AppNavItem[] = [
   { href: "/past-projects", label: "Past", icon: Archive, matchPrefix: true },
 ];
 
-/** Extra items for admins only (appended after participant links). */
+/** Single top-level link for admins — full menu lives in /admin layout. */
 export const ADMIN_NAV: AppNavItem[] = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/users", label: "Users", icon: Users },
-  { href: "/admin/errors", label: "Errors", icon: Bug },
-  { href: "/admin/tags", label: "Tags", icon: Tags },
-  { href: "/admin/content", label: "Content", icon: FileText },
-  { href: "/admin/voting", label: "Voting", icon: Vote },
-  { href: "/admin/live", label: "Live", icon: MonitorPlay },
-  { href: "/admin/hackathons", label: "Hackathons", icon: Calendar },
-  { href: "/admin/seed-tags", label: "Seed tags", icon: Database },
+  { href: "/admin", label: "Admin", icon: Shield, matchPrefix: true },
 ];
 
 export function isNavItemActive(pathname: string, item: AppNavItem): boolean {
@@ -66,7 +51,7 @@ export function isNavItemActive(pathname: string, item: AppNavItem): boolean {
     return pathname === "/hackathon" || pathname === "/hackathon/";
   }
   if (href === "/admin") {
-    return pathname === "/admin" || pathname === "/admin/";
+    return pathname === "/admin" || pathname === "/admin/" || pathname.startsWith("/admin/");
   }
   if (item.matchPrefix || href === "/past-projects" || href === "/hackathon/my-projects") {
     return pathname === href || pathname.startsWith(`${href}/`);

@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { EventParticipationNotice } from "@/components/EventParticipationNotice";
+import { VoteProjectCard } from "@/components/vote/VoteProjectCard";
 import { useAuthContext } from "@/lib/AuthContext";
 import { HACKATHON_DISPLAY_NAME } from "@/lib/constants";
 import {
@@ -12,13 +13,16 @@ import {
   fetchUserVotes,
   fetchVoteableProjects,
   fetchVotingSettings,
+  filterVoteableProjects,
   isUserEligibleToVote,
   voteBudgetForRole,
   VOTE_MAX_PER_PROJECT,
   type VoteableProject,
 } from "@/lib/voting";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Minus, Plus, Vote } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { CheckCircle2, Loader2, Search, Sparkles, Vote } from "lucide-react";
+
 export default function VotePage() {
   const { user, userProfile } = useAuthContext();
   const { toast } = useToast();
@@ -29,6 +33,7 @@ export default function VotePage() {
   const [votingOpen, setVotingOpen] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | undefined>();
   const [checkedIn, setCheckedIn] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const budget = voteBudgetForRole(userProfile?.role);
   const used = useMemo(
@@ -36,6 +41,17 @@ export default function VotePage() {
     [allocations]
   );
   const remaining = budget - used;
+  const pctUsed = budget > 0 ? Math.min(100, Math.round((used / budget) * 100)) : 0;
+
+  const filteredProjects = useMemo(
+    () => filterVoteableProjects(projects, searchQuery),
+    [projects, searchQuery]
+  );
+
+  const pickedCount = useMemo(
+    () => Object.values(allocations).filter((n) => n > 0).length,
+    [allocations]
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -114,7 +130,7 @@ export default function VotePage() {
     setSubmitting(true);
     try {
       await castVotes(allocations);
-      toast({ title: "Votes saved", description: `${used} vote(s) recorded.` });
+      toast({ title: "Votes saved", description: `${used} vote(s) on ${pickedCount} project(s).` });
       await load();
     } catch (e: unknown) {
       const err = e as { message?: string };
@@ -125,133 +141,152 @@ export default function VotePage() {
   };
 
   const isOrganiser = userProfile?.role === "admin" || userProfile?.role === "moderator";
+  const canSubmit = Boolean(user && checkedIn && votingOpen && used > 0 && used <= budget);
 
   return (
-    <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-white mb-2 flex items-center gap-2">
-            <Vote className="h-7 w-7 text-violet-400" />
-            Vote for projects
-          </h1>
-          <p className="text-gray-400 text-sm">
-            {HACKATHON_DISPLAY_NAME} — winners are chosen by <strong className="text-gray-200">total audience votes</strong>.
-            Judging considers uniqueness, completeness, fresh ideas, and meaningful use of AI (see{" "}
-            <Link href="/hackathon/resources#rules" className="text-violet-400 hover:underline">
-              rules
-            </Link>
-            ).
+    <div className="space-y-8 pb-28">
+      <header className="relative overflow-hidden rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-950/80 via-[#0f0a18] to-black p-6 sm:p-8">
+        <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-fuchsia-500/20 blur-3xl" />
+        <div className="absolute -left-4 bottom-0 h-32 w-32 rounded-full bg-violet-600/15 blur-2xl" />
+        <div className="relative space-y-3">
+          <div className="flex items-center gap-2 text-violet-300">
+            <Vote className="h-8 w-8" />
+            <span className="text-xs font-mono uppercase tracking-[0.2em] text-violet-400/90">Audience ballot</span>
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">Vote for projects</h1>
+          <p className="text-gray-400 text-sm max-w-xl">
+            {HACKATHON_DISPLAY_NAME} — pick your favourites. Up to{" "}
+            <strong className="text-white">{VOTE_MAX_PER_PROJECT} votes per project</strong>. Winners by total
+            audience votes.
           </p>
         </div>
+      </header>
 
-        <Card className="bg-white/5 border-white/10">
-          <CardContent className="pt-6 space-y-2 text-sm text-gray-300">
-            <p>
-              Your budget:{" "}
-              <strong className="text-white">{budget} votes</strong> ({isOrganiser ? "organiser" : "participant"}) ·
-              max <strong className="text-white">{VOTE_MAX_PER_PROJECT}</strong> per project
-            </p>
-            <p>
-              Used: <strong className="text-violet-300">{used}</strong> · Remaining:{" "}
-              <strong className={remaining < 0 ? "text-rose-400" : "text-emerald-400"}>{remaining}</strong>
-            </p>
-            {!user && (
-              <p className="text-amber-300">
-                <Link href="/hackathon?login=1&redirect=/vote" className="underline text-amber-200">
-                  Sign in
-                </Link>{" "}
-                to cast votes.
-              </p>
-            )}
-            {user && !checkedIn && (
-              <p className="text-amber-300">
-                Check in at{" "}
-                <Link href="/checkin" className="underline text-amber-200">
-                  /checkin
-                </Link>{" "}
-                before voting.
-              </p>
-            )}
-            {statusMessage && <p className="text-gray-500">{statusMessage}</p>}
-            {votingOpen && user && checkedIn && (
-              <Badge className="bg-emerald-600/30 text-emerald-200 border-emerald-500/40">Voting open</Badge>
-            )}
-          </CardContent>
-        </Card>
+      <EventParticipationNotice compact />
 
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
+      <section className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Your budget</p>
+          <p className="text-2xl font-bold text-white tabular-nums">
+            {used}
+            <span className="text-gray-500 text-lg font-normal"> / {budget}</span>
+          </p>
+          <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 transition-all"
+              style={{ width: `${pctUsed}%` }}
+            />
           </div>
-        ) : projects.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">No submitted projects yet.</p>
-        ) : (
-          <ul className="space-y-3">
-            {projects.map((p) => {
-              const count = allocations[p.id] || 0;
-              const isOwn = user?.uid === p.userId;
-              return (
-                <li key={p.id}>
-                  <Card className="bg-white/5 border-white/10">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base text-white flex justify-between gap-2">
-                        <span>{p.projectTitle || p.teamName || "Untitled"}</span>
-                        <Badge variant="outline" className="text-violet-300 border-violet-500/40 shrink-0">
-                          {p.voteTotal ?? 0} total
-                        </Badge>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="flex items-center justify-between gap-4">
-                      {isOwn ? (
-                        <span className="text-sm text-gray-500">Your project — cannot vote</span>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="outline"
-                            className="border-white/20"
-                            disabled={count <= 0 || !votingOpen}
-                            onClick={() => setProjectVotes(p.id, count - 1)}
-                          >
-                            <Minus className="h-4 w-4" />
-                          </Button>
-                          <span className="w-8 text-center font-semibold text-white">{count}</span>
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="outline"
-                            className="border-white/20"
-                            disabled={!votingOpen || count >= VOTE_MAX_PER_PROJECT || remaining <= 0}
-                            onClick={() => setProjectVotes(p.id, count + 1)}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
-                      <Link
-                        href={`/hackathon/project/${p.id}`}
-                        className="text-sm text-violet-400 hover:underline shrink-0"
-                      >
-                        View
-                      </Link>
-                    </CardContent>
-                  </Card>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+        </div>
+        <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Remaining</p>
+          <p className={cn("text-2xl font-bold tabular-nums", remaining > 0 ? "text-emerald-400" : "text-rose-400")}>
+            {remaining}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">{isOrganiser ? "Organiser ballot" : "Participant"}</p>
+        </div>
+        <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">Status</p>
+          {votingOpen && user && checkedIn ? (
+            <p className="text-emerald-400 font-semibold flex items-center gap-1.5">
+              <CheckCircle2 className="h-5 w-5" /> Open
+            </p>
+          ) : (
+            <p className="text-amber-300 text-sm leading-snug">
+              {!user ? (
+                <>
+                  <Link href="/hackathon?login=1&redirect=/vote" className="underline">
+                    Sign in
+                  </Link>
+                </>
+              ) : !checkedIn ? (
+                <>
+                  <Link href="/checkin" className="underline">
+                    Check in
+                  </Link>{" "}
+                  first
+                </>
+              ) : (
+                statusMessage || "Closed"
+              )}
+            </p>
+          )}
+        </div>
+      </section>
 
-        {user && (
-          <Button
-            className="w-full bg-violet-600 hover:bg-violet-500"
-            disabled={submitting || !votingOpen || !checkedIn || used === 0 || used > budget}
-            onClick={() => void handleSubmit()}
-          >
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-            Submit votes
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <Loader2 className="h-10 w-10 animate-spin text-violet-400" />
+        </div>
+      ) : projects.length === 0 ? (
+        <div className="text-center py-16 rounded-2xl border border-dashed border-white/15">
+          <Sparkles className="h-10 w-10 text-gray-600 mx-auto mb-3" />
+          <p className="text-gray-500">No submitted projects to vote on yet.</p>
+          <Button asChild variant="link" className="text-violet-400 mt-2">
+            <Link href="/hackathon/gallery">Browse gallery</Link>
           </Button>
-        )}
+        </div>
+      ) : (
+        <>
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+            <Input
+              type="search"
+              placeholder="Search by title, team, pitch…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-12 pl-11 rounded-full border-white/10 bg-white/5 text-white placeholder:text-gray-600"
+            />
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-gray-500 tabular-nums">
+              {filteredProjects.length} / {projects.length}
+            </span>
+          </div>
+
+          {filteredProjects.length === 0 ? (
+            <p className="text-center text-gray-500 py-10">No match — try another search.</p>
+          ) : (
+            <ul className="grid gap-4 sm:grid-cols-2">
+              {filteredProjects.map((p) => (
+                <li key={p.id}>
+                  <VoteProjectCard
+                    project={p}
+                    count={allocations[p.id] || 0}
+                    isOwn={user?.uid === p.userId}
+                    votingOpen={votingOpen}
+                    remaining={remaining}
+                    onChange={(n) => setProjectVotes(p.id, n)}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+
+      {user ? (
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-[#0a0a0f]/95 backdrop-blur-md px-4 py-3">
+          <div className="max-w-4xl mx-auto flex items-center gap-3">
+            <div className="hidden sm:block text-sm text-gray-400 min-w-0 flex-1 truncate">
+              {used > 0 ? (
+                <>
+                  <strong className="text-white">{used}</strong> votes on{" "}
+                  <strong className="text-violet-300">{pickedCount}</strong> projects
+                </>
+              ) : (
+                "Tap + to allocate votes, then submit"
+              )}
+            </div>
+            <Button
+              className="flex-1 sm:flex-none sm:min-w-[200px] h-12 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white font-semibold shadow-lg shadow-violet-900/30"
+              disabled={submitting || !canSubmit}
+              onClick={() => void handleSubmit()}
+            >
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Submit {used > 0 ? `${used} vote${used === 1 ? "" : "s"}` : "votes"}
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

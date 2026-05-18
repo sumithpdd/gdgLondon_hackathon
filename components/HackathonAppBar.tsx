@@ -9,12 +9,12 @@ import { useAuthContext } from "@/lib/AuthContext";
 import { useHackathonAuth } from "@/components/HackathonAuthShell";
 import { HACKATHON_DISPLAY_NAME } from "@/lib/constants";
 import {
-  ADMIN_NAV,
   isNavItemActive,
   navItemsForUser,
   PARTICIPANT_NAV,
   type AppNavItem,
 } from "@/lib/app-nav";
+import { ADMIN_NAV_GROUPS, isAdminNavItemActive } from "@/lib/admin-nav";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -57,7 +57,7 @@ export function HackathonAppBar() {
   const isOrganiser = isAdmin || isModerator;
   const navItems = navItemsForUser(isAuthenticated, isAdmin, isOrganiser);
   const participantItems = isAuthenticated ? PARTICIPANT_NAV : navItems;
-  const adminItems = isAdmin ? ADMIN_NAV : [];
+  const adminTopLink = isAdmin ? navItems.find((i) => i.href === "/admin") : undefined;
 
   const display = user?.displayName || user?.email?.split("@")[0] || "Account";
   const fullName =
@@ -123,14 +123,12 @@ export function HackathonAppBar() {
           {participantItems.map((item) => (
             <NavLink key={item.href} item={item} />
           ))}
-          {adminItems.length > 0 && (
+          {adminTopLink ? (
             <>
               <span className="hidden md:inline h-5 w-px bg-border shrink-0" aria-hidden />
-              {adminItems.map((item) => (
-                <NavLink key={item.href} item={item} />
-              ))}
+              <NavLink item={adminTopLink} />
             </>
-          )}
+          ) : null}
         </nav>
 
         <div className="shrink-0 flex items-center gap-2">
@@ -175,7 +173,7 @@ export function HackathonAppBar() {
                 </div>
 
                 <div className="p-1.5">
-                  {navItems.map((item) => {
+                  {PARTICIPANT_NAV.map((item) => {
                     const Icon = item.icon;
                     return (
                       <DropdownMenuItem key={item.href} asChild>
@@ -186,6 +184,36 @@ export function HackathonAppBar() {
                       </DropdownMenuItem>
                     );
                   })}
+                  {isAdmin ? (
+                    <>
+                      <DropdownMenuSeparator className="my-1 bg-border" />
+                      <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">
+                        Admin
+                      </p>
+                      {ADMIN_NAV_GROUPS.map((group) => (
+                        <div key={group.id}>
+                          <p className="px-3 pt-1 pb-0.5 text-[10px] font-medium text-muted-foreground">
+                            {group.label}
+                          </p>
+                          {group.items.map((item) => {
+                            const Icon = item.icon;
+                            const active = isAdminNavItemActive(pathname, item);
+                            return (
+                              <DropdownMenuItem key={item.href} asChild>
+                                <Link
+                                  href={item.href}
+                                  className={cn(menuItem, active && "bg-accent")}
+                                >
+                                  <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                  {item.label}
+                                </Link>
+                              </DropdownMenuItem>
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </>
+                  ) : null}
                   <DropdownMenuItem asChild>
                     <Link href="/hackathon/profile" className={cn(menuItem, isProfileActive && "bg-accent")}>
                       <UserRound className="h-4 w-4 shrink-0 text-muted-foreground" />

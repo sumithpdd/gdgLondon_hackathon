@@ -9,16 +9,33 @@ export function belongsToActiveHackathon(project: {
   const activeId = getActiveHackathonId();
   const id = project.hackathonId?.trim();
   if (id) return id === activeId;
+  /** Legacy rows in the active collection before `hackathonId` was stamped on every save. */
+  return true;
+}
+
+/** Shown on /hackathon/ideas — submitted (or recruiting draft) for the current event. */
+export function isIdeaGalleryProject(project: Submission): boolean {
+  if (project.place) return false;
+  if (!belongsToActiveHackathon(project)) return false;
+  if (project.status === "submitted") return true;
+  if (project.status === "draft" && project.lookingForMembers === true) return true;
   return false;
 }
 
-/** Shown on /hackathon/ideas — recruiting teams for the current event only. */
+/** @deprecated Use isIdeaGalleryProject — kept for imports that mean “recruiting only”. */
 export function isCurrentIdeaGalleryProject(project: Submission): boolean {
-  return (
-    project.lookingForMembers === true &&
-    belongsToActiveHackathon(project) &&
-    !project.place
-  );
+  return isIdeaGalleryProject(project) && project.lookingForMembers === true;
+}
+
+export function sortIdeasGalleryProjects<T extends Submission>(items: T[]): T[] {
+  return [...items].sort((a, b) => {
+    const aRecruit = a.lookingForMembers === true ? 1 : 0;
+    const bRecruit = b.lookingForMembers === true ? 1 : 0;
+    if (bRecruit !== aRecruit) return bRecruit - aRecruit;
+    const at = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
+    const bt = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
+    return bt - at;
+  });
 }
 
 export function isArchivedIdeaProject(project: { lookingForMembers?: boolean }): boolean {

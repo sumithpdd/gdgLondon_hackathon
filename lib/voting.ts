@@ -97,11 +97,39 @@ export type VoteableProject = {
   id: string;
   projectTitle?: string;
   teamName?: string;
+  pitchLine?: string;
+  appPurpose?: string;
+  fullName?: string;
+  builtWith?: string[];
   voteTotal?: number;
   status?: string;
   userId: string;
   hackathonId?: string;
 };
+
+export function matchesVoteProjectSearch(project: VoteableProject, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  const haystack = [
+    project.projectTitle,
+    project.teamName,
+    project.pitchLine,
+    project.appPurpose,
+    project.fullName,
+    ...(project.builtWith || []),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return haystack.includes(q);
+}
+
+export function filterVoteableProjects(
+  projects: VoteableProject[],
+  searchQuery: string
+): VoteableProject[] {
+  return projects.filter((p) => matchesVoteProjectSearch(p, searchQuery));
+}
 
 export async function fetchVoteableProjects(): Promise<VoteableProject[]> {
   const hackathonId = getActiveHackathonId();
