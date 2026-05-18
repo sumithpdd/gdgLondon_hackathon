@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "firebase/auth";
@@ -12,6 +13,7 @@ import {
   isNavItemActive,
   navItemsForUser,
   PARTICIPANT_NAV,
+  PUBLIC_NAV,
   type AppNavItem,
 } from "@/lib/app-nav";
 import { ADMIN_NAV_GROUPS, isAdminNavItemActive } from "@/lib/admin-nav";
@@ -22,27 +24,92 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, LogOut, Shield, UserRound, UserMinus } from "lucide-react";
+import {
+  ChevronDown,
+  LogOut,
+  Menu,
+  UserMinus,
+  UserRound,
+  X,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 
-function NavLink({ item }: { item: AppNavItem }) {
+function NavLink({
+  item,
+  className,
+  onNavigate,
+}: {
+  item: AppNavItem;
+  className?: string;
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
   const active = isNavItemActive(pathname, item);
   const Icon = item.icon;
   return (
     <Link
       href={item.href}
+      onClick={onNavigate}
       className={cn(
-        "inline-flex items-center gap-2 text-[15px] sm:text-base font-medium tracking-wide whitespace-nowrap transition-colors shrink-0",
+        "inline-flex items-center gap-2 font-medium tracking-wide whitespace-nowrap transition-colors shrink-0",
         active ? "text-primary" : "text-muted-foreground hover:text-foreground",
-        item.href.startsWith("/admin") && "text-violet-600 dark:text-violet-400"
+        item.href.startsWith("/admin") && "text-violet-600 dark:text-violet-400",
+        className
       )}
     >
-      {Icon ? <Icon className="h-4 w-4 sm:h-5 sm:w-5 opacity-90" /> : null}
+      {Icon ? <Icon className="h-5 w-5 opacity-90 shrink-0" aria-hidden /> : null}
       {item.label}
     </Link>
+  );
+}
+
+function MobileNavDrawer({
+  open,
+  onClose,
+  title,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
+  if (!open) return null;
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="Close menu"
+        className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm lg:hidden"
+        onClick={onClose}
+      />
+      <aside
+        className="fixed top-0 right-0 z-[70] flex h-full w-[min(100vw-2.5rem,20rem)] flex-col border-l border-border bg-background shadow-xl lg:hidden animate-in slide-in-from-right duration-200"
+        aria-modal="true"
+        role="dialog"
+        aria-label="Main menu"
+      >
+        <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-4">
+          <p className="text-sm font-semibold text-foreground truncate">{title}</p>
+          <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={onClose} aria-label="Close">
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+        <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-4">{children}</div>
+      </aside>
+    </>
   );
 }
 
@@ -51,13 +118,21 @@ export function HackathonAppBar() {
   const { user, userProfile, isAuthenticated } = useAuthContext();
   const { openSignIn } = useHackathonAuth();
   const { toast } = useToast();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const isAdmin = userProfile?.role === "admin";
   const isModerator = userProfile?.role === "moderator";
   const isOrganiser = isAdmin || isModerator;
   const navItems = navItemsForUser(isAuthenticated, isAdmin, isOrganiser);
-  const participantItems = isAuthenticated ? PARTICIPANT_NAV : navItems;
+  const participantItems = isAuthenticated ? PARTICIPANT_NAV : PUBLIC_NAV;
   const adminTopLink = isAdmin ? navItems.find((i) => i.href === "/admin") : undefined;
+  const mobileNavItems = isAuthenticated ? PARTICIPANT_NAV : PUBLIC_NAV;
+
+  const closeMobile = () => setMobileOpen(false);
+
+  useEffect(() => {
+    closeMobile();
+  }, [pathname]);
 
   const display = user?.displayName || user?.email?.split("@")[0] || "Account";
   const fullName =
@@ -101,45 +176,143 @@ export function HackathonAppBar() {
     }
   };
 
-  const title = HACKATHON_DISPLAY_NAME.toUpperCase();
+  const brandTitle = HACKATHON_DISPLAY_NAME.toUpperCase();
+
+  const mobileDrawerContent = (
+    <nav className="flex flex-col gap-1">
+      {mobileNavItems.map((item) => (
+        <NavLink
+          key={item.href}
+          item={item}
+          onNavigate={closeMobile}
+          className="w-full rounded-lg px-3 py-3 text-base min-h-[44px]"
+        />
+      ))}
+      {isAuthenticated ? (
+        <>
+          <div className="my-2 h-px bg-border" />
+          <Link
+            href="/hackathon/profile"
+            onClick={closeMobile}
+            className={cn(
+              "flex w-full items-center gap-3 rounded-lg px-3 py-3 text-base font-medium min-h-[44px] transition-colors",
+              isProfileActive
+                ? "bg-accent text-primary"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+            )}
+          >
+            <UserRound className="h-5 w-5 shrink-0" />
+            My profile
+          </Link>
+          {isAdmin ? (
+            <>
+              <div className="my-2 h-px bg-border" />
+              <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">
+                Admin
+              </p>
+              {ADMIN_NAV_GROUPS.flatMap((g) => g.items).map((item) => {
+                const Icon = item.icon;
+                const active = isAdminNavItemActive(pathname, item);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={closeMobile}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-lg px-3 py-3 text-base font-medium min-h-[44px] transition-colors",
+                      active
+                        ? "bg-violet-600/15 text-violet-700 dark:text-violet-300"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                    )}
+                  >
+                    <Icon className="h-5 w-5 shrink-0" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </>
+          ) : null}
+        </>
+      ) : (
+        <div className="mt-4 flex flex-col gap-2 px-1">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full min-h-[44px]"
+            onClick={() => {
+              closeMobile();
+              openSignIn();
+            }}
+          >
+            Sign in
+          </Button>
+          <Button variant="default" className="w-full min-h-[44px] bg-violet-600 hover:bg-violet-500" asChild>
+            <Link href="/register" onClick={closeMobile}>
+              Register
+            </Link>
+          </Button>
+        </div>
+      )}
+    </nav>
+  );
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/80">
-      <div className="container mx-auto max-w-6xl px-5 sm:px-8 py-3 sm:py-4 flex items-center gap-4 min-h-[3.75rem]">
-        <Link href="/hackathon" className="flex items-center gap-3 shrink-0 group">
-          <div className="h-10 w-10 shrink-0 rounded-md bg-emerald-600 flex flex-col items-center justify-center text-[8px] font-bold leading-tight text-center text-white px-0.5 shadow-none">
+      <div className="container mx-auto max-w-6xl px-4 sm:px-8 py-3 flex items-center gap-3 min-h-[3.75rem]">
+        <Link href="/hackathon" className="flex items-center gap-2.5 sm:gap-3 shrink-0 min-w-0">
+          <div className="h-10 w-10 shrink-0 rounded-md bg-emerald-600 flex flex-col items-center justify-center text-[8px] font-bold leading-tight text-center text-white px-0.5">
             IO
             <span className="text-[7px] font-semibold opacity-95">2026</span>
           </div>
-          <div className="hidden sm:block min-w-0">
-            <div className="text-sm sm:text-base font-bold tracking-wide text-foreground leading-tight truncate max-w-[200px] sm:max-w-[240px]">
-              {title}
-            </div>
-            <div className="text-xs font-medium text-emerald-600 dark:text-emerald-400 leading-tight">Build with AI</div>
+          <div className="hidden min-[400px]:block min-w-0">
+            <p className="text-sm sm:text-base font-bold tracking-wide text-foreground leading-tight truncate max-w-[140px] sm:max-w-[220px]">
+              {brandTitle}
+            </p>
+            <p className="text-[10px] sm:text-xs font-medium text-emerald-600 dark:text-emerald-400 leading-tight">
+              Build with AI
+            </p>
           </div>
         </Link>
 
-        <nav className="flex-1 flex items-center justify-end md:justify-center gap-5 sm:gap-6 md:gap-8 overflow-x-auto scrollbar-hide py-1 min-w-0">
+        <nav
+          className="hidden lg:flex flex-1 items-center justify-center gap-6 xl:gap-8 min-w-0"
+          aria-label="Main navigation"
+        >
           {participantItems.map((item) => (
-            <NavLink key={item.href} item={item} />
+            <NavLink key={item.href} item={item} className="text-[15px]" />
           ))}
           {adminTopLink ? (
             <>
-              <span className="hidden md:inline h-5 w-px bg-border shrink-0" aria-hidden />
-              <NavLink item={adminTopLink} />
+              <span className="h-5 w-px bg-border shrink-0" aria-hidden />
+              <NavLink item={adminTopLink} className="text-[15px]" />
             </>
           ) : null}
         </nav>
 
-        <div className="shrink-0 flex items-center gap-2">
+        <div className="flex-1 lg:flex-none" aria-hidden />
+
+        <div className="shrink-0 flex items-center gap-1.5 sm:gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="lg:hidden h-10 w-10"
+            onClick={() => setMobileOpen(true)}
+            aria-label="Open menu"
+            aria-expanded={mobileOpen}
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+
           <ThemeToggle />
+
           {isAuthenticated && user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
                   className={cn(
-                    "flex items-center gap-2 rounded-lg pl-1 pr-2 py-1 min-w-0 max-w-[200px]",
+                    "flex items-center gap-1.5 rounded-lg pl-1 pr-1.5 sm:pr-2 py-1 min-w-0",
                     "bg-secondary hover:bg-muted border border-border text-foreground transition-colors",
                     "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                   )}
@@ -152,8 +325,10 @@ export function HackathonAppBar() {
                       initials
                     )}
                   </span>
-                  <span className="text-sm font-medium truncate hidden sm:inline max-w-[120px]">{display}</span>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="text-sm font-medium truncate hidden md:inline max-w-[100px] lg:max-w-[120px]">
+                    {display}
+                  </span>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0 hidden sm:block" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64 p-0 max-h-[min(70vh,32rem)] overflow-y-auto">
@@ -172,7 +347,7 @@ export function HackathonAppBar() {
                   </span>
                 </div>
 
-                <div className="p-1.5">
+                <div className="p-1.5 hidden lg:block">
                   {PARTICIPANT_NAV.map((item) => {
                     const Icon = item.icon;
                     return (
@@ -200,10 +375,7 @@ export function HackathonAppBar() {
                             const active = isAdminNavItemActive(pathname, item);
                             return (
                               <DropdownMenuItem key={item.href} asChild>
-                                <Link
-                                  href={item.href}
-                                  className={cn(menuItem, active && "bg-accent")}
-                                >
+                                <Link href={item.href} className={cn(menuItem, active && "bg-accent")}>
                                   <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
                                   {item.label}
                                 </Link>
@@ -214,15 +386,18 @@ export function HackathonAppBar() {
                       ))}
                     </>
                   ) : null}
+                </div>
+
+                <div className="p-1.5 lg:hidden">
                   <DropdownMenuItem asChild>
                     <Link href="/hackathon/profile" className={cn(menuItem, isProfileActive && "bg-accent")}>
                       <UserRound className="h-4 w-4 shrink-0 text-muted-foreground" />
                       My profile
                     </Link>
                   </DropdownMenuItem>
+                </div>
 
-                  <DropdownMenuSeparator className="my-1 bg-border" />
-
+                <div className="p-1.5 border-t border-border">
                   <DropdownMenuItem
                     className={cn(
                       menuItem,
@@ -236,9 +411,7 @@ export function HackathonAppBar() {
                     <UserMinus className="h-4 w-4 shrink-0" />
                     Leave programme
                   </DropdownMenuItem>
-
                   <DropdownMenuSeparator className="my-1 bg-border" />
-
                   <DropdownMenuItem
                     className={cn(
                       menuItem,
@@ -256,7 +429,7 @@ export function HackathonAppBar() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-2">
               <Button
                 type="button"
                 variant="outline"
@@ -273,6 +446,10 @@ export function HackathonAppBar() {
           )}
         </div>
       </div>
+
+      <MobileNavDrawer open={mobileOpen} onClose={closeMobile} title="Menu">
+        {mobileDrawerContent}
+      </MobileNavDrawer>
     </header>
   );
 }

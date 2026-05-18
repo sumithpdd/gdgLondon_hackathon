@@ -24,6 +24,7 @@ import {
   HACKATHON_IDEA_SUBMISSION_OPENS,
   HACKATHON_DISPLAY_NAME,
 } from "@/lib/constants";
+import { formatKnownDate, formatKnownDateTime } from "@/lib/format-date";
 import { ChipPickList } from "@/components/ChipPickList";
 import {
   AI_CATEGORY_LABELS,
@@ -250,7 +251,7 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
     if (isBeforeIdeaSubmissionOpens()) {
       toast({
         title: "Submissions not open yet",
-        description: `You can save drafts from ${HACKATHON_IDEA_SUBMISSION_OPENS.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}.`,
+        description: `You can save drafts from ${formatKnownDateTime(HACKATHON_IDEA_SUBMISSION_OPENS, { dateStyle: "medium", timeStyle: "short" })}.`,
         variant: "destructive",
       });
       return;
@@ -341,7 +342,7 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
     if (isBeforeIdeaSubmissionOpens()) {
       toast({
         title: "Submissions not open yet",
-        description: `Final submissions open ${HACKATHON_IDEA_SUBMISSION_OPENS.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}.`,
+        description: `Final submissions open ${formatKnownDate(HACKATHON_IDEA_SUBMISSION_OPENS, { day: "numeric", month: "long", year: "numeric" })}.`,
         variant: "destructive",
       });
       return;
@@ -455,7 +456,7 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
               >
                 <CalendarClock className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 Opens{" "}
-                {HACKATHON_IDEA_SUBMISSION_OPENS.toLocaleDateString("en-GB", {
+                {formatKnownDate(HACKATHON_IDEA_SUBMISSION_OPENS, {
                   day: "numeric",
                   month: "short",
                   year: "numeric",
@@ -467,7 +468,7 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
               >
                 <CalendarClock className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 Closes{" "}
-                {HACKATHON_SUBMISSION_DEADLINE.toLocaleString("en-GB", {
+                {formatKnownDateTime(HACKATHON_SUBMISSION_DEADLINE, {
                   day: "numeric",
                   month: "short",
                   year: "numeric",
@@ -519,7 +520,7 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
               <p className="font-semibold text-amber-100">Submissions opening soon</p>
               <p className="text-sm text-amber-100/85">
                 The form unlocks at{" "}
-                {HACKATHON_IDEA_SUBMISSION_OPENS.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}.
+                {formatKnownDateTime(HACKATHON_IDEA_SUBMISSION_OPENS, { dateStyle: "medium", timeStyle: "short" })}.
                 You can still browse the hub in the meantime.
               </p>
             </div>
@@ -532,7 +533,7 @@ export function ProjectSubmissionForm({ editId }: { editId: string | null }) {
               <p className="font-semibold text-red-200">Submissions closed</p>
               <p className="text-sm text-red-200/80">
                 The deadline was{" "}
-                {HACKATHON_SUBMISSION_DEADLINE.toLocaleString("en-GB", {
+                {formatKnownDateTime(HACKATHON_SUBMISSION_DEADLINE, {
                   day: "numeric",
                   month: "long",
                   year: "numeric",

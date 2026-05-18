@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard,
+  FolderOpen,
   Users,
   Bug,
   Tags,
@@ -36,7 +37,14 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         href: "/admin",
         label: "Dashboard",
         icon: LayoutDashboard,
-        description: "Submissions and winner places",
+        description: "Summary and quick project browse",
+      },
+      {
+        href: "/admin/projects",
+        label: "All projects",
+        icon: FolderOpen,
+        description: "Draft & final — full details",
+        matchPrefix: true,
       },
     ],
   },
@@ -127,6 +135,9 @@ export const ADMIN_NAV_FLAT: AdminNavItem[] = ADMIN_NAV_GROUPS.flatMap((g) => g.
 export function isAdminNavItemActive(pathname: string, item: AdminNavItem): boolean {
   if (item.href === "/admin") {
     return pathname === "/admin" || pathname === "/admin/";
+  }
+  if (item.href === "/admin/projects") {
+    return pathname === "/admin/projects" || pathname.startsWith("/admin/projects/");
   }
   if (item.matchPrefix) {
     return pathname === item.href || pathname.startsWith(`${item.href}/`);

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { getJoinRequestsForUser, withdrawJoinRequest } from "@/lib/join-requests";
+import { formatLocaleDate } from "@/lib/format-date";
 import type { JoinRequest } from "@/types/join-request";
 import { Loader2, Send, X } from "lucide-react";
 
@@ -83,7 +84,7 @@ export function JoinRequestsSent({ userId }: JoinRequestsSentProps) {
               <div className="min-w-0">
                 <p className="text-white font-medium truncate">{r.projectTitle}</p>
                 <p className="text-xs text-gray-500">
-                  Sent {r.createdAt?.toLocaleDateString?.("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                  Sent {formatLocaleDate(r.createdAt, { day: "numeric", month: "short", year: "numeric" })}
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">

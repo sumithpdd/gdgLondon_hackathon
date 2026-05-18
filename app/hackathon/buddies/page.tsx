@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { formatLocaleDate } from "@/lib/format-date";
 import {
   listDirectoryProfiles,
   listIncomingBuddyRequests,
@@ -385,9 +386,11 @@ function BuddyCardsList({ requests, currentUid }: { requests: BuddyRequest[]; cu
       {requests.map((r) => {
         const uid = r.fromUserId === currentUid ? r.toUserId : r.fromUserId;
         const p = snippets[uid];
-        const since = r.respondedAt
-          ? r.respondedAt.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })
-          : "";
+        const since = formatLocaleDate(r.respondedAt, {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        });
         return (
           <Card key={r.id} className="bg-white/5 border-white/10">
             <CardContent className="p-5 space-y-3">

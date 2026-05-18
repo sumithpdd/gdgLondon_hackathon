@@ -31,6 +31,7 @@ import {
   getTractionSummary,
 } from "@/lib/project-detail";
 import { Button } from "@/components/ui/button";
+import { formatLocaleDate } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
 import { CommentSection } from "@/app/hackathon/project/[id]/CommentSection";
 
@@ -405,7 +406,7 @@ export function ProjectDetailView({
                     <li>
                       <span className="absolute -left-1.5 top-1.5 h-3 w-3 rounded-full bg-pink-500 ring-4 ring-[#0a0a0f]" />
                       <p className="text-xs text-gray-500">
-                        {new Date(s.createdAt).toLocaleDateString("en-GB", {
+                        {formatLocaleDate(s.createdAt, {
                           month: "long",
                           year: "numeric",
                         })}

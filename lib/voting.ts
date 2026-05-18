@@ -18,6 +18,7 @@ import {
 } from "./constants";
 import { getActiveHackathonId } from "./active-hackathon";
 import { getAttendanceForUser } from "./attendance";
+import { formatLocaleDateTime } from "./format-date";
 
 /** Organisers (admin / moderator) vs participants. */
 export const VOTE_BUDGET_ORGANISER = 10;
@@ -74,7 +75,7 @@ export async function fetchVotingSettings(): Promise<{
 
   if (opens && now < opens.getTime()) {
     votingOpen = false;
-    message = `Voting opens ${opens.toLocaleString("en-GB")}.`;
+    message = `Voting opens ${formatLocaleDateTime(opens)}.`;
   }
   if (closes && now > closes.getTime()) {
     votingOpen = false;

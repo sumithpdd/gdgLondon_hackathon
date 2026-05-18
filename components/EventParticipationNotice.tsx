@@ -3,17 +3,7 @@ import {
   HACKATHON_EVENT_START_DATE,
   HACKATHON_WATCH_PARTY_REGISTRATION_BULLETS,
 } from "@/lib/constants";
-
-const startLabel = HACKATHON_EVENT_START_DATE.toLocaleDateString("en-GB", {
-  day: "numeric",
-  month: "long",
-});
-const endLabel = HACKATHON_EVENT_END_DATE.toLocaleString("en-GB", {
-  day: "numeric",
-  month: "long",
-  hour: "numeric",
-  minute: "2-digit",
-});
+import { formatKnownDate, formatKnownDateTime } from "@/lib/format-date";
 
 type Props = {
   className?: string;
@@ -22,6 +12,17 @@ type Props = {
 
 /** Watch Party + hackathon registration expectations (swag, voting, cloud credits). */
 export function EventParticipationNotice({ className = "", compact = false }: Props) {
+  const startLabel = formatKnownDate(HACKATHON_EVENT_START_DATE, {
+    day: "numeric",
+    month: "long",
+  });
+  const endLabel = formatKnownDateTime(HACKATHON_EVENT_END_DATE, {
+    day: "numeric",
+    month: "long",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
   return (
     <aside
       className={`rounded-xl border border-violet-500/25 bg-violet-950/20 px-4 py-4 text-sm text-gray-300 leading-relaxed ${className}`}

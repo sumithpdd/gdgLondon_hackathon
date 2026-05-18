@@ -1,4 +1,4 @@
-import { HACKATHON_SUBMISSION_DEADLINE } from "./constants";
+import { HACKATHON_SUBMISSION_DEADLINE } from "./hackathon-dates";
 import {
   isAfterSubmissionDeadline,
   isBeforeIdeaSubmissionOpens,

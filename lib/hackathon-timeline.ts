@@ -1,7 +1,7 @@
 import {
   HACKATHON_IDEA_SUBMISSION_OPENS,
   HACKATHON_SUBMISSION_DEADLINE,
-} from "./constants";
+} from "./hackathon-dates";
 
 /** Before idea submission opens (17 May 2026 London). */
 export function isBeforeIdeaSubmissionOpens(now: Date = new Date()): boolean {
