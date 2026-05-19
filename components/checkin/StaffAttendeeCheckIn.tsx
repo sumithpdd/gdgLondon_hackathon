@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Gift, Loader2, RotateCcw, UserCheck } from "lucide-react";
+import { Gift, Loader2, RotateCcw, Sparkles, UserCheck, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getAttendanceForUser, isAidevcampCohort } from "@/lib/attendance";
 import { listUsersForAdmin, type AdminListedUser } from "@/lib/admin-users";
@@ -28,6 +28,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { logClientError } from "@/lib/clientErrorLogger";
+import { cn } from "@/lib/utils";
+
+const DESK_HYDRATE_LIMIT = 250;
+const DESK_LIST_LIMIT = 80;
+
+type DeskFilter = "all" | "checked_in" | "unchecked" | "aidevcamp" | "needs_swag";
+
+type DeskRow = { checkedIn: boolean; swagReceived: boolean; aidevcamp: boolean };
 
 type Props = {
   actorUid: string;
@@ -49,16 +57,15 @@ export function StaffAttendeeCheckIn({
   const [search, setSearch] = useState("");
   const [emailQuick, setEmailQuick] = useState("");
   const [tagAidevcamp2026, setTagAidevcamp2026] = useState(false);
-  const [deskFilter, setDeskFilter] = useState<"all" | "unchecked" | "needs_swag" | "aidevcamp">("all");
+  const [deskFilter, setDeskFilter] = useState<DeskFilter>("all");
+  const [loadingDesk, setLoadingDesk] = useState(false);
   const [checkingUid, setCheckingUid] = useState<string | null>(null);
   const [taggingUid, setTaggingUid] = useState<string | null>(null);
   const [swagUid, setSwagUid] = useState<string | null>(null);
   const [resettingUid, setResettingUid] = useState<string | null>(null);
   const [resetTarget, setResetTarget] = useState<AdminListedUser | null>(null);
   const [quickLoading, setQuickLoading] = useState(false);
-  const [deskMap, setDeskMap] = useState<
-    Record<string, { checkedIn: boolean; swagReceived: boolean; aidevcamp: boolean }>
-  >({});
+  const [deskMap, setDeskMap] = useState<Record<string, DeskRow>>({});
 
   const loadUsers = useCallback(async () => {
     setLoadingUsers(true);
@@ -88,46 +95,105 @@ export function StaffAttendeeCheckIn({
     );
   }, [users, search]);
 
+  const hydrateTargets = useMemo(() => filtered.slice(0, DESK_HYDRATE_LIMIT), [filtered]);
+
+  useEffect(() => {
+    const missing = hydrateTargets.filter((u) => deskMap[u.uid] === undefined);
+    if (missing.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      setLoadingDesk(true);
+      try {
+        const chunk: Record<string, DeskRow> = {};
+        await Promise.all(
+          missing.map(async (u) => {
+            const a = await getAttendanceForUser(u.uid);
+            chunk[u.uid] = {
+              checkedIn: !!a?.attendanceVerified,
+              swagReceived: a?.swagReceived === true,
+              aidevcamp: isAidevcampCohort(a?.cohort),
+            };
+          })
+        );
+        if (!cancelled) setDeskMap((prev) => ({ ...prev, ...chunk }));
+      } finally {
+        if (!cancelled) setLoadingDesk(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-hydrate when directory/search slice changes only
+  }, [hydrateTargets]);
+
+  const deskCounts = useMemo(() => {
+    let checkedIn = 0;
+    let unchecked = 0;
+    let aidevcamp = 0;
+    let needsSwag = 0;
+    let known = 0;
+    for (const u of hydrateTargets) {
+      const row = deskMap[u.uid];
+      if (!row) continue;
+      known += 1;
+      if (row.checkedIn) checkedIn += 1;
+      else unchecked += 1;
+      if (row.aidevcamp) aidevcamp += 1;
+      if (row.checkedIn && !row.swagReceived) needsSwag += 1;
+    }
+    return {
+      checkedIn,
+      unchecked,
+      aidevcamp,
+      needsSwag,
+      known,
+      scanned: hydrateTargets.length,
+    };
+  }, [hydrateTargets, deskMap]);
+
   const deskFiltered = useMemo(() => {
     return filtered.filter((u) => {
       const row = deskMap[u.uid];
       switch (deskFilter) {
+        case "checked_in":
+          return row?.checkedIn === true;
         case "unchecked":
-          return !row?.checkedIn;
+          return row ? !row.checkedIn : true;
         case "needs_swag":
-          return row?.checkedIn && !row?.swagReceived;
+          return row?.checkedIn === true && !row.swagReceived;
         case "aidevcamp":
-          return row?.aidevcamp;
+          return row?.aidevcamp === true;
         default:
           return true;
       }
     });
   }, [filtered, deskFilter, deskMap]);
 
-  const slice = useMemo(() => deskFiltered.slice(0, 50), [deskFiltered]);
+  const slice = useMemo(() => deskFiltered.slice(0, DESK_LIST_LIMIT), [deskFiltered]);
 
-  useEffect(() => {
-    if (slice.length === 0) return;
-    let cancelled = false;
-    (async () => {
-      const next: Record<string, { checkedIn: boolean; swagReceived: boolean; aidevcamp: boolean }> =
-        {};
-      await Promise.all(
-        slice.map(async (u) => {
-          const a = await getAttendanceForUser(u.uid);
-          next[u.uid] = {
-            checkedIn: !!a?.attendanceVerified,
-            swagReceived: a?.swagReceived === true,
-            aidevcamp: isAidevcampCohort(a?.cohort),
-          };
-        })
-      );
-      if (!cancelled) setDeskMap((prev) => ({ ...prev, ...next }));
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [slice]);
+  const filterChips: { id: DeskFilter; label: string; count?: number; icon?: ReactNode }[] = [
+    { id: "all", label: "All", count: filtered.length, icon: <Users className="h-3.5 w-3.5" /> },
+    {
+      id: "checked_in",
+      label: "Checked in",
+      count: deskCounts.checkedIn,
+      icon: <UserCheck className="h-3.5 w-3.5" />,
+    },
+    {
+      id: "unchecked",
+      label: "Not checked in",
+      count: deskCounts.unchecked,
+      icon: <UserCheck className="h-3.5 w-3.5 opacity-50" />,
+    },
+    {
+      id: "aidevcamp",
+      label: "AI DevCamp",
+      count: deskCounts.aidevcamp,
+      icon: <Sparkles className="h-3.5 w-3.5" />,
+    },
+    { id: "needs_swag", label: "Needs swag", count: deskCounts.needsSwag, icon: <Gift className="h-3.5 w-3.5" /> },
+  ];
 
   const cohortForNext = tagAidevcamp2026 ? ("aidevcamp2026" as const) : null;
 
@@ -316,30 +382,55 @@ export function StaffAttendeeCheckIn({
           Apply <span className="text-emerald-400 font-medium">AI DevCamp 2026</span> on check-in / update
         </label>
 
-        <div className="flex flex-wrap gap-2">
-          {(
-            [
-              ["all", "All"],
-              ["unchecked", "Not checked in"],
-              ["needs_swag", "Needs swag"],
-              ["aidevcamp", "AI DevCamp"],
-            ] as const
-          ).map(([id, label]) => (
+        <div className="space-y-2 rounded-lg border border-white/10 bg-black/25 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Label className="text-gray-200 text-sm font-medium">Filter by check-in &amp; DevCamp</Label>
+            {loadingDesk ? (
+              <span className="text-xs text-gray-500 flex items-center gap-1.5">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Loading attendance…
+              </span>
+            ) : deskCounts.scanned > 0 ? (
+              <span className="text-xs text-gray-500 tabular-nums">
+                {deskCounts.known} / {deskCounts.scanned} loaded
+                {filtered.length > DESK_HYDRATE_LIMIT ? ` (first ${DESK_HYDRATE_LIMIT})` : ""}
+              </span>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap gap-2">
+          {filterChips.map(({ id, label, count, icon }) => (
             <Button
               key={id}
               type="button"
               size="sm"
               variant={deskFilter === id ? "default" : "outline"}
               onClick={() => setDeskFilter(id)}
-              className={
+              className={cn(
+                "gap-1.5",
                 deskFilter === id
-                  ? "bg-violet-600 hover:bg-violet-500 text-white border-0"
+                  ? id === "aidevcamp"
+                    ? "bg-emerald-600 hover:bg-emerald-500 text-white border-0"
+                    : id === "checked_in"
+                      ? "bg-cyan-600 hover:bg-cyan-500 text-white border-0"
+                      : "bg-violet-600 hover:bg-violet-500 text-white border-0"
                   : "border-white/20 text-gray-300 hover:bg-white/5"
-              }
+              )}
             >
+              {icon}
               {label}
+              {count !== undefined ? (
+                <span
+                  className={cn(
+                    "tabular-nums text-[10px] px-1.5 py-0.5 rounded-full",
+                    deskFilter === id ? "bg-black/25" : "bg-white/10"
+                  )}
+                >
+                  {count}
+                </span>
+              ) : null}
             </Button>
           ))}
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -351,6 +442,27 @@ export function StaffAttendeeCheckIn({
             className="bg-[#0a0a0f] border-white/15 text-white placeholder:text-gray-600 rounded-lg"
           />
         </div>
+
+        {!loadingUsers && filtered.length > 0 ? (
+          <p className="text-xs text-gray-500">
+            Showing <span className="text-gray-300 tabular-nums">{slice.length}</span>
+            {deskFiltered.length > slice.length ? (
+              <>
+                {" "}
+                of <span className="text-gray-300 tabular-nums">{deskFiltered.length}</span>
+              </>
+            ) : null}
+            {deskFilter !== "all" ? (
+              <span>
+                {" "}
+                — filter:{" "}
+                <span className="text-violet-300">
+                  {filterChips.find((c) => c.id === deskFilter)?.label}
+                </span>
+              </span>
+            ) : null}
+          </p>
+        ) : null}
 
         {loadingUsers ? (
           <p className="text-gray-500 text-sm flex items-center gap-2">
