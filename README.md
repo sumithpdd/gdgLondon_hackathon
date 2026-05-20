@@ -25,6 +25,7 @@ Set `NEXT_PUBLIC_HACKATHON_DATASET=io2026` in `.env.local` to use live IO 2026 c
 - 🏆 **Winner Selection** - Admin panel for selecting top 3
 - 🎯 **Social Integration** - Profile tags and social links
 - 💬 **Buddies** (signed-in) — attendee directory, buddy requests, extended profile chips (`/hackathon/buddies`; see spec)
+- 📷 **Event gallery** — photos & videos at `/hackathon/photos`; multi-upload, rename, moderation, carousel ([docs/USER_FLOW.md](docs/USER_FLOW.md))
 - 👥 **User Roles** - Admin, Moderator, and User roles
 - 📱 **Responsive** - Works on all devices
 
@@ -83,7 +84,8 @@ Open [http://localhost:3000](http://localhost:3000)
 - **[docs/CHECKLIST.md](docs/CHECKLIST.md)** - Pre-deployment checklist
 
 ### 🔧 Developer Guides
-- **[docs/DATA_MODEL.md](docs/DATA_MODEL.md)** — Firestore collections (active + archive; user profile fields)
+- **[docs/USER_FLOW.md](docs/USER_FLOW.md)** — Customer journeys with diagrams (auth, projects, check-in, vote, **event gallery**)
+- **[docs/DATA_MODEL.md](docs/DATA_MODEL.md)** — Firestore schema (active + archive; **event gallery** collection)
 - **[docs/FIREBASE_AUTH.md](docs/FIREBASE_AUTH.md)** - Authentication implementation
 - **[docs/FIRESTORE_RULES.md](docs/FIRESTORE_RULES.md)** - Security rules
 - **[docs/FEATURES.md](docs/FEATURES.md)** - Complete feature list
@@ -156,6 +158,8 @@ DevfestCompetitionForm/
 | `/admin/users` | Admin | User role management |
 | `/hackathon` | Public | Hackathon overview |
 | `/hackathon/gallery` | Public | Project gallery |
+| `/hackathon/photos` | Public (+ upload when signed in) | Event gallery — photos & videos carousel |
+| `/admin/photos` | Admin / moderator | Moderate uploads, reorder, rename |
 
 ---
 

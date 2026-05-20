@@ -36,6 +36,7 @@ flowchart TB
     IJ["io2026Hackathon_joinRequests"]
     IB["io2026Hackathon_buddyRequests"]
     IL["io2026Hackathon_liveStats/summary"]
+    IEP["io2026Hackathon_eventPhotos"]
   end
 
   subgraph archive["Archive read-only"]
@@ -47,6 +48,7 @@ flowchart TB
   HID --> IU
   IU -->|"hackathonParticipations.io2026Hackathon"| H
   IS -->|"prizes[]"| Prizes["Prize carousel / /hackathon/prizes"]
+  IEP --> Photos["/hackathon/photos carousel"]
   AU --> Past["/past-projects"]
 ```
 
@@ -93,23 +95,95 @@ When `NEXT_PUBLIC_HACKATHON_DATASET=io2026`, the app uses `io2026Hackathon_*`. W
 
 Subcollections (under projects / users): `comments`, `bookmarks` — see `lib/constants.ts`.
 
-### Event photos (`io2026Hackathon_eventPhotos`)
+### Event gallery media (`io2026Hackathon_eventPhotos`)
 
-Storage path prefix: `event_photos/{hackathonId}/{fileName}`.
+Photos and short videos for the public carousel at `/hackathon/photos`. Collection name is historical (`eventPhotos`); UI copy uses **Event gallery**.
+
+```mermaid
+erDiagram
+  USERS ||--o{ EVENT_PHOTOS : uploads
+  EVENT_PHOTOS {
+    string id PK
+    string hackathonId
+    string eventName
+    string eventDate
+    string title
+    string imageUrl
+    string mediaType
+    string storagePath
+    string caption
+    string uploadedBy FK
+    string status
+    number sortOrder
+    timestamp createdAt
+    timestamp reviewedAt
+    string reviewedBy
+  }
+```
 
 | Field | Type | Notes |
 |-------|------|--------|
-| `hackathonId` | string | Edition id |
-| `eventName`, `eventDate` | string | Filter labels (`eventDate` = `YYYY-MM-DD`) |
-| `imageUrl`, `storagePath` | string | Public URL + Storage path |
-| `caption` | string? | Max 300 chars |
-| `uploadedBy` | string | Auth UID |
-| `status` | `"pending"` \| `"approved"` \| `"rejected"` | Attendee creates `pending`; admin creates `approved` |
-| `createdAt`, `reviewedAt`, `reviewedBy` | timestamp / string | Audit |
+| `hackathonId` | string | Edition id (e.g. `io2026Hackathon`) |
+| `eventName` | string | Filter label in gallery UI (max 120) |
+| `eventDate` | string | Filter label, ISO `YYYY-MM-DD` |
+| `title` | string? | **Display name** (rename in UI); carousel heading |
+| `imageUrl` | string | Public download URL — image **or** video |
+| `mediaType` | `"image"` \| `"video"` | Default `image` when omitted on legacy docs |
+| `storagePath` | string | Firebase Storage object path |
+| `caption` | string? | Optional description (max 300) |
+| `uploadedBy` | string | Firebase Auth UID |
+| `status` | `"pending"` \| `"approved"` \| `"rejected"` | See flows below |
+| `sortOrder` | number? | Carousel order (lower = earlier); set in admin gallery editor |
+| `createdAt` | timestamp | Upload time |
+| `reviewedAt`, `reviewedBy` | timestamp / string | Set when approved (or on admin immediate publish) |
 
-**Rules:** Public read only `approved`; owners read own docs; admin reads all. Client create: **admin only** (`approved`). Attendee creates via `reserveEventPhotoUpload` / `finalizeEventPhotoUpload` callables (max **10** photos per user, pending + approved). Updates admin-only. Delete: `withdrawEventPhoto` callable (admin/owner) or owner pending via rules.
+**Status semantics**
 
-**Storage:** Attendee path `event_photos/{hackathonId}/{uid}/{photoId}` — write only when a matching pending Firestore doc exists. Admin uses flat `event_photos/{hackathonId}/{fileName}`.
+| `status` | Visible on public `/hackathon/photos` | Who can create |
+|----------|--------------------------------------|----------------|
+| `pending` | No | Attendee (via callables) |
+| `approved` | Yes | Admin direct create, or admin approves pending |
+| `rejected` | No | N/A (doc usually deleted) |
+
+**Quota:** max **10** items per attendee (`MAX_EVENT_PHOTOS_PER_ATTENDEE` in `lib/constants.ts`) — pending + approved combined. Enforced in **`reserveEventPhotoUpload`** transaction (not client-only).
+
+**File limits (client + Storage rules)**
+
+| Type | Max size | MIME types |
+|------|----------|------------|
+| Image | 10 MB | JPEG, PNG, GIF, WebP |
+| Video | 50 MB | MP4, WebM, QuickTime (MOV) |
+
+**Storage paths**
+
+| Uploader | Path pattern | Rules |
+|----------|--------------|--------|
+| Attendee | `event_photos/{hackathonId}/{uid}/{photoId}` | Write only if matching **pending** Firestore doc exists |
+| Admin | `event_photos/{hackathonId}/{fileName}` | `isStorageAdmin()` + media size/type checks |
+
+**Firestore rules (summary)**
+
+- **Read:** `approved` for everyone; own docs for owner; all for admin.
+- **Create (client):** admin only, `status == approved`.
+- **Create (attendee):** `reserveEventPhotoUpload` + `finalizeEventPhotoUpload` callables only.
+- **Update:** admin only (metadata, `sortOrder`, approve).
+- **Delete:** `withdrawEventPhoto` callable (admin any; attendee pending only) or rules-backed pending delete.
+
+**Cloud Functions (codebase `hackathon`)**
+
+| Callable | Purpose |
+|----------|---------|
+| `reserveEventPhotoUpload` | Transaction: count &lt; 10 → create pending doc + `storagePath` |
+| `finalizeEventPhotoUpload` | Set `imageUrl` after Storage upload |
+| `withdrawEventPhoto` | Delete Storage + doc; frees attendee slot |
+
+Deploy example:
+
+```bash
+firebase deploy --only functions:hackathon:reserveEventPhotoUpload,functions:hackathon:finalizeEventPhotoUpload,functions:hackathon:withdrawEventPhoto,firestore:rules,storage
+```
+
+**Application modules:** `lib/event-photos.ts`, `types/event-photo.ts`, `components/photos/*`, `components/admin/AdminEventPhotosPanel.tsx`, `components/admin/EventPhotoGalleryEditor.tsx`.
 
 ---
 

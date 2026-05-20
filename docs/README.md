@@ -13,7 +13,7 @@ Start here if you're new to the project:
 1. **[JUNIOR_ONBOARDING.md](./JUNIOR_ONBOARDING.md)** — **Start here:** flows, schema cheat sheet, repo map, `motionDiv` typo explained, safe first tasks
 2. **[IO2026_HACKATHON_SPEC.md](./IO2026_HACKATHON_SPEC.md)** — IO 2026 dataset, **multi-hackathon registry**, migration, prizes, routes, voting/attendance roadmap
 3. **[DATA_MODEL.md](./DATA_MODEL.md)** — Collections, attendance/swag/cohort, votes, settings, archive
-4. **[USER_FLOW.md](./USER_FLOW.md)** — Full customer journey incl. event day (check-in → swag → AI DevCamp → vote)
+4. **[USER_FLOW.md](./USER_FLOW.md)** — Full customer journey with **mermaid diagrams** (check-in → vote → **event gallery** upload & moderation)
 5. **[START_HERE.md](./START_HERE.md)** - Older beginner guide (partially outdated — prefer JUNIOR_ONBOARDING for auth/stack)
 6. **[FEATURES_SIMPLE.md](./FEATURES_SIMPLE.md)** - What the app does
 7. **Admin setup** - See [DEPLOYMENT.md](./DEPLOYMENT.md) Step 4 (Firestore active `users` collection → set `role: "admin"`)
@@ -60,7 +60,7 @@ Having issues? Check here:
 | **DEPLOYMENT.md** | Complete deployment guide | Everyone deploying |
 | **FIREBASE_AUTH.md** | Authentication system details | Developers |
 | **FIRESTORE_RULES.md** | Database security rules | Developers & Admins |
-| **DATA_MODEL.md** | Firestore schema — users, projects, attendance, votes, settings | Developers |
+| **DATA_MODEL.md** | Firestore schema — users, projects, attendance, votes, **event gallery**, settings | Developers |
 ### Setup Guides
 
 | Document | Purpose | Audience |
@@ -75,7 +75,7 @@ Having issues? Check here:
 
 | Document | Purpose | Audience |
 |----------|---------|----------|
-| **USER_FLOW.md** | Auth, register, participate, past hackathons | Everyone |
+| **USER_FLOW.md** | Auth, register, participate, **event gallery**, past hackathons | Everyone |
 | **FEATURES.md** | Complete feature list (technical) | Developers |
 | **FEATURES_SIMPLE.md** | Simple feature explanations | Everyone |
 
@@ -164,7 +164,8 @@ Build with AI Hackathon platform:
 
 - 🔐 Firebase Authentication (no custom domain needed)
 - 📝 Draft system for submissions
-- 📸 Multi-screenshot upload (up to 5)
+- 📸 Multi-screenshot upload (up to 5) on project submissions
+- 🎬 Event gallery — multi-upload photos/videos, rename, admin moderation, public carousel
 - 🏆 Winner selection (1st, 2nd, 3rd place)
 - 👥 User role management (Admin, Moderator, User)
 - 🎓 Mentorship program with applications

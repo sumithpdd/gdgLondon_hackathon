@@ -37,11 +37,11 @@ export default function EventPhotosPage() {
         <div className="inline-flex items-center justify-center gap-2 text-violet-400">
           <Camera className="h-8 w-8" />
         </div>
-        <h1 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">Event photos</h1>
+        <h1 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">Event gallery</h1>
         <p className="mx-auto max-w-2xl text-gray-400 text-sm sm:text-base">
-          Moments from {HACKATHON_DISPLAY_NAME}. Share your own shots below — the team reviews them
-          before they appear in the gallery. Swipe the carousel, filter by event or upload date, and
-          tap thumbnails to jump to a photo.
+          Photos and videos from {HACKATHON_DISPLAY_NAME}. Share your own below — rename each item,
+          then the team reviews before it goes live. Swipe the carousel, filter by event or upload
+          date, and tap thumbnails to preview.
         </p>
         {isAdmin ? (
           <p className="text-xs text-violet-300">

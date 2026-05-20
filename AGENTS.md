@@ -16,7 +16,7 @@ Multi-edition hackathon platform. Live dataset: **IO 2026** (`io2026Hackathon_*`
 | [docs/SECURITY.md](docs/SECURITY.md) | Secrets, public vs internal docs, rules |
 | [docs/ENVIRONMENT_VARIABLES.md](docs/ENVIRONMENT_VARIABLES.md) | Env names (no real values) |
 | [docs/IO2026_HACKATHON_SPEC.md](docs/IO2026_HACKATHON_SPEC.md) | Product spec, routes, voting |
-| [docs/USER_FLOW.md](docs/USER_FLOW.md) | Participant journey — save/ship, check-in, vote |
+| [docs/USER_FLOW.md](docs/USER_FLOW.md) | Participant journey — save/ship, check-in, vote, event gallery |
 
 ## Cursor guidance
 
@@ -97,6 +97,20 @@ Deploy: `firebase deploy --only functions:adminProvisionHackathonUser,functions:
 - **`fetchUserVotes`:** composite query with fallback (index may be building in prod).
 - Winners via `voteTotal` + admin `assignWinnersFromVotes` or manual `place`.
 - Attendee badges: `components/attendance/AttendeeEventBadges.tsx` on `/vote`.
+
+## Event gallery (photos & videos)
+
+| Action | API / route |
+|--------|-------------|
+| Public browse | `/hackathon/photos` — `fetchApprovedEventPhotos()` |
+| Attendee multi-upload | `uploadAttendeeEventPhoto()` → `reserveEventPhotoUpload`, Storage, `finalizeEventPhotoUpload` |
+| Admin upload | `uploadEventPhoto(..., { publishImmediately: true })` |
+| Moderate | `/admin/photos` — approve, bulk approve, remove (`withdrawEventPhoto`) |
+| Reorder / rename | `EventPhotoGalleryEditor` — `saveEventPhotoSortOrders`, `updateEventPhotoMetadata` (`title`) |
+
+**Quota:** `MAX_EVENT_PHOTOS_PER_ATTENDEE = 10` (pending + approved). Attendees cannot `create` Firestore docs directly — callables only.
+
+Deploy callables with codebase prefix: `functions:hackathon:reserveEventPhotoUpload`, etc.
 
 ## Check-in desk (organisers)
 

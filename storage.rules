@@ -24,9 +24,11 @@ service firebase.storage {
       && firestore.get(/databases/(default)/documents/io2026Hackathon_users/$(request.auth.uid)).data.role == 'admin';
   }
 
-    function eventPhotoImageOk() {
-      return request.resource.size < 10 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+    function eventPhotoMediaOk() {
+      return (request.resource.contentType.matches('image/.*')
+          && request.resource.size < 10 * 1024 * 1024)
+        || (request.resource.contentType.matches('video/.*')
+          && request.resource.size < 50 * 1024 * 1024);
     }
 
     function reservedAttendeeEventPhoto(hackathonId, uid, photoId) {
@@ -42,7 +44,7 @@ service firebase.storage {
       allow read: if true;
       allow write: if request.auth != null
         && request.auth.uid == uid
-        && eventPhotoImageOk()
+        && eventPhotoMediaOk()
         && reservedAttendeeEventPhoto(hackathonId, uid, photoId);
       allow delete: if request.auth != null
         && request.auth.uid == uid
@@ -52,7 +54,7 @@ service firebase.storage {
     // Admin / legacy flat path: event_photos/{hackathonId}/{fileName}
     match /event_photos/{hackathonId}/{fileName} {
       allow read: if true;
-      allow write: if isStorageAdmin() && eventPhotoImageOk();
+      allow write: if isStorageAdmin() && eventPhotoMediaOk();
       allow delete: if isStorageAdmin();
     }
   }

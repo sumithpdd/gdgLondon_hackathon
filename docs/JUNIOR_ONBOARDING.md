@@ -12,8 +12,8 @@ A **Next.js** web app for the **GDG London Hackathon** (Build with AI × Google 
 
 | Who | What they do |
 |-----|----------------|
-| **Participants** | Register, fill a **profile**, post a **project**, join teams via the **idea gallery**, **check in**, **vote**, browse **resources** |
-| **Admins** | Manage **users**, **submissions**, **winners**, **voting**, **live projector**, **content** (rules/resources text) |
+| **Participants** | Register, fill a **profile**, post a **project**, join teams via the **idea gallery**, **check in**, **vote**, share **event photos/videos**, browse **resources** |
+| **Admins** | Manage **users**, **submissions**, **winners**, **voting**, **event gallery** moderation, **live projector**, **content** (rules/resources text) |
 | **Everyone** | View **past hackathons** at `/past-projects` (archived IWD 2026 data) |
 
 **Auth:** Firebase Authentication (email/password + Google) — not Clerk.
@@ -65,8 +65,8 @@ npm install
 
 ```
 app/                          # Pages (URLs)
-  hackathon/                  # Main hub: home, profile, ideas, my-projects, gallery, …
-  admin/                      # Admin dashboard, users, voting, live, content, …
+  hackathon/                  # Main hub: home, profile, ideas, my-projects, photos, …
+  admin/                      # Admin dashboard, users, voting, photos, live, content, …
   register/                   # Sign up
   checkin/ vote/ live/        # Event-day features
   past-projects/              # Archived hackathon (read-only data)
@@ -85,6 +85,7 @@ lib/                          # ★ Put new Firebase / domain logic here
   attendance.ts               # Read attendance, isAidevcampCohort
   check-in.ts                 # Staff check-in, swag, AI DevCamp tag callables
   voting.ts                   # Vote page data, castVotes wrapper
+  event-photos.ts             # Event gallery upload, moderation, sort, metadata
   admin-users.ts              # List/filter users, provision by email, admin callables
   admin-nav.ts                # Grouped admin sidebar links
   profile-completion.ts       # “80% profile” score for joining teams
@@ -125,6 +126,8 @@ flowchart TD
   G2 --> L[Before HACKATHON_SUBMISSION_DEADLINE]
   L --> CI[/checkin - 6 digit code]
   CI --> V[/vote - audience ballot]
+  CI --> PH[/hackathon/photos - optional upload]
+  PH --> PHM[/admin/photos - approve pending]
 ```
 
 ### Important product rules (2026)
@@ -137,6 +140,7 @@ flowchart TD
 | **Past ideas/winners** | `/past-projects` reads **`iwd2026Hackathon_*`** archive |
 | **Check-in** | `/checkin` — self + organiser desk (swag, AI DevCamp cohort); `/admin/checkin` redirects here |
 | **Vote** | `/vote` after `attendanceVerified`; badges for AI DevCamp + swag |
+| **Event gallery** | `/hackathon/photos` — max 10 items/user; attendee uploads → `pending` → admin approves; see [USER_FLOW.md § Option H](./USER_FLOW.md#option-h-event-gallery-photos--videos) |
 | **Project save** | Always tags `hackathonId` + `userId` via `lib/project-submissions.ts` |
 
 Full narrative: [USER_FLOW.md](./USER_FLOW.md).
@@ -152,6 +156,7 @@ flowchart LR
   A --> D[/admin/voting]
   A --> E[/admin/live]
   A --> F[/admin/content]
+  A --> P[/admin/photos]
   C --> G[adminUpdateUser Function]
   C --> H[setUserRole Function]
   C --> I[adminProvisionHackathonUser]

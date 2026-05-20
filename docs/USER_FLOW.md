@@ -15,7 +15,7 @@ Participant journey from landing through auth, profile, projects, event day, and
 │   ───────────              ─────                     ──────────────             │
 │   /hackathon               /register (sign up)         Profile (directory)      │
 │   Prizes, timeline         /hackathon?login=1          My project (save / ship)   │
-│                            AuthModal (sign in)         Ideas · Gallery · Buddies  │
+│                            AuthModal (sign in)         Ideas · Buddies · Photos  │
 │                                                                                   │
 │   4. EVENT DAY             5. PAST EDITIONS                                       │
 │   ────────────             ────────────────                                       │
@@ -175,16 +175,82 @@ sequenceDiagram
 - Archived project cards
 - Side-event card (Garden of the Forgotten Prompt)
 
-### Option H: Event photo gallery
+### Option H: Event gallery (photos & videos)
 
 | Route | Who | Purpose |
 |-------|-----|---------|
-| `/hackathon/photos` | Attendees | Upload photos (pending until approved); browse **approved** gallery with filters and carousel |
-| `/admin/photos` | Admin | Upload (published immediately); **Pending review** queue — approve or decline attendee submissions |
+| `/hackathon/photos` | Attendees & public | Multi-upload queue, rename before submit, browse **approved** carousel (images + videos) |
+| `/admin/photos` | Admin / moderator | Bulk upload, pending moderation, **gallery editor** (order + rename + metadata) |
 
-**Flow:** Attendee upload (max **10** per person, enforced server-side) → `reserveEventPhotoUpload` → Storage → `finalizeEventPhotoUpload` → admin previews at `/admin/photos` → **Approve** or **Remove** (deletes file, frees slot). Admin uploads use `status: approved` on create.
+**Limits:** 10 items per attendee (pending + approved); images ≤ 10 MB; videos ≤ 50 MB (MP4 / WebM / MOV).
 
-**Modules:** `lib/event-photos.ts`, `components/photos/AttendeeEventPhotoUpload.tsx`, `components/admin/AdminEventPhotosPanel.tsx`.
+#### Customer journey — attendee upload
+
+```mermaid
+flowchart LR
+  subgraph upload["Attendee — /hackathon/photos"]
+    A[Sign in] --> B[Drag-drop or pick files]
+    B --> C[Rename each item in queue]
+    C --> D[Upload batch]
+    D --> E{reserveEventPhotoUpload}
+    E -->|slot OK| F[Storage upload]
+    F --> G[finalizeEventPhotoUpload]
+    G --> H[(status: pending)]
+  end
+
+  subgraph mod["Organiser — /admin/photos"]
+    H --> I[Preview in Pending queue]
+    I --> J{Decision}
+    J -->|Approve| K[(status: approved + sortOrder)]
+    J -->|Remove| L[withdrawEventPhoto — frees slot]
+    K --> M[Public carousel /hackathon/photos]
+  end
+
+  subgraph adminUp["Organiser direct upload"]
+    N[Admin multi-upload] --> O[(status: approved immediately)]
+    O --> M
+  end
+```
+
+#### Customer journey — browse & editor
+
+```mermaid
+flowchart TD
+  P[Visitor opens /hackathon/photos] --> Q[Load approved only]
+  Q --> R[Carousel: image or video player]
+  R --> S[Filter by event name / event date / upload day]
+  S --> T[Thumbnail strip — tap to jump]
+
+  U[Admin Gallery editor] --> V[Reorder list — Save order]
+  V --> W[Writes sortOrder on docs]
+  W --> Q
+
+  U --> X[Edit item — rename title, caption, event labels]
+  U --> Y[Remove inappropriate — withdrawEventPhoto]
+```
+
+#### Attendee steps (detail)
+
+1. Open **`/hackathon/photos`** → **Share your photos** card.
+2. Set shared **event name** / **event date** / optional **caption** for the batch.
+3. **Drop or choose** multiple files (photos or videos).
+4. **Rename** each row in the upload queue (defaults from filename).
+5. **Upload N items** — each runs: `reserveEventPhotoUpload` → Firebase Storage → `finalizeEventPhotoUpload`.
+6. Track status under **Your submissions** (pending / published). **Withdraw** (×) on pending frees a slot.
+7. When approved, item appears in the public carousel with the chosen **title**.
+
+#### Organiser steps (detail)
+
+| Area | Actions |
+|------|---------|
+| **Upload** | Same multi-upload UX; publishes immediately (`status: approved`). |
+| **Pending review** | Search, checkbox **bulk approve**, per-item **Approve** / **Remove**. |
+| **Gallery editor** | Reorder carousel, **Save order**, edit **display name** + filters, remove from gallery. |
+| **Public page** | Admins can delete from thumbnail strip on `/hackathon/photos` when signed in. |
+
+**Modules:** `lib/event-photos.ts`, `components/photos/EventPhotoMultiUpload.tsx`, `components/photos/AttendeeEventPhotoUpload.tsx`, `components/photos/EventPhotoGallery.tsx`, `components/admin/AdminEventPhotosPanel.tsx`, `components/admin/EventPhotoGalleryEditor.tsx`.
+
+**Schema:** [DATA_MODEL.md](./DATA_MODEL.md#event-gallery-media-io2026hackathon_eventphotos).
 
 ---
 
@@ -205,6 +271,11 @@ flowchart TD
     B1 -->|Staff tags cohort| AC["cohort: aidevcamp2026"]
     A1 --> SW[Staff taps Swag on desk]
     SW --> S1["swagReceived: true"]
+  end
+
+  subgraph gallery["Event gallery optional"]
+    A1 --> PH["/hackathon/photos — upload or browse"]
+    PH --> PHM["Admin /admin/photos moderates"]
   end
 
   subgraph ballot["Audience ballot"]
@@ -339,6 +410,7 @@ Admin navigation is grouped: **Overview** · **People** · **Content** · **Even
 | `/admin/voting` | Event | Vote leaderboard, window, assign top 3 from votes |
 | `/admin/live` | Event | Projector controls |
 | `/admin/content` | Content | Resources links + rules sections |
+| `/admin/photos` | Content | Event gallery upload, moderation, reorder & rename |
 | `/admin/errors` | Operations | Client/API error log (`error_logs` via Admin SDK) |
 | `/checkin` | Operations | Self + organiser desk (swag + AI DevCamp tags) |
 
@@ -361,6 +433,8 @@ Admin navigation is grouped: **Overview** · **People** · **Content** · **Even
 | 3e | Buddies | `/hackathon/buddies` |
 | 3f | Rules & resources | `/hackathon/resources` |
 | 3g | Past results | `/past-projects` |
+| 3h | Share event photos/videos | `/hackathon/photos` (pending until approved) |
+| 3i | Browse event gallery | `/hackathon/photos` (approved carousel) |
 | 4a | Check in (self or desk) | `/checkin` |
 | 4b | Receive swag (desk) | `/checkin` — organiser **Swag** button |
 | 4c | AI DevCamp tag (desk) | `/checkin` — cohort checkbox or **AI DevCamp** button |
@@ -379,6 +453,7 @@ Admin navigation is grouped: **Overview** · **People** · **Content** · **Even
 | Resources & rules | `/hackathon/resources` | Links + requirements |
 | Prizes | `/hackathon/prizes` | Full prize list |
 | Buddies | `/hackathon/buddies` | Networking |
+| Event gallery | `/hackathon/photos` | Upload (signed in) or browse approved media |
 | Profile | `/hackathon/profile` | Directory profile (not project form) |
 | Past projects | `/past-projects` | IWD archive |
 | Check-in | `/checkin` | Self-service + organiser desk |
@@ -391,9 +466,11 @@ Admin navigation is grouped: **Overview** · **People** · **Content** · **Even
 ```
 Overview → Sign in OR Register → Profile (for team joins)
          → My project: Save progress → Ship it (io2026Hackathon_projects + hackathonId)
-         → Ideas / Gallery / Buddies
-Event day → Check-in (/checkin) → Swag + AI DevCamp (desk) → Vote (/vote) → Admin winners
+         → Ideas / Buddies / Event gallery upload
+Event day → Check-in (/checkin) → Swag + AI DevCamp (desk) → Vote (/vote)
+         → Optional: share photos/videos (/hackathon/photos) — admin moderates (/admin/photos)
 Past editions → /past-projects
+Public gallery → /hackathon/photos (approved photos & videos, carousel + filters)
 ```
 
 ---

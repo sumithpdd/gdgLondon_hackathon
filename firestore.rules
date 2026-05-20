@@ -299,7 +299,10 @@ service cloud.firestore {
         && request.resource.data.storagePath is string
         && request.resource.data.storagePath.matches('^event_photos/.+')
         && request.resource.data.uploadedBy == request.auth.uid
-        && (!('caption' in request.resource.data) || request.resource.data.caption.size() <= 300);
+        && (!('caption' in request.resource.data) || request.resource.data.caption.size() <= 300)
+        && (!('title' in request.resource.data) || request.resource.data.title.size() <= 120)
+        && (!('mediaType' in request.resource.data)
+          || request.resource.data.mediaType in ['image', 'video']);
     }
 
     match /io2026Hackathon_eventPhotos/{photoId} {

@@ -59,6 +59,15 @@ Do not copy rules from this documentation. The deployment file contains the corr
 - **Read:** Public
 - **Write:** Authenticated, size limit
 
+### Event gallery (`eventPhotos` collection)
+- **Read:** Public sees `status: approved` only; owners see their own docs; admins see all
+- **Create (attendee):** **Not** via client SDK — use `reserveEventPhotoUpload` + `finalizeEventPhotoUpload` callables
+- **Create (admin):** Client create allowed with `status: approved` only
+- **Update / approve / sortOrder:** Admin only
+- **Delete:** `withdrawEventPhoto` callable (admin any item; attendee pending only)
+
+**Storage paths:** `event_photos/{hackathonId}/{uid}/{photoId}` (attendee) or admin flat path under same prefix. Images ≤ 10 MB; videos ≤ 50 MB. See [DATA_MODEL.md](./DATA_MODEL.md#event-gallery-media-io2026hackathon_eventphotos).
+
 ---
 
 ## Security Best Practices

@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Image from "next/image";
 import { Calendar, ChevronLeft, ChevronRight, Upload } from "lucide-react";
+import { EventMediaPreview } from "@/components/photos/EventMediaPreview";
 import {
   formatEventPhotoDateLabel,
   formatEventPhotoUploadedLabel,
+  getEventPhotoDisplayTitle,
+  isEventPhotoVideo,
 } from "@/lib/event-photos";
 import type { EventPhoto } from "@/types/event-photo";
 import { cn } from "@/lib/utils";
@@ -64,14 +66,12 @@ export function EventPhotoCarousel({
       <div className="absolute inset-0 bg-gradient-to-br from-violet-950/40 via-transparent to-fuchsia-950/30 pointer-events-none" />
 
       <div className="relative aspect-[16/10] sm:aspect-[16/9] w-full bg-black">
-        <Image
+        <EventMediaPreview
           key={current.id}
-          src={current.imageUrl}
-          alt={current.caption || current.eventName}
-          fill
-          priority
-          className="object-contain"
+          item={current}
+          variant="main"
           sizes="(max-width: 768px) 100vw, 80vw"
+          autoPlay={isEventPhotoVideo(current)}
         />
 
         {photos.length > 1 ? (
@@ -101,8 +101,13 @@ export function EventPhotoCarousel({
       </div>
 
       <div className="relative space-y-2 border-t border-white/10 p-4 sm:p-5">
-        <p className="text-lg font-semibold text-white">{current.eventName}</p>
-        {current.caption ? <p className="text-sm text-gray-300">{current.caption}</p> : null}
+        <p className="text-lg font-semibold text-white">{getEventPhotoDisplayTitle(current)}</p>
+        {current.caption && current.title ? (
+          <p className="text-sm text-gray-300">{current.caption}</p>
+        ) : null}
+        <p className="text-xs text-gray-500">
+          {isEventPhotoVideo(current) ? "Video" : "Photo"} · {current.eventName}
+        </p>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
           <span className="inline-flex items-center gap-1.5">
             <Calendar className="h-3.5 w-3.5 text-violet-400" />

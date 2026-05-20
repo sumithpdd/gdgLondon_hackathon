@@ -1446,7 +1446,9 @@ export const reserveEventPhotoUpload = onCall(async (request) => {
   const eventDate = normalizeEventPhotoDate(data.eventDate);
   const captionRaw = data.caption != null ? sanitizeEventPhotoText(data.caption, 300) : "";
   const caption = captionRaw || undefined;
-
+  const titleRaw = data.title != null ? sanitizeEventPhotoText(data.title, 120) : "";
+  const title = titleRaw || undefined;
+  const mediaType = data.mediaType === "video" ? "video" : "image";
   if (!hackathonId || !eventName) {
     throw new HttpsError("invalid-argument", "Event name is required.");
   }
@@ -1459,7 +1461,7 @@ export const reserveEventPhotoUpload = onCall(async (request) => {
     if (count >= MAX_EVENT_PHOTOS_PER_ATTENDEE) {
       throw new HttpsError(
         "resource-exhausted",
-        `You can have at most ${MAX_EVENT_PHOTOS_PER_ATTENDEE} photos (including pending). Remove one to upload more.`
+        `You can have at most ${MAX_EVENT_PHOTOS_PER_ATTENDEE} items (including pending). Remove one to upload more.`
       );
     }
     tx.set(photoRef, {
@@ -1468,10 +1470,12 @@ export const reserveEventPhotoUpload = onCall(async (request) => {
       eventDate,
       imageUrl: "",
       storagePath,
+      mediaType,
       status: "pending",
       uploadedBy: uid,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       ...(caption ? { caption } : {}),
+      ...(title ? { title } : {}),
     });
   });
 
@@ -1506,6 +1510,7 @@ export const finalizeEventPhotoUpload = onCall(async (request) => {
 
   await photoRef.update({
     imageUrl,
+    mediaType: photo.mediaType === "video" ? "video" : "image",
     finalizedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 

@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
+import { EventMediaPreview } from "@/components/photos/EventMediaPreview";
+import { getEventPhotoDisplayTitle, isEventPhotoVideo } from "@/lib/event-photos";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   approveEventPhoto,
+  approveEventPhotosBatch,
   backfillLegacyEventPhotosAsApproved,
   deleteEventPhoto,
   fetchEventPhotosForAdmin,
@@ -43,7 +45,9 @@ import {
 import { listHackathons } from "@/lib/hackathons-registry";
 import type { EventPhoto } from "@/types/event-photo";
 import { MAX_EVENT_PHOTOS_PER_ATTENDEE } from "@/lib/constants";
-import { Check, ImagePlus, Loader2, Search, Trash2 } from "lucide-react";
+import { EventPhotoMultiUpload } from "@/components/photos/EventPhotoMultiUpload";
+import { EventPhotoGalleryEditor } from "@/components/admin/EventPhotoGalleryEditor";
+import { Check, Loader2, Search, Trash2 } from "lucide-react";
 import Link from "next/link";
 
 type Props = {
@@ -52,8 +56,8 @@ type Props = {
 
 export function AdminEventPhotosPanel({ adminUid }: Props) {
   const { toast } = useToast();
-  const fileRef = useRef<HTMLInputElement>(null);
   const backfillDone = useRef(false);
+  const [selectedPending, setSelectedPending] = useState<Set<string>>(new Set());
   const [photos, setPhotos] = useState<EventPhoto[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -151,40 +155,51 @@ export function AdminEventPhotosPanel({ adminUid }: Props) {
   );
   const pendingCount = useMemo(() => photos.filter(isEventPhotoPending).length, [photos]);
 
-  const handleFiles = async (files: FileList | null) => {
-    if (!files?.length) return;
-    setUploading(true);
-    let ok = 0;
+  const uploadAdminFile = async (
+    file: File,
+    options?: { title?: string; mediaType?: "image" | "video" }
+  ) => {
+    await uploadEventPhoto(
+      file,
+      {
+        hackathonId,
+        eventName: eventName.trim() || selectedLabel,
+        eventDate,
+        caption: caption.trim() || undefined,
+        title: options?.title,
+        mediaType: options?.mediaType,
+      },
+      adminUid,
+      { publishImmediately: true }
+    );
+  };
+
+  const togglePendingSelect = (id: string) => {
+    setSelectedPending((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const approveSelected = async () => {
+    const ids = pendingPhotos.filter((p) => selectedPending.has(p.id) && p.imageUrl).map((p) => p.id);
+    if (!ids.length) return;
+    setReviewingId("batch");
     try {
-      for (const file of Array.from(files)) {
-        await uploadEventPhoto(
-          file,
-          {
-            hackathonId,
-            eventName: eventName.trim() || selectedLabel,
-            eventDate,
-            caption: caption.trim() || undefined,
-          },
-          adminUid,
-          { publishImmediately: true }
-        );
-        ok += 1;
-      }
-      toast({
-        title: ok === 1 ? "Photo uploaded" : `${ok} photos uploaded`,
-        description: "Published immediately on the public gallery.",
-      });
-      setCaption("");
-      if (fileRef.current) fileRef.current.value = "";
-      await load();
-    } catch (e) {
-      toast({
-        title: "Upload failed",
-        description: e instanceof Error ? e.message : "Try again.",
-        variant: "destructive",
-      });
+      const n = await approveEventPhotosBatch(ids, adminUid);
+      setPhotos((prev) =>
+        prev.map((p) =>
+          ids.includes(p.id) ? { ...p, status: "approved" as const, reviewedBy: adminUid } : p
+        )
+      );
+      setSelectedPending(new Set());
+      toast({ title: `${n} photo${n === 1 ? "" : "s"} approved` });
+    } catch {
+      toast({ title: "Could not approve", variant: "destructive" });
     } finally {
-      setUploading(false);
+      setReviewingId(null);
     }
   };
 
@@ -295,30 +310,31 @@ export function AdminEventPhotosPanel({ adminUid }: Props) {
             </div>
           </div>
 
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/jpeg,image/png,image/gif,image/webp"
-            multiple
-            className="hidden"
-            onChange={(e) => void handleFiles(e.target.files)}
-          />
-          <Button
-            type="button"
+          <EventPhotoMultiUpload
             disabled={uploading}
-            onClick={() => fileRef.current?.click()}
-            className="bg-violet-600 hover:bg-violet-500"
-          >
-            {uploading ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : (
-              <ImagePlus className="h-4 w-4 mr-2" />
-            )}
-            {uploading ? "Uploading…" : "Choose images"}
-          </Button>
-          <p className="text-xs text-gray-500">JPG, PNG, GIF, WebP — up to 10 MB each.</p>
+            buttonLabel="Add images to queue"
+            onUpload={async (file, options) => {
+              setUploading(true);
+              await uploadAdminFile(file, options);
+            }}
+            onComplete={({ ok, failed }) => {
+              setUploading(false);
+              if (ok > 0) {
+                toast({
+                  title: ok === 1 ? "Photo published" : `${ok} photos published`,
+                  description: "Visible on the public gallery.",
+                });
+                void load();
+              }
+              if (failed > 0) {
+                toast({ title: `${failed} failed`, variant: "destructive" });
+              }
+            }}
+          />
         </CardContent>
       </Card>
+
+      <EventPhotoGalleryEditor photos={photos} onPhotosChange={setPhotos} />
 
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
@@ -342,13 +358,37 @@ export function AdminEventPhotosPanel({ adminUid }: Props) {
             Approve to publish, or remove inappropriate submissions (deletes storage and frees the
             attendee&apos;s slot, max {MAX_EVENT_PHOTOS_PER_ATTENDEE} per person).
           </p>
+          {selectedPending.size > 0 ? (
+            <Button
+              type="button"
+              size="sm"
+              disabled={reviewingId === "batch"}
+              onClick={() => void approveSelected()}
+              className="bg-emerald-600 hover:bg-emerald-500"
+            >
+              {reviewingId === "batch" ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Approve selected ({selectedPending.size})
+            </Button>
+          ) : null}
           {pendingPhotos.length === 0 && !loading ? null : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {pendingPhotos.map((photo) => (
                 <Card key={photo.id} className="overflow-hidden bg-[#0a0a0f] border-amber-500/30">
+                  <div className="flex items-center gap-2 px-2 py-1.5 border-b border-white/10 bg-black/40">
+                    <input
+                      type="checkbox"
+                      checked={selectedPending.has(photo.id)}
+                      onChange={() => togglePendingSelect(photo.id)}
+                      className="h-4 w-4 rounded border-white/30"
+                      aria-label="Select for bulk approve"
+                    />
+                    <span className="text-xs text-gray-500">Select</span>
+                  </div>
                   <div className="relative aspect-video bg-black/50">
                     {photo.imageUrl ? (
-                      <Image src={photo.imageUrl} alt="" fill className="object-cover" sizes="33vw" />
+                      <EventMediaPreview item={photo} variant="thumb" fill sizes="33vw" controls={false} />
                     ) : (
                       <p className="absolute inset-0 flex items-center justify-center text-xs text-gray-500">
                         Upload incomplete
@@ -356,8 +396,11 @@ export function AdminEventPhotosPanel({ adminUid }: Props) {
                     )}
                   </div>
                   <CardContent className="p-3 space-y-2">
-                    <p className="text-sm font-medium text-white truncate">{photo.eventName}</p>
+                    <p className="text-sm font-medium text-white truncate">
+                      {getEventPhotoDisplayTitle(photo)}
+                    </p>
                     <p className="text-xs text-gray-500">
+                      {isEventPhotoVideo(photo) ? "Video" : "Photo"} ·{" "}
                       {formatEventPhotoDateLabel(photo.eventDate)} ·{" "}
                       {formatEventPhotoUploadedLabel(photo)}
                     </p>
@@ -418,10 +461,12 @@ export function AdminEventPhotosPanel({ adminUid }: Props) {
             {publishedPhotos.map((photo) => (
               <Card key={photo.id} className="overflow-hidden bg-[#0a0a0f] border-white/10">
                 <div className="relative aspect-video">
-                  <Image src={photo.imageUrl} alt="" fill className="object-cover" sizes="33vw" />
+                  <EventMediaPreview item={photo} variant="thumb" fill sizes="33vw" controls={false} />
                 </div>
                 <CardContent className="p-3 space-y-1">
-                  <p className="text-sm font-medium text-white truncate">{photo.eventName}</p>
+                  <p className="text-sm font-medium text-white truncate">
+                    {getEventPhotoDisplayTitle(photo)}
+                  </p>
                   <p className="text-xs text-gray-500">
                     Event: {formatEventPhotoDateLabel(photo.eventDate)}
                   </p>

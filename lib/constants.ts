@@ -120,6 +120,20 @@ export const ALLOWED_IMAGE_TYPES = [
   "image/webp",
 ];
 
+/** Event gallery — short clips (storage-conscious). */
+export const MAX_GALLERY_VIDEO_SIZE_MB = 50;
+export const MAX_GALLERY_VIDEO_SIZE_BYTES = MAX_GALLERY_VIDEO_SIZE_MB * 1024 * 1024;
+
+export const ALLOWED_GALLERY_VIDEO_TYPES = [
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+] as const;
+
+/** File input accept string for photos + videos. */
+export const GALLERY_MEDIA_ACCEPT =
+  "image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime";
+
 export const TOAST_DURATION = 5000;
 
 /** Audience voting caps (enforced in Cloud Functions `castVotes`). */

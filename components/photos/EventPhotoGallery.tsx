@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 import { Camera, Clock, Filter, Trash2 } from "lucide-react";
+import { EventMediaPreview } from "@/components/photos/EventMediaPreview";
 import {
   Select,
   SelectContent,
@@ -29,7 +29,7 @@ import {
   filterEventPhotos,
   formatEventPhotoDateLabel,
   formatEventPhotoUploadedLabel,
-  sortEventPhotosByUploaded,
+  sortEventPhotosForGallery,
 } from "@/lib/event-photos";
 import type { EventPhoto } from "@/types/event-photo";
 import { cn } from "@/lib/utils";
@@ -50,7 +50,7 @@ export function EventPhotoGallery({ photos, className, canDelete = false, onPhot
   const [deleteTarget, setDeleteTarget] = useState<EventPhoto | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const sorted = useMemo(() => sortEventPhotosByUploaded(photos), [photos]);
+  const sorted = useMemo(() => sortEventPhotosForGallery(photos), [photos]);
   const { eventNames, eventDates, uploadedDates } = useMemo(
     () => eventPhotoFilterOptions(sorted),
     [sorted]
@@ -58,7 +58,7 @@ export function EventPhotoGallery({ photos, className, canDelete = false, onPhot
 
   const filtered = useMemo(
     () =>
-      sortEventPhotosByUploaded(
+      sortEventPhotosForGallery(
         filterEventPhotos(sorted, { eventName, eventDate, uploadedDate })
       ),
     [sorted, eventName, eventDate, uploadedDate]
@@ -161,7 +161,7 @@ export function EventPhotoGallery({ photos, className, canDelete = false, onPhot
           </div>
         </div>
         <p className="text-xs text-gray-500 tabular-nums">
-          {filtered.length} photo{filtered.length !== 1 ? "s" : ""} · newest uploads first
+          {filtered.length} item{filtered.length !== 1 ? "s" : ""} · gallery order
         </p>
       </div>
 
@@ -177,7 +177,7 @@ export function EventPhotoGallery({ photos, className, canDelete = false, onPhot
 
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-              All photos
+              All media
             </p>
             <div className="flex gap-2 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-thin">
               {filtered.map((photo, i) => (
@@ -192,12 +192,12 @@ export function EventPhotoGallery({ photos, className, canDelete = false, onPhot
                         : "border-white/10 opacity-80 hover:opacity-100"
                     )}
                   >
-                    <Image
-                      src={photo.imageUrl}
-                      alt=""
+                    <EventMediaPreview
+                      item={photo}
+                      variant="thumb"
                       fill
-                      className="object-cover"
                       sizes="128px"
+                      controls={false}
                     />
                   </button>
                   {canDelete ? (

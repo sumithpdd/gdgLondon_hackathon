@@ -59,7 +59,12 @@ We follow a **component-based** front end with **domain-driven** naming: modules
 | `lib/attendance.ts` | Read attendance; `isAidevcampCohort` |
 | `lib/check-in.ts` | Staff check-in, swag, AI DevCamp tag callables |
 | `lib/voting.ts` | Voteable projects, ballot load (index fallback), `castVotes` wrapper |
+| `lib/event-photos.ts` | Gallery media: upload, approve, sort, metadata; attendee quota via callables |
 | `lib/admin-nav.ts` | Grouped admin sidebar + mobile tabs |
+| `components/photos/EventPhotoMultiUpload.tsx` | Drag-drop queue, per-file rename, batch upload progress |
+| `components/photos/EventPhotoGallery.tsx` | Public carousel + filters (approved only) |
+| `components/admin/EventPhotoGalleryEditor.tsx` | Admin reorder (`sortOrder`) + rename/edit metadata |
+| `components/admin/AdminEventPhotosPanel.tsx` | Admin upload, pending moderation, bulk approve |
 | `lib/admin-projects-list.ts` | Admin all-projects fetch |
 | `lib/clientErrorLogger.ts` | Client-side errors → `POST /api/log-error` |
 | `lib/error-logs-admin.ts` | Admin fetch of `error_logs` |
@@ -125,6 +130,11 @@ Do not show raw Firestore collection names in user-facing copy; use edition labe
 | `adminSetUserDeleted` | Soft delete / restore user |
 | `adminProvisionHackathonUser` | Admin: add Auth user to active hackathon users + audit fields |
 | `ensureUserProfile` | Sign-in: ensure `io2026Hackathon_users` doc; activate provisioned profiles |
+| `reserveEventPhotoUpload` | Attendee: reserve slot (max 10), create pending doc + `storagePath` |
+| `finalizeEventPhotoUpload` | Attendee: set `imageUrl` after Storage upload |
+| `withdrawEventPhoto` | Delete gallery item (Storage + Firestore); frees quota |
+
+Functions use codebase **`hackathon`** in `firebase.json` — deploy with `functions:hackathon:<name>`.
 
 Deploy: `firebase deploy --only functions`
 

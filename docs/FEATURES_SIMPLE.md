@@ -248,7 +248,31 @@ await deleteDoc(doc(db, "hackatonProjects", submissionId))
 
 ---
 
-### 10. Photo Gallery Viewer 📸
+### 10. Event gallery (photos & videos) 🎬
+
+**What it does**: Attendees share event media; organisers moderate; everyone browses an approved carousel.
+
+**Routes**:
+- `/hackathon/photos` — multi-upload queue, rename before submit, public carousel (images + videos)
+- `/admin/photos` — pending queue, bulk approve, gallery editor (order + rename)
+
+**Rules**:
+- Max **10** items per attendee (pending + approved)
+- Attendee uploads start as **`pending`** until an organiser approves
+- Images ≤ 10 MB; videos ≤ 50 MB (MP4 / WebM / MOV)
+
+**Behind the scenes**: `reserveEventPhotoUpload` → Firebase Storage → `finalizeEventPhotoUpload` → admin **Approve** → carousel.
+
+**Files involved**:
+- `app/hackathon/photos/page.tsx`
+- `lib/event-photos.ts`, `types/event-photo.ts`
+- `components/photos/*`, `components/admin/AdminEventPhotosPanel.tsx`
+
+Journey diagram: [USER_FLOW.md § Option H](./USER_FLOW.md#option-h-event-gallery-photos--videos).
+
+---
+
+### 11. Photo Gallery Viewer (project screenshots) 📸
 
 **What it does**: View screenshots in full-screen  
 **How it works**: Dialog modal with navigation
@@ -281,7 +305,7 @@ onClick={() => {
 
 ## 🔒 Security Features
 
-### 11. Access Control 🚪
+### 12. Access Control 🚪
 
 **What it does**: Ensures only authorized users access certain pages  
 **How it works**: Checks roles before showing content
@@ -314,7 +338,7 @@ if (!(await checkRole('admin'))) {
 
 ---
 
-### 12. Form Validation ✅
+### 13. Form Validation ✅
 
 **What it does**: Checks form data before submitting  
 **How it works**: Client-side checks + server-side checks
@@ -348,7 +372,7 @@ if (file.size > 10 * 1024 * 1024) {
 
 ## 🎨 Styling Features
 
-### 13. Responsive Design 📱
+### 14. Responsive Design 📱
 
 **What it does**: Looks good on all devices  
 **How it works**: Tailwind CSS responsive classes
@@ -370,7 +394,7 @@ xl: 1280px  (desktop)
 
 ---
 
-### 14. Loading States ⏳
+### 15. Loading States ⏳
 
 **What it does**: Shows feedback while waiting  
 **How it works**: Conditional rendering
@@ -391,7 +415,7 @@ xl: 1280px  (desktop)
 
 ---
 
-### 15. Toast Notifications 🔔
+### 16. Toast Notifications 🔔
 
 **What it does**: Shows success/error messages  
 **How it works**: shadcn/ui toast component

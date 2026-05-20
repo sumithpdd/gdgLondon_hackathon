@@ -4,7 +4,13 @@
  * Functions to validate user input and data.
  */
 
-import { ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE_BYTES, FORM_LIMITS } from './constants'
+import {
+  ALLOWED_GALLERY_VIDEO_TYPES,
+  ALLOWED_IMAGE_TYPES,
+  MAX_FILE_SIZE_BYTES,
+  MAX_GALLERY_VIDEO_SIZE_BYTES,
+  FORM_LIMITS,
+} from './constants'
 
 /**
  * Validate image file
@@ -27,6 +33,26 @@ export function validateImageFile(file: File): { valid: boolean; error?: string 
   }
 
   return { valid: true }
+}
+
+/** Event gallery — images (10 MB) or videos (50 MB). */
+export function validateGalleryMediaFile(file: File): { valid: boolean; error?: string } {
+  if (ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    return validateImageFile(file)
+  }
+  if (ALLOWED_GALLERY_VIDEO_TYPES.includes(file.type as (typeof ALLOWED_GALLERY_VIDEO_TYPES)[number])) {
+    if (file.size > MAX_GALLERY_VIDEO_SIZE_BYTES) {
+      return {
+        valid: false,
+        error: `Video must be less than ${MAX_GALLERY_VIDEO_SIZE_BYTES / (1024 * 1024)}MB`,
+      }
+    }
+    return { valid: true }
+  }
+  return {
+    valid: false,
+    error: 'Use JPG, PNG, GIF, WebP, MP4, WebM, or MOV',
+  }
 }
 
 /**

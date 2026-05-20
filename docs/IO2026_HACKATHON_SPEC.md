@@ -176,6 +176,8 @@ The **project submission** card shows an **optional** amber callout when the tea
 | `/live` | Projector — live vote leaderboard / pitch / welcome (§9) |
 | `/admin/live` | Admin slide controls + refresh aggregates |
 | `/admin/content` | CMS for resources links + rules sections (`settings/main`) |
+| `/hackathon/photos` | **Event gallery** — public carousel (approved photos & videos); attendee multi-upload |
+| `/admin/photos` | Gallery upload, pending moderation, reorder/rename editor (Admin → Content) |
 
 ---
 
@@ -221,12 +223,40 @@ The **project submission** card shows an **optional** amber callout when the tea
 | `castVotes` | Signed-in | Ballot with caps + `voteTotal` update |
 | `assignWinnersFromVotes` | Admin | Top 3 by `voteTotal` → `place` |
 | `refreshLiveStats` | Admin | Rebuild `liveStats/summary` |
+| `reserveEventPhotoUpload` | Signed-in attendee | Reserve slot (max 10), pending doc + `storagePath` |
+| `finalizeEventPhotoUpload` | Signed-in attendee | Set `imageUrl` after Storage upload |
+| `withdrawEventPhoto` | Owner or organiser | Delete media; frees attendee quota |
 
-### 8.4 Firestore indexes
+### 8.4 Event gallery (photos & videos) — shipped
+
+| Piece | Location |
+|-------|----------|
+| Public page | `app/hackathon/photos/page.tsx` |
+| Attendee upload | `components/photos/AttendeeEventPhotoUpload.tsx` + `EventPhotoMultiUpload.tsx` |
+| Public carousel | `components/photos/EventPhotoGallery.tsx`, `EventPhotoCarousel.tsx`, `EventMediaPreview.tsx` |
+| Admin panel | `components/admin/AdminEventPhotosPanel.tsx` |
+| Gallery editor | `components/admin/EventPhotoGalleryEditor.tsx` — `sortOrder`, rename (`title`) |
+| Domain logic | `lib/event-photos.ts`, `types/event-photo.ts` |
+
+**Attendee path:** `reserveEventPhotoUpload` → Storage (`event_photos/{hackathonId}/{uid}/{photoId}`) → `finalizeEventPhotoUpload` → `status: pending` → admin **Approve** → public carousel.
+
+**Admin path:** client `uploadEventPhoto` with `publishImmediately: true` → `status: approved` + `sortOrder`.
+
+**Quota:** 10 items per user (server transaction). **Media:** images ≤ 10 MB; videos ≤ 50 MB.
+
+**Deploy (gallery callables + rules):**
+
+```bash
+firebase deploy --only functions:hackathon:reserveEventPhotoUpload,functions:hackathon:finalizeEventPhotoUpload,functions:hackathon:withdrawEventPhoto,firestore:rules,storage
+```
+
+Schema: [DATA_MODEL.md](./DATA_MODEL.md#event-gallery-media-io2026hackathon_eventphotos). Journey: [USER_FLOW.md](./USER_FLOW.md#option-h-event-gallery-photos--videos).
+
+### 8.5 Firestore indexes
 
 Deploy with app: `firebase deploy --only firestore:indexes` — includes `io2026Hackathon_votes` (`userId` + `hackathonId`) and `io2026Hackathon_projects` (`status` + `voteTotal`).
 
-### 8.5 Remaining polish (optional)
+### 8.6 Remaining polish (optional)
 
 - CSV export of attendance / swag / cohort for ops
 - Denormalised `votingEligible` on user doc (today derived from attendance at vote time)
@@ -304,5 +334,6 @@ Then:
 5. **Swag:** tap **Swag** per checked-in attendee (filter **Needs swag**)
 6. **Voting window:** `/admin/voting` → set open/close → verify **`/vote`** after check-in
 7. **Close:** assign top 3 from votes or manual `place` on dashboard; announce on **`/live`**
+8. **Event gallery:** share **`/hackathon/photos`** link; moderate at **`/admin/photos`** (approve/remove); use **Gallery editor** to reorder and rename before/after the event
 
 See [USER_FLOW.md](./USER_FLOW.md) for participant-facing journey diagrams.
