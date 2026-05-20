@@ -39,9 +39,9 @@ export default function EventPhotosPage() {
         </div>
         <h1 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">Event gallery</h1>
         <p className="mx-auto max-w-2xl text-gray-400 text-sm sm:text-base">
-          Photos and videos from {HACKATHON_DISPLAY_NAME}. Share your own below — rename each item,
-          then the team reviews before it goes live. Swipe the carousel, filter by event or upload
-          date, and tap thumbnails to preview.
+          Photos and videos from {HACKATHON_DISPLAY_NAME}. Swipe the carousel, filter by event or
+          upload date, and tap thumbnails to preview. Scroll down to share your own — rename each
+          item, then the team reviews before it goes live.
         </p>
         {isAdmin ? (
           <p className="text-xs text-violet-300">
@@ -53,8 +53,6 @@ export default function EventPhotosPage() {
           </p>
         ) : null}
       </header>
-
-      <AttendeeEventPhotoUpload userId={user?.uid} />
 
       {loading ? (
         <div className="flex justify-center py-20">
@@ -70,6 +68,8 @@ export default function EventPhotosPage() {
           }}
         />
       )}
+
+      <AttendeeEventPhotoUpload userId={user?.uid} />
     </div>
   );
 }
