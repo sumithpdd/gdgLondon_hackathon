@@ -141,7 +141,8 @@ export default function IdeaGalleryPage() {
             </span>
           </h1>
           <p className="mx-auto max-w-2xl text-gray-400">
-            {HACKATHON_DISPLAY_NAME} — browse shipped submissions. Teams with{" "}
+            {HACKATHON_DISPLAY_NAME} — browse shipped submissions. Audience{" "}
+            <span className="text-violet-300">vote totals</span> are shown on each card. Teams with{" "}
             <span className="text-pink-300">Open to teammates</span> can receive join requests.
           </p>
           <p className="text-sm text-gray-500">

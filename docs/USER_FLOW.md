@@ -175,6 +175,17 @@ sequenceDiagram
 - Archived project cards
 - Side-event card (Garden of the Forgotten Prompt)
 
+### Option H: Event photo gallery
+
+| Route | Who | Purpose |
+|-------|-----|---------|
+| `/hackathon/photos` | Attendees | Upload photos (pending until approved); browse **approved** gallery with filters and carousel |
+| `/admin/photos` | Admin | Upload (published immediately); **Pending review** queue — approve or decline attendee submissions |
+
+**Flow:** Attendee upload (max **10** per person, enforced server-side) → `reserveEventPhotoUpload` → Storage → `finalizeEventPhotoUpload` → admin previews at `/admin/photos` → **Approve** or **Remove** (deletes file, frees slot). Admin uploads use `status: approved` on create.
+
+**Modules:** `lib/event-photos.ts`, `components/photos/AttendeeEventPhotoUpload.tsx`, `components/admin/AdminEventPhotosPanel.tsx`.
+
 ---
 
 ## Step 4: Event day — check-in, swag, AI DevCamp, voting

@@ -89,8 +89,27 @@ When `NEXT_PUBLIC_HACKATHON_DATASET=io2026`, the app uses `io2026Hackathon_*`. W
 | Discussions | `io2026Hackathon_discussions` | `hackatonDiscussions` |
 | Updates | `io2026Hackathon_updates` | `hackatonUpdates` |
 | Credit claims | `io2026Hackathon_creditClaims` | `hackatonCreditClaims` |
+| Event photos | `io2026Hackathon_eventPhotos` | — |
 
 Subcollections (under projects / users): `comments`, `bookmarks` — see `lib/constants.ts`.
+
+### Event photos (`io2026Hackathon_eventPhotos`)
+
+Storage path prefix: `event_photos/{hackathonId}/{fileName}`.
+
+| Field | Type | Notes |
+|-------|------|--------|
+| `hackathonId` | string | Edition id |
+| `eventName`, `eventDate` | string | Filter labels (`eventDate` = `YYYY-MM-DD`) |
+| `imageUrl`, `storagePath` | string | Public URL + Storage path |
+| `caption` | string? | Max 300 chars |
+| `uploadedBy` | string | Auth UID |
+| `status` | `"pending"` \| `"approved"` \| `"rejected"` | Attendee creates `pending`; admin creates `approved` |
+| `createdAt`, `reviewedAt`, `reviewedBy` | timestamp / string | Audit |
+
+**Rules:** Public read only `approved`; owners read own docs; admin reads all. Client create: **admin only** (`approved`). Attendee creates via `reserveEventPhotoUpload` / `finalizeEventPhotoUpload` callables (max **10** photos per user, pending + approved). Updates admin-only. Delete: `withdrawEventPhoto` callable (admin/owner) or owner pending via rules.
+
+**Storage:** Attendee path `event_photos/{hackathonId}/{uid}/{photoId}` — write only when a matching pending Firestore doc exists. Admin uses flat `event_photos/{hackathonId}/{fileName}`.
 
 ---
 

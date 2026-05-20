@@ -25,6 +25,9 @@ export const HACKATHON_CALLABLES = [
   "castVotes",
   "refreshLiveStats",
   "assignWinnersFromVotes",
+  "reserveEventPhotoUpload",
+  "finalizeEventPhotoUpload",
+  "withdrawEventPhoto",
 ] as const;
 
 export type HackathonCallable = (typeof HACKATHON_CALLABLES)[number];

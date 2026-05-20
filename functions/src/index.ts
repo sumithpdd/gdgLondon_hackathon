@@ -1388,3 +1388,168 @@ export const assignWinnersFromVotes = onCall(async (request) => {
 
   return { success: true, places };
 });
+
+// ── Event photos (attendee quota + moderation) ───────────
+
+const EVENT_PHOTOS_COLLECTION =
+  process.env.EVENT_PHOTOS_COLLECTION || "io2026Hackathon_eventPhotos";
+const MAX_EVENT_PHOTOS_PER_ATTENDEE = 10;
+const EVENT_PHOTOS_STORAGE_PREFIX = "event_photos";
+
+function sanitizeEventPhotoText(value: unknown, max: number): string {
+  return String(value || "")
+    .trim()
+    .slice(0, max);
+}
+
+function normalizeEventPhotoDate(value: unknown): string {
+  const trimmed = String(value || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const d = new Date(trimmed);
+  if (Number.isNaN(d.getTime())) {
+    throw new HttpsError("invalid-argument", "Use a valid event date (YYYY-MM-DD).");
+  }
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+async function countAttendeeEventPhotosInTransaction(
+  tx: admin.firestore.Transaction,
+  uid: string
+): Promise<number> {
+  const q = db
+    .collection(EVENT_PHOTOS_COLLECTION)
+    .where("uploadedBy", "==", uid)
+    .limit(MAX_EVENT_PHOTOS_PER_ATTENDEE + 1);
+  const snap = await tx.get(q);
+  return snap.size;
+}
+
+/** Reserve a slot + Firestore doc before Storage upload (max 10 per attendee). */
+export const reserveEventPhotoUpload = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+  const role = await getActorRole(uid);
+  if (role === "admin" || role === "moderator") {
+    throw new HttpsError(
+      "failed-precondition",
+      "Organisers upload from the admin photos page."
+    );
+  }
+
+  const data = request.data as Record<string, unknown>;
+  const hackathonId = sanitizeEventPhotoText(data.hackathonId, 80);
+  const eventName = sanitizeEventPhotoText(data.eventName, 120);
+  const eventDate = normalizeEventPhotoDate(data.eventDate);
+  const captionRaw = data.caption != null ? sanitizeEventPhotoText(data.caption, 300) : "";
+  const caption = captionRaw || undefined;
+
+  if (!hackathonId || !eventName) {
+    throw new HttpsError("invalid-argument", "Event name is required.");
+  }
+
+  const photoRef = db.collection(EVENT_PHOTOS_COLLECTION).doc();
+  const storagePath = `${EVENT_PHOTOS_STORAGE_PREFIX}/${hackathonId}/${uid}/${photoRef.id}`;
+
+  await db.runTransaction(async (tx) => {
+    const count = await countAttendeeEventPhotosInTransaction(tx, uid);
+    if (count >= MAX_EVENT_PHOTOS_PER_ATTENDEE) {
+      throw new HttpsError(
+        "resource-exhausted",
+        `You can have at most ${MAX_EVENT_PHOTOS_PER_ATTENDEE} photos (including pending). Remove one to upload more.`
+      );
+    }
+    tx.set(photoRef, {
+      hackathonId,
+      eventName,
+      eventDate,
+      imageUrl: "",
+      storagePath,
+      status: "pending",
+      uploadedBy: uid,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      ...(caption ? { caption } : {}),
+    });
+  });
+
+  return { photoId: photoRef.id, storagePath };
+});
+
+/** Set download URL after client uploads to the reserved Storage path. */
+export const finalizeEventPhotoUpload = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+  const data = request.data as Record<string, unknown>;
+  const photoId = sanitizeEventPhotoText(data.photoId, 128);
+  const imageUrl = sanitizeEventPhotoText(data.imageUrl, 2048);
+
+  if (!photoId || !imageUrl || !imageUrl.startsWith("https://")) {
+    throw new HttpsError("invalid-argument", "Invalid photo reference.");
+  }
+
+  const photoRef = db.collection(EVENT_PHOTOS_COLLECTION).doc(photoId);
+  const snap = await photoRef.get();
+  if (!snap.exists) {
+    throw new HttpsError("not-found", "Photo not found.");
+  }
+  const photo = snap.data()!;
+  if (photo.uploadedBy !== uid) {
+    throw new HttpsError("permission-denied", "Not your photo.");
+  }
+  if (photo.status !== "pending") {
+    throw new HttpsError("failed-precondition", "Photo is no longer pending.");
+  }
+
+  await photoRef.update({
+    imageUrl,
+    finalizedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return { success: true, photoId };
+});
+
+/** Cancel a pending upload (frees quota). Deletes Storage + Firestore. */
+export const withdrawEventPhoto = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+  const photoId = sanitizeEventPhotoText(
+    (request.data as Record<string, unknown>)?.photoId,
+    128
+  );
+  if (!photoId) throw new HttpsError("invalid-argument", "Photo id required.");
+
+  const photoRef = db.collection(EVENT_PHOTOS_COLLECTION).doc(photoId);
+  const snap = await photoRef.get();
+  if (!snap.exists) return { success: true };
+  const photo = snap.data()!;
+
+  const isOwner = photo.uploadedBy === uid;
+  const role = await getActorRole(uid);
+  const isOrganiser = role === "admin" || role === "moderator";
+
+  if (!isOwner && !isOrganiser) {
+    throw new HttpsError("permission-denied", "Not allowed to remove this photo.");
+  }
+  if (isOwner && photo.status !== "pending" && !isOrganiser) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Only pending submissions can be withdrawn."
+    );
+  }
+
+  const storagePath = String(photo.storagePath || "");
+  if (storagePath) {
+    try {
+      await admin.storage().bucket().file(storagePath).delete();
+    } catch {
+      /* may already be gone */
+    }
+  }
+  await photoRef.delete();
+  return { success: true };
+});

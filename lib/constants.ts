@@ -60,12 +60,18 @@ export const CHECKIN_PUBLIC_DOC_ID = "checkInPublic";
 export const CHECKIN_SECRETS_DOC_ID = "checkInSecrets";
 
 export const FIREBASE_STORAGE_FOLDER = "hackathon_uploads";
+/** Public event gallery — path: event_photos/{hackathonId}/{fileName} */
+export const EVENT_PHOTOS_STORAGE_PREFIX = "event_photos";
 export const COMMENTS_SUBCOLLECTION = "comments";
 export const BOOKMARKS_SUBCOLLECTION = "bookmarks";
 export const DISCUSSIONS_COLLECTION = c.discussions;
 export const UPDATES_COLLECTION = c.updates;
 export const CREDIT_CLAIMS_COLLECTION = c.creditClaims;
 export const BUDDY_REQUESTS_COLLECTION = c.buddyRequests;
+export const EVENT_PHOTOS_COLLECTION = c.eventPhotos;
+
+/** Max event photos per attendee (pending + approved combined). Enforced in Cloud Functions. */
+export const MAX_EVENT_PHOTOS_PER_ATTENDEE = 10;
 
 /** @deprecated Use PROJECTS_COLLECTION */
 export const FIREBASE_COLLECTION = PROJECTS_COLLECTION;

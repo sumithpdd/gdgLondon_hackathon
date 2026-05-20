@@ -9,6 +9,7 @@ import {
   BookOpen,
   Archive,
   Shield,
+  Camera,
 } from "lucide-react";
 import { BUDDIES_FEATURE_LABEL } from "@/lib/constants";
 
@@ -24,6 +25,7 @@ export type AppNavItem = {
 export const PUBLIC_NAV: AppNavItem[] = [
   { href: "/hackathon", label: "Home", icon: Home },
   { href: "/hackathon/ideas", label: "Ideas", icon: Lightbulb },
+  { href: "/hackathon/photos", label: "Photos", icon: Camera, matchPrefix: true },
   { href: "/hackathon/resources", label: "Resources", icon: BookOpen },
   { href: "/past-projects", label: "Past", icon: Archive, matchPrefix: true },
 ];
@@ -36,6 +38,7 @@ export const PARTICIPANT_NAV: AppNavItem[] = [
   { href: "/hackathon/buddies", label: BUDDIES_FEATURE_LABEL, icon: Users },
   { href: "/checkin", label: "Check-in", icon: Ticket },
   { href: "/vote", label: "Vote", icon: Vote },
+  { href: "/hackathon/photos", label: "Photos", icon: Camera, matchPrefix: true },
   { href: "/hackathon/resources", label: "Resources", icon: BookOpen },
   { href: "/past-projects", label: "Past", icon: Archive, matchPrefix: true },
 ];

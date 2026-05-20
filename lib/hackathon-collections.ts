@@ -54,6 +54,7 @@ export const IO2026_COLLECTIONS = {
   creditClaims: `${IO2026_PREFIX}_creditClaims`,
   buddyRequests: `${IO2026_PREFIX}_buddyRequests`,
   liveStats: `${IO2026_PREFIX}_liveStats`,
+  eventPhotos: `${IO2026_PREFIX}_eventPhotos`,
 } as const;
 
 /** Pre-migration collection names (GDG London hackathon v1) */
@@ -92,6 +93,7 @@ export function getActiveCollections() {
       discussions: IO2026_COLLECTIONS.discussions,
       updates: IO2026_COLLECTIONS.updates,
       buddyRequests: IO2026_COLLECTIONS.buddyRequests,
+      eventPhotos: IO2026_COLLECTIONS.eventPhotos,
     };
   }
   return {
@@ -108,5 +110,6 @@ export function getActiveCollections() {
     updates: LEGACY_COLLECTIONS.updates,
     buddyRequests: LEGACY_COLLECTIONS.buddyRequests,
     liveStats: "hackatonLiveStats",
+    eventPhotos: "hackatonEventPhotos",
   };
 }

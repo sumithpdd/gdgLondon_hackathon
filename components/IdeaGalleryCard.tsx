@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { MessageCircle, UserPlus, Loader2 } from "lucide-react";
+import { MessageCircle, UserPlus, Loader2, Vote } from "lucide-react";
 import { Submission } from "@/types/submission";
 import { getProjectTitle } from "@/lib/submission-utils";
 import {
@@ -70,6 +70,8 @@ export function IdeaGalleryCard({
   const category = getCategoryLabel(s);
   const openAsks = getOpenAsks(s);
   const founder = getFounderName(s);
+  const voteCount = Number(s.voteTotal) || 0;
+  const showVotes = s.status === "submitted" || voteCount > 0;
 
   const actionButton = () => {
     if (readOnly) return null;
@@ -165,14 +167,25 @@ export function IdeaGalleryCard({
             </span>
           ) : null}
         </div>
-        <span
-          className={cn(
-            "absolute right-3 top-3 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider backdrop-blur-sm",
-            "bg-pink-600/80 text-white"
-          )}
-        >
-          {category}
-        </span>
+        <div className="absolute right-3 top-3 flex flex-col items-end gap-1.5">
+          {showVotes ? (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-violet-600/90 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm tabular-nums"
+              title="Total audience votes"
+            >
+              <Vote className="h-3 w-3 shrink-0" aria-hidden />
+              {voteCount} {voteCount === 1 ? "vote" : "votes"}
+            </span>
+          ) : null}
+          <span
+            className={cn(
+              "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider backdrop-blur-sm",
+              "bg-pink-600/80 text-white"
+            )}
+          >
+            {category}
+          </span>
+        </div>
       </div>
 
       <div className="flex flex-1 flex-col gap-3 p-4 pt-2 -mt-6 relative">

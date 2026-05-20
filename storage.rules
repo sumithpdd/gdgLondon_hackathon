@@ -17,5 +17,43 @@ service firebase.storage {
       allow read: if true;
       allow write: if request.auth != null && request.resource.size < 10 * 1024 * 1024;
     }
+
+  function isStorageAdmin() {
+    return request.auth != null
+      && firestore.exists(/databases/(default)/documents/io2026Hackathon_users/$(request.auth.uid))
+      && firestore.get(/databases/(default)/documents/io2026Hackathon_users/$(request.auth.uid)).data.role == 'admin';
+  }
+
+    function eventPhotoImageOk() {
+      return request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    function reservedAttendeeEventPhoto(hackathonId, uid, photoId) {
+      return firestore.exists(/databases/(default)/documents/io2026Hackathon_eventPhotos/$(photoId))
+        && firestore.get(/databases/(default)/documents/io2026Hackathon_eventPhotos/$(photoId)).data.uploadedBy == uid
+        && firestore.get(/databases/(default)/documents/io2026Hackathon_eventPhotos/$(photoId)).data.status == 'pending'
+        && firestore.get(/databases/(default)/documents/io2026Hackathon_eventPhotos/$(photoId)).data.storagePath
+            == 'event_photos/' + hackathonId + '/' + uid + '/' + photoId;
+    }
+
+    // Attendee slot: reserved in Firestore before upload (max 10 enforced server-side).
+    match /event_photos/{hackathonId}/{uid}/{photoId} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.auth.uid == uid
+        && eventPhotoImageOk()
+        && reservedAttendeeEventPhoto(hackathonId, uid, photoId);
+      allow delete: if request.auth != null
+        && request.auth.uid == uid
+        && reservedAttendeeEventPhoto(hackathonId, uid, photoId);
+    }
+
+    // Admin / legacy flat path: event_photos/{hackathonId}/{fileName}
+    match /event_photos/{hackathonId}/{fileName} {
+      allow read: if true;
+      allow write: if isStorageAdmin() && eventPhotoImageOk();
+      allow delete: if isStorageAdmin();
+    }
   }
 }

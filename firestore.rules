@@ -285,6 +285,39 @@ service cloud.firestore {
         && resource.data.status == "pending";
     }
 
+    function eventPhotoFieldsValid() {
+      return request.resource.data.hackathonId is string
+        && request.resource.data.hackathonId.size() > 0
+        && request.resource.data.hackathonId.size() <= 80
+        && request.resource.data.eventName is string
+        && request.resource.data.eventName.size() > 0
+        && request.resource.data.eventName.size() <= 120
+        && request.resource.data.eventDate is string
+        && request.resource.data.eventDate.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && request.resource.data.imageUrl is string
+        && request.resource.data.imageUrl.size() <= 2048
+        && request.resource.data.storagePath is string
+        && request.resource.data.storagePath.matches('^event_photos/.+')
+        && request.resource.data.uploadedBy == request.auth.uid
+        && (!('caption' in request.resource.data) || request.resource.data.caption.size() <= 300);
+    }
+
+    match /io2026Hackathon_eventPhotos/{photoId} {
+      allow read: if resource.data.status == 'approved'
+        || (isAuthenticated() && resource.data.uploadedBy == request.auth.uid)
+        || isAdmin();
+      // Attendee uploads: reserveEventPhotoUpload / finalizeEventPhotoUpload callables only.
+      allow create: if isAuthenticated()
+        && eventPhotoFieldsValid()
+        && isAdmin()
+        && request.resource.data.status == 'approved';
+      allow update: if isAdmin();
+      allow delete: if isAdmin()
+        || (isAuthenticated()
+          && resource.data.uploadedBy == request.auth.uid
+          && resource.data.status == 'pending');
+    }
+
     // ── IWD 2026 archive (read-only for clients; writes via Admin SDK / migration) ─
     match /iwd2026Hackathon_users/{userId} {
       allow read: if isAuthenticated();
